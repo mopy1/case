@@ -33,9 +33,6 @@ public class Usuario {
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, length = 150)
-    private String fullname;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

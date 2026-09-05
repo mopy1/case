@@ -8,7 +8,6 @@ public record UsuarioResponse(
         Long id,
         String username,
         String email,
-        String fullname,
         Instant createdAt) {
 
     public static UsuarioResponse from(Usuario usuario) {
@@ -16,7 +15,6 @@ public record UsuarioResponse(
                 usuario.getId(),
                 usuario.getUsername(),
                 usuario.getEmail(),
-                usuario.getFullname(),
                 usuario.getCreatedAt());
     }
 }

@@ -40,8 +40,7 @@ public class AuthService {
 
         String token = jwtService.generateToken(usuario.getId(), usuario.getUsername());
 
-        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), usuario.getFullname(),
-                token);
+        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -56,13 +55,11 @@ public class AuthService {
         usuario.setUsername(request.username());
         usuario.setEmail(request.email());
         usuario.setPassword(passwordEncoder.encode(request.password()));
-        usuario.setFullname(request.fullname());
         usuarioRepository.save(usuario);
 
         String token = jwtService.generateToken(usuario.getId(), usuario.getUsername());
 
-        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), usuario.getFullname(),
-                token);
+        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
     }
 
     @Transactional(readOnly = true)
