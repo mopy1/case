@@ -1,0 +1,33 @@
+services:
+  # Base de Datos PostgreSQL
+  postgres-db:
+    image: postgres:16
+    container_name: case_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: case_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: case_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - case_pgdata:/var/lib/postgresql/data
+
+  # Backend Spring Boot (Java)
+  backend-app:
+    build: ./case-backend
+    container_name: case_backend
+    restart: always
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/case_db
+      SPRING_DATASOURCE_USERNAME: case_user
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+
+volumes:
+  case_pgdata:

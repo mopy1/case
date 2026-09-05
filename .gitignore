@@ -1,0 +1,48 @@
+# --- Java & Maven (Backend) ---
+target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+
+# --- Node (Frontend, cuando exista) ---
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+*.log
+
+# --- IDEs & Editors ---
+.idea/
+**/.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.classpath
+.project
+.settings/
+.factorypath
+
+# --- Operating System & Temporary ---
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# --- Secrets & Local Environments ---
+.env
+.env.local
+.env.*.local
+
+# --- Docker & DB local volumes ---
+case_pgdata/
+data/
