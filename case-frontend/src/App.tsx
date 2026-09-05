@@ -1,11 +1,13 @@
-import { Button } from "@/components/ui/button"
+import { Route, Routes } from "react-router-dom"
+import { LoginPage } from "@/features/auth/pages/LoginPage"
+import { Home } from "@/pages/Home"
+
 function App() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <p className="text-gray-400">case-frontend — listo para empezar</p>
-      <Button>holla</Button>
-      <Button variant="outline">holla</Button>
-    </div>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<LoginPage />} />
+    </Routes>
   )
 }
 
