@@ -1,4 +1,4 @@
-package com.casetool.backend.modules.usuario;
+package com.casetool.backend.modules.seguridad.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.casetool.backend.modules.usuario.dto.AuthResponse;
-import com.casetool.backend.modules.usuario.dto.LoginRequest;
-import com.casetool.backend.modules.usuario.dto.RegisterRequest;
-import com.casetool.backend.modules.usuario.dto.UsuarioResponse;
+import com.casetool.backend.modules.seguridad.dto.AuthResponse;
+import com.casetool.backend.modules.seguridad.dto.LoginRequest;
+import com.casetool.backend.modules.seguridad.dto.RegisterRequest;
+import com.casetool.backend.modules.seguridad.dto.UsuarioResponse;
+import com.casetool.backend.modules.seguridad.service.AuthService;
 
 import jakarta.validation.Valid;
 

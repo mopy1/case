@@ -1,4 +1,4 @@
-package com.casetool.backend.core.web;
+package com.casetool.backend.core.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;

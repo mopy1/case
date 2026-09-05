@@ -1,4 +1,4 @@
-package com.casetool.backend.core.exception;
+package com.casetool.backend.modules.seguridad.exception;
 
 public class CredencialesInvalidasException extends RuntimeException {
     public CredencialesInvalidasException(String message) {

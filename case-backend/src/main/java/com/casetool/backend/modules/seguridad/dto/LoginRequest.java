@@ -1,4 +1,4 @@
-package com.casetool.backend.modules.usuario.dto;
+package com.casetool.backend.modules.seguridad.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

@@ -1,8 +1,8 @@
-package com.casetool.backend.modules.usuario.dto;
+package com.casetool.backend.modules.seguridad.dto;
 
 import java.time.Instant;
 
-import com.casetool.backend.modules.usuario.Usuario;
+import com.casetool.backend.modules.seguridad.model.Usuario;
 
 public record UsuarioResponse(
         Long id,

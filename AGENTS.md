@@ -10,7 +10,7 @@ el parcial: `SW/Parcial1/backend/Backend.md` del vault.
 /home/lmc/projects/sw-case/
 ├── docker-compose.yml      # Postgres + backend + frontend, los 3 servicios (ver abajo)
 ├── .env.example            # Variables para docker-compose
-├── case-backend/           # Spring Boot (Java 21) — API REST de proyectos, diagramas y auth
+├── case-backend/           # Spring Boot (Java 21) — solo login/register por ahora (ver AGENTS.md)
 │                           # → ver case-backend/AGENTS.md (fuente de verdad del backend)
 └── case-frontend/          # React + TS + Tailwind v4 + React Router + shadcn/Base UI
                             # → ver case-frontend/AGENTS.md (fuente de verdad del frontend)
@@ -37,7 +37,12 @@ carpetas detallados de cada parte viven en su propio `AGENTS.md`:
 
 ## Estado general (ver detalle de fases en cada AGENTS.md)
 
-- ✅ Fase 1 (estructura base + modelo de datos) y login (JWT) — backend.
-- ✅ Scaffold del frontend + shadcn/Base UI instalado — sin componentes de negocio (login/register en construcción, a mano).
-- 🔜 Próximo paso acordado: módulo `grupo` (colaboración por equipos) en el backend.
-- ⏳ Fases 2 (canvas UML), 3 (XMI), 4 (generador de backend), 5 (voz/foto), 6 (colaboración en tiempo real), 7 (app móvil Flutter) y 8 (documentación formal) — sin iniciar.
+- ✅ Backend: **solo login/register (JWT)** — reestructurado 2026-09-05 siguiendo la convención
+  de subpaquetes de `erp-backend` (`controller/dto/exception/model/repository/service` por
+  módulo). `project`/`diagram` (Fase 1) se eliminaron a propósito para simplificar el alcance
+  actual — siguen en el historial de git, se recrean más adelante con esta misma convención.
+- ✅ Frontend: login funcional con componentes shadcn (sin editar) — `useLogin` → backend →
+  redirige a `/` que muestra "Hola". Registro pendiente, lo arma el usuario a mano.
+- ⏳ Todo lo demás (proyectos/diagramas, grupo, canvas UML, XMI, generador de backend, voz/foto,
+  colaboración en tiempo real, app móvil Flutter, documentación formal) — sin empezar o
+  pospuesto por la reducción de alcance de arriba.

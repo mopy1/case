@@ -1,4 +1,4 @@
-package com.casetool.backend.modules.usuario.dto;
+package com.casetool.backend.modules.seguridad.dto;
 
 public record AuthResponse(
         Long id,

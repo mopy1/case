@@ -1,17 +1,19 @@
-package com.casetool.backend.modules.usuario;
+package com.casetool.backend.modules.seguridad.service;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.casetool.backend.core.exception.CredencialesInvalidasException;
-import com.casetool.backend.core.exception.RecursoDuplicadoException;
 import com.casetool.backend.core.exception.ResourceNotFoundException;
 import com.casetool.backend.core.security.JwtService;
-import com.casetool.backend.modules.usuario.dto.AuthResponse;
-import com.casetool.backend.modules.usuario.dto.LoginRequest;
-import com.casetool.backend.modules.usuario.dto.RegisterRequest;
-import com.casetool.backend.modules.usuario.dto.UsuarioResponse;
+import com.casetool.backend.modules.seguridad.dto.AuthResponse;
+import com.casetool.backend.modules.seguridad.dto.LoginRequest;
+import com.casetool.backend.modules.seguridad.dto.RegisterRequest;
+import com.casetool.backend.modules.seguridad.dto.UsuarioResponse;
+import com.casetool.backend.modules.seguridad.exception.CredencialesInvalidasException;
+import com.casetool.backend.modules.seguridad.exception.RecursoDuplicadoException;
+import com.casetool.backend.modules.seguridad.model.Usuario;
+import com.casetool.backend.modules.seguridad.repository.UsuarioRepository;
 
 @Service
 @Transactional

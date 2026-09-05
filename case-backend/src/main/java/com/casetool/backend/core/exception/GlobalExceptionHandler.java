@@ -10,6 +10,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.casetool.backend.modules.seguridad.exception.CredencialesInvalidasException;
+import com.casetool.backend.modules.seguridad.exception.RecursoDuplicadoException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
