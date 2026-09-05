@@ -25,6 +25,17 @@ Cluster PostgreSQL nativo en el puerto `5433` (rol `lmc`, base `case_db`, passwo
 `case_password123` — ver `application.properties`). Levantar con `./mvnw spring-boot:run`
 (puerto `8081`).
 
+## Docker (agregado 2026-09-05)
+
+`Dockerfile` multi-stage (Maven build → `eclipse-temurin:21-jre`). Se levanta junto a Postgres y
+al frontend vía `../docker-compose.yml` (raíz de `sw-case/`) — variables reales en `../.env`
+(gitignoreado, ver `../.env.example`). Dentro del compose usa el Postgres del propio compose
+(puerto `5434` en el host), no el cluster nativo. Verificado end-to-end: `docker compose up -d`
+→ registro real vía `POST /api/auth/register` → JWT emitido → persistido en Postgres.
+
+**Usuario de prueba (bootstrap manual, no seed):** `demo` / `secreta123` — vive en el volumen
+`case_pgdata`, se pierde si se resetea.
+
 ## Endpoints principales
 
 - `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` (público solo login/register)

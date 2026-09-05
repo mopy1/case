@@ -8,7 +8,7 @@ el parcial: `SW/Parcial1/backend/Backend.md` del vault.
 
 ```text
 /home/lmc/projects/sw-case/
-├── docker-compose.yml      # Postgres + backend (perfil docker, puertos 5434/8081)
+├── docker-compose.yml      # Postgres + backend + frontend, los 3 servicios (ver abajo)
 ├── .env.example            # Variables para docker-compose
 ├── case-backend/           # Spring Boot (Java 21) — API REST de proyectos, diagramas y auth
 │                           # → ver case-backend/AGENTS.md (fuente de verdad del backend)
@@ -24,10 +24,16 @@ carpetas detallados de cada parte viven en su propio `AGENTS.md`:
 
 ## Infraestructura compartida
 
-- **Puertos:** `8081` backend, `5173` frontend (dev), `5433` Postgres nativo, `5434` Postgres
-  Docker (perfil `docker-compose`, todavía no probado — falta daemon de Docker en este entorno).
-- **Git:** repo inicializado (`git init`), sin commit todavía.
-- **CORS:** el backend permite `http://localhost:5173` (`cors.allowed-origins`).
+- **Puertos:** `8081` backend, `5173` frontend, `5433` Postgres nativo (dev sin Docker), `5434`
+  Postgres Docker.
+- **Docker:** los 3 servicios (`postgres-db`, `backend-app`, `frontend-app`) dockerizados y
+  verificados end-to-end (2026-09-05) — `docker compose up -d` desde la raíz. El backend corre
+  contra Postgres del propio compose (no el cluster nativo). Frontend: build Vite servido por
+  Nginx (`case-frontend/Dockerfile` + `nginx.conf`, SPA fallback a `index.html`).
+- **Git:** repo con historial real desde 2026-09-05 (antes no tenía ningún commit).
+- **CORS:** el backend permite `http://localhost:5173` (`cors.allowed-origins`) — funciona igual
+  con el frontend dockerizado, porque el navegador sigue viendo ese origen (Docker solo mapea
+  el puerto del host).
 
 ## Estado general (ver detalle de fases en cada AGENTS.md)
 

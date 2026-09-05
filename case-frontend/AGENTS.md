@@ -13,8 +13,16 @@ Cualquier agente IA o desarrollador que trabaje en esta base de código **DEBE**
   Agregar componentes: `npx shadcn@latest add <componente>` → quedan en `src/components/ui/`.
 - **Alias `@/*` → `src/*`**: configurado en `tsconfig.json`/`tsconfig.app.json` y `vite.config.ts` (requisito de shadcn, no venía en el scaffold de Vite).
 - **Skill + MCP de shadcn instalados** (`npx skills add shadcn/ui` + `npx shadcn@latest mcp init --client claude`): `.agents/skills/shadcn` (reglas de estilo/forms/composición, detecta Base UI vs Radix automáticamente) y `.agents/skills/migrate-radix-to-base`, más `.mcp.json` con el servidor MCP `shadcn` para buscar/instalar componentes de registries. Claude Code pide aprobar `.mcp.json` la primera vez que se abre sesión acá.
-- **Variables:** `.env` / `.env.example` — `VITE_API_URL=http://localhost:8081`.
-- **Levantar:** `npm run dev` (puerto `5173`, ya permitido en el CORS del backend).
+- **Variables:** `.env` / `.env.example` — `VITE_API_URL=http://localhost:8081` (nota: `VITE_*` es
+  build-time en Vite, no runtime; hoy `useLogin.ts` llama al backend con la URL hardcodeada
+  `http://localhost:8081`, no lee esta variable todavía — funciona igual en Docker porque el
+  fetch lo hace el navegador del host, no el contenedor, y el puerto está mapeado 1:1).
+- **Levantar (dev):** `npm run dev` (puerto `5173`, ya permitido en el CORS del backend).
+- **Docker (agregado 2026-09-05):** `Dockerfile` multi-stage (Node build → `nginx:alpine`,
+  `nginx.conf` con SPA fallback a `index.html`). Sin config de runtime (`window.__env`) como en
+  los otros proyectos — no hizo falta porque el fetch nunca corre dentro del contenedor. Se
+  levanta junto al backend y Postgres vía `../docker-compose.yml`, puerto `5173` (mapeado a
+  Nginx `80` adentro).
 
 ---
 

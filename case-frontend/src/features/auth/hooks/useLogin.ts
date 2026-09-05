@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import type { LoginRequest, AuthResponse } from "../types/auth.types"
+import type { LoginRequest } from "../types/auth.types"
 
 export function useLogin() {
   const [loading, setLoading] = useState(false)
