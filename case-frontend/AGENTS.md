@@ -103,7 +103,7 @@ case-frontend/
 │   │
 │   ├── layouts/                       # Estructuras de cascarón visual
 │   │   ├── AuthLayout.tsx             # Para Login / Register (centrado o split)
-│   │   ├── DashboardLayout.tsx        # Con Navbar superior y navegación de grupos
+│   │   ├── DashboardLayout.tsx        # Con Navbar superior y navegación principal
 │   │   └── CanvasLayout.tsx           # Pantalla completa con Toolbar para el editor UML
 │   │
 │   ├── lib/                           # Configuraciones de clientes e infraestructura
@@ -149,37 +149,26 @@ case-frontend/
 │       │       ├── LoginPage.tsx      # Vista pública /login
 │       │       └── RegisterPage.tsx   # Vista pública /register
 │       │
-│       ├── groups/                    # Módulo 2: Grupos de Trabajo Colaborativo
+│       ├── projects/                  # Módulo 2: Gestión de Proyectos + colaboradores
 │       │   ├── api/
-│       │   │   └── groupsApi.ts       # getGrupos(), crearGrupo(), agregarMiembro()
+│       │   │   └── projectsApi.ts     # getMyProjects(), createProject(), delete(),
+│       │   │                          #   addMember(projectId, usuario), removeMember(...)
 │       │   ├── types/
-│       │   │   └── groups.types.ts    # Grupo, GrupoMiembro, RolGrupo (ADMIN, MIEMBRO)
-│       │   ├── hooks/
-│       │   │   ├── useGroups.ts
-│       │   │   └── useGroupMembers.ts
-│       │   ├── components/
-│       │   │   ├── group-selector/    # Dropdown en navbar para cambiar de grupo
-│       │   │   ├── group-card/
-│       │   │   └── member-list/
-│       │   └── pages/
-│       │       └── GroupsPage.tsx     # Gestión de equipos e invitaciones
-│       │
-│       ├── projects/                  # Módulo 3: Gestión de Proyectos
-│       │   ├── api/
-│       │   │   └── projectsApi.ts     # getProjectsByGroup(), createProject(), delete()
-│       │   ├── types/
-│       │   │   └── projects.types.ts  # Project, ProjectRequest, ProjectResponse
+│       │   │   └── projects.types.ts  # Project, ProjectRequest, ProjectResponse,
+│       │   │                          #   ProjectMiembro, RolProyecto (ADMIN, MIEMBRO)
 │       │   ├── hooks/
 │       │   │   ├── useProjects.ts
-│       │   │   └── useProjectMutations.ts
+│       │   │   ├── useProjectMutations.ts
+│       │   │   └── useProjectMembers.ts   # colaboradores directos del proyecto (sin Grupo)
 │       │   ├── components/
 │       │   │   ├── project-card/      # Tarjeta individual de proyecto
 │       │   │   ├── project-grid/      # Grilla de proyectos con búsqueda
-│       │   │   └── create-project-dialog/
+│       │   │   ├── create-project-dialog/
+│       │   │   └── project-members-dialog/ # Agregar/quitar colaboradores de ESE proyecto
 │       │   └── pages/
 │       │       └── ProjectsDashboardPage.tsx
 │       │
-│       ├── diagram/                   # Módulo 4: Lienzo UML (@xyflow/react)
+│       ├── diagram/                   # Módulo 3: Lienzo UML (@xyflow/react)
 │       │   ├── api/
 │       │   │   └── diagramApi.ts      # getDiagram(projectId), saveEntities(), saveRelations()
 │       │   ├── types/
@@ -204,7 +193,7 @@ case-frontend/
 │       │   └── pages/
 │       │       └── DiagramEditorPage.tsx # Vista principal del modelador UML
 │       │
-│       ├── xmi/                       # Módulo 5: Interoperabilidad Enterprise Architect
+│       ├── xmi/                       # Módulo 4: Interoperabilidad Enterprise Architect
 │       │   ├── api/
 │       │   │   └── xmiApi.ts          # exportXmi(projectId), importXmi(file)
 │       │   ├── hooks/
@@ -215,7 +204,7 @@ case-frontend/
 │       │   └── types/
 │       │       └── xmi.types.ts
 │       │
-│       ├── generator/                 # Módulo 6: Generador de Backend Spring Boot
+│       ├── generator/                 # Módulo 5: Generador de Backend Spring Boot
 │       │   ├── api/
 │       │   │   └── generatorApi.ts    # generateBackendZip(projectId), previewCode()
 │       │   ├── hooks/
@@ -226,7 +215,7 @@ case-frontend/
 │       │   └── types/
 │       │       └── generator.types.ts
 │       │
-│       ├── voice/                     # Módulo 7: Control Asistido por Voz (Web Speech API)
+│       ├── voice/                     # Módulo 6: Control Asistido por Voz (Web Speech API)
 │       │   ├── hooks/
 │       │   │   └── useVoiceCommands.ts # Escucha micrófono y mapea intención ("crear tabla X")
 │       │   ├── parser/
@@ -234,14 +223,14 @@ case-frontend/
 │       │   └── components/
 │       │       └── voice-mic-button/   # Botón flotante de dictado con indicador visual
 │       │
-│       └── collaboration/             # Módulo 8: Tiempo Real (WebSocket / STOMP)
+│       └── collaboration/             # Módulo 7: Tiempo Real (WebSocket / STOMP)
 │           ├── api/
 │           │   └── stompClient.ts     # Conexión socket a /ws-case
 │           ├── hooks/
 │           │   ├── useCollaboration.ts # Envío y recepción de deltas de nodos y relaciones
 │           │   └── usePresence.ts     # Lista de usuarios activos en el diagrama
 │           ├── components/
-│           │   ├── remote-cursor/     # Punteros en vivo de otros compañeros de grupo
+│           │   ├── remote-cursor/     # Punteros en vivo de otros colaboradores del proyecto
 │           │   └── active-users-badge/
 │           └── types/
 │               └── socket.types.ts

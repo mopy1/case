@@ -41,8 +41,11 @@ carpetas detallados de cada parte viven en su propio `AGENTS.md`:
   de subpaquetes de `erp-backend` (`controller/dto/exception/model/repository/service` por
   módulo). `project`/`diagram` (Fase 1) se eliminaron a propósito para simplificar el alcance
   actual — siguen en el historial de git, se recrean más adelante con esta misma convención.
-- ✅ Frontend: login funcional con componentes shadcn (sin editar) — `useLogin` → backend →
-  redirige a `/` que muestra "Hola". Registro pendiente, lo arma el usuario a mano.
-- ⏳ Todo lo demás (proyectos/diagramas, grupo, canvas UML, XMI, generador de backend, voz/foto,
+- ✅ Frontend: login **y register** funcionales con componentes shadcn (sin editar) — redirige
+  a `/` que muestra "Hola". Modo oscuro forzado por el momento.
+- 🔜 Decisión de diseño tomada (2026-09-05): la colaboración va **directo por proyecto**
+  (tabla puente `project_miembros`), **sin** capa de `Grupo`/equipo — se descartó esa idea
+  explícitamente, ver `SW/Parcial1/backend/Backend.md` del vault para el porqué.
+- ⏳ Todo lo demás (proyectos/diagramas, canvas UML, XMI, generador de backend, voz/foto,
   colaboración en tiempo real, app móvil Flutter, documentación formal) — sin empezar o
   pospuesto por la reducción de alcance de arriba.

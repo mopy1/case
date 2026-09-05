@@ -55,9 +55,8 @@ borraron de la base (estaban vacías, sin dato real perdido). El código sigue e
 el historial de git (`git log`) por si se necesita recuperarlo — no se perdió trabajo, se
 sacó a propósito del alcance actual.
 
-Cuando se retome `project`/`diagram` (y `grupo`), deben seguir la convención de subpaquetes
-de arriba (`controller/dto/exception/model/repository/service`), no el estilo flat que tenían
-antes.
+Cuando se retome `project`/`diagram`, deben seguir la convención de subpaquetes de arriba
+(`controller/dto/exception/model/repository/service`), no el estilo flat que tenían antes.
 
 ## Dev local (sin Docker)
 
@@ -114,10 +113,11 @@ case-backend/src/main/java/com/casetool/backend/
 
 ## Pendiente (fases futuras del Plan de Trabajo — sin iniciar, plan sin cambios)
 
-- `project`/`diagram`: a recrear con la convención de subpaquetes de arriba.
-- `grupo`: equipos compartidos — un grupo de personas crea su grupo y todos sus miembros ven
-  los mismos proyectos/diagramas. Detalle de decisiones en `SW/Parcial1/backend/Backend.md`
-  del vault.
+- `project`/`diagram`: a recrear con la convención de subpaquetes de arriba. `Project` incluye
+  desde el arranque una tabla puente `project_miembros` (`usuario_id`, `project_id`, `rol`) —
+  colaboración **directa por proyecto**, sin capa de `Grupo`/equipo (decisión 2026-09-05,
+  detalle y por qué en `SW/Parcial1/backend/Backend.md` del vault). Cada usuario ve/edita solo
+  los proyectos donde está agregado explícitamente, no "todos los de su equipo".
 - Fase 3: exportar/importar XMI hacia Enterprise Architect.
 - Fase 4: generador de backend Spring Boot a partir del modelo.
 - Fase 5.2: foto → modelo (endpoint de visión).
