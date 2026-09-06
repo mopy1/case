@@ -119,7 +119,10 @@ case-backend/src/main/java/com/casetool/backend/
   detalle y por qué en `SW/Parcial1/backend/Backend.md` del vault). Cada usuario ve/edita solo
   los proyectos donde está agregado explícitamente, no "todos los de su equipo".
 - Fase 3: exportar/importar XMI hacia Enterprise Architect.
-- Fase 4: generador de backend Spring Boot a partir del modelo.
-- Fase 5.2: foto → modelo (endpoint de visión).
+- Fase 4: generador de backend Spring Boot a partir del modelo. **Puede usar una IA real por
+  API** (LLM) — corre desde la web con internet normal, el requisito "sin internet" del
+  enunciado es solo para la app móvil (Fase 7), no para esto. Detalle en el vault.
+- Fase 5.2: foto → modelo (endpoint de visión). Mismo caso: IA de visión real por API vía web,
+  key que pone el usuario (BYOK, no se persiste en el backend).
 - Fase 6: colaboración en tiempo real (WebSocket/STOMP) — iría en `core/websocket` +
   `modules/collaboration`.
