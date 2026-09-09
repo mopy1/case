@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import type { LoginRequest } from "../types/auth.types"
+import { login as loginRequest } from "../api/authApi"
 
 export function useLogin() {
   const [loading, setLoading] = useState(false)
@@ -10,26 +11,12 @@ export function useLogin() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch("http://localhost:8081/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(credentials),
-      })
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => null)
-        throw new Error(error?.message ?? "Error al iniciar sesión")
-      }
-
-      const data = await response.json()
+      const data = await loginRequest(credentials)
       localStorage.setItem("token", data.token)
       localStorage.setItem("user", JSON.stringify({
         id: data.id,
         username: data.username,
         email: data.email,
-        fullname: data.fullname,
       }))
 
       navigate("/")

@@ -4,6 +4,46 @@ Este documento define la arquitectura técnica, los patrones de diseño y la est
 
 Cualquier agente IA o desarrollador que trabaje en esta base de código **DEBE** seguir estas directrices de forma obligatoria.
 
+## ✅ Estado real construido (2026-09-07/08)
+
+El árbol de la sección 2 de abajo es el **proyectado** (plan completo). Lo que existe de verdad
+hoy, funcional y probado contra el backend real:
+
+- `pages/Home.tsx`, `features/auth/` completo (login/register).
+- `features/projects/` — dashboard de proyectos completo: listar, buscar, crear (`Dialog` real),
+  tarjetas con avatares de colaboradores reales (`useProjectMembers`, un fetch por tarjeta — ver
+  nota de escalabilidad en la sección de `projects` más abajo).
+- **`layouts/ProjectLayout.tsx`** (nuevo) + **`components/common/project-nav-rail/`** (nuevo) —
+  el riel de navegación con Volver/Diagrama(deshabilitado)/Tareas/Notas/XMI/Generador. **Sin barra
+  superior** (2026-09-08, pedido explícito: "no quiero una barra en la parte de arriba") — el
+  breadcrumb del proyecto se sacó y los avatares (colaboradores + usuario actual) se movieron al
+  **riel izquierdo**, apilados verticalmente al fondo del riel: primero los colaboradores
+  (`Avatar` `size="sm"` con `ring-2 ring-background`, tooltip `username · rol`, tope 4 + contador
+  `+N`), separador, y el usuario logueado al final con `ring-2 ring-primary` para distinguirlo
+  ("Vos · username"). Color determinístico por usuario vía `colorAvatar()` (ver `src/lib/avatar.ts`
+  — extraído de `project-card.tsx` porque ya se usa en 2+ lugares, regla del proyecto). Rutas
+  anidadas en `App.tsx`: `/proyectos/:id` → `ProjectLayout`, con `tareas`/`notas`/`xmi`/`generador`
+  como hijas. `index` redirige a `tareas` por ahora — **cambiar a `diagrama` el día que se
+  construya ese módulo.**
+- **`features/tasks/`** (nuevo, completo) — Kanban de 3 columnas (`PENDIENTE`/`EN_PROGRESO`/`HECHO`),
+  crear tarea (con asignado opcional vía `useProjectMembers`), eliminar. Mismos endpoints reales de
+  `modules/proyecto/tareas` del backend. `TaskCard` (2026-09-08) ajustado para parecerse al boceto:
+  el avatar del asignado va superpuesto en la esquina inferior derecha de la tarjeta (`absolute
+  -right-2 -bottom-2`, requiere `overflow-visible` en el `Card` porque por defecto trae
+  `overflow-hidden`), color determinístico vía `colorAvatar()`. Cambiar de estado (2026-09-08,
+  pedido explícito) ya **no es un `Select`** — son dos flechas (`ChevronLeft`/`ChevronRight`) en el
+  footer de la tarjeta que avanzan/retroceden un paso en `ESTADOS_ORDEN` (`task-card.data.ts`:
+  `PENDIENTE → EN_PROGRESO → HECHO`), deshabilitadas en cada punta. Sigue sin ser drag-and-drop —
+  fuera de alcance.
+- **`features/notes/`** (nuevo, completo) — feed tipo timeline, crear nota (acción + motivo).
+- **`features/xmi/`** y **`features/generator/`** (nuevos, **solo placeholder**) — el backend no
+  tiene Fase 3 (XMI) ni Fase 4 (generador) construidas todavía, así que estas páginas son un
+  `Empty` con "próximamente" y botones `disabled` — nada de funcionalidad simulada. El generador
+  ya deja anotado en el copy que **solo genera Spring Boot**, sin selector de otro framework.
+- **`src/hooks/useAuth.ts`** (nuevo) — lee `user`/`token` de `localStorage`, expone `logout()`.
+- **Pendiente real:** `features/diagram/` (el editor de canvas, React Flow) — explícitamente
+  fuera de esta tanda de trabajo.
+
 ---
 
 ## 🧰 0. Stack y herramientas instaladas
@@ -88,27 +128,59 @@ case-frontend/
 │   │   │   ├── label.tsx              # ✅ instalado
 │   │   │   ├── field.tsx              # ✅ instalado (FieldGroup/FieldLabel/FieldDescription)
 │   │   │   ├── separator.tsx          # ✅ instalado (dependencia de card)
-│   │   │   ├── dialog.tsx             # 🔜 pendiente, agregar con `npx shadcn add dialog`
-│   │   │   ├── dropdown-menu.tsx      # 🔜 pendiente
+│   │   │   ├── dialog.tsx             # ✅ instalado
+│   │   │   ├── dropdown-menu.tsx      # ✅ instalado
+│   │   │   ├── badge.tsx              # ✅ instalado
+│   │   │   ├── textarea.tsx           # ✅ instalado
+│   │   │   ├── avatar.tsx             # ✅ instalado
+│   │   │   ├── tooltip.tsx            # ✅ instalado
 │   │   │   ├── sheet.tsx              # 🔜 pendiente
-│   │   │   ├── badge.tsx              # 🔜 pendiente
-│   │   │   ├── tooltip.tsx            # 🔜 pendiente
 │   │   │   └── toast.tsx              # 🔜 pendiente
 │   │   ├── feedback/                  # Componentes de estado global
 │   │   │   ├── LoadingScreen.tsx
 │   │   │   └── ErrorBoundary.tsx
 │   │   └── common/                    # Componentes reutilizables generales
 │   │       ├── ConfirmDialog.tsx
-│   │       └── SearchInput.tsx
+│   │       ├── SearchInput.tsx
+│   │       └── project-nav-rail/      # 🆕 extraído de ProjectLayout (2026-09-06) — la lista de
+│   │           ├── project-nav-rail.tsx     #   items del riel (Diagrama/Tareas/Notas/XMI/
+│   │           ├── project-nav-rail.data.ts #   Generador + volver) es justo el caso que la
+│   │           └── index.ts                 #   sección 1.C pide separar en .data.ts: es una
+│   │                                         #   lista de configuración real ({icono, label,
+│   │                                         #   path} por item), no texto suelto. (2026-09-08)
+│   │                                         #   también renderiza acá los avatares de colaboradores
+│   │                                         #   + usuario actual (antes vivían en una barra superior
+│   │                                         #   de ProjectLayout, se sacaron por pedido explícito).
 │   │
 │   ├── layouts/                       # Estructuras de cascarón visual
 │   │   ├── AuthLayout.tsx             # Para Login / Register (centrado o split)
-│   │   ├── DashboardLayout.tsx        # Con Navbar superior y navegación principal
-│   │   └── CanvasLayout.tsx           # Pantalla completa con Toolbar para el editor UML
+│   │   ├── DashboardLayout.tsx        # Con Navbar superior y navegación principal (dashboard de proyectos)
+│   │   ├── ProjectLayout.tsx          # 🆕 Cascarón de todo lo de "dentro" de un proyecto — confirmado
+│   │   │                              #   por el prototipo (2026-09-06). Página delgada: solo compone
+│   │   │                              #   <ProjectNavRail /> (components/common/) + `<Outlet/>`. **Sin
+│   │   │                              #   barra superior** (2026-09-08) — ni breadcrumb ni avatares acá;
+│   │   │                              #   los avatares viven en el riel (ver project-nav-rail arriba).
+│   │   │                              #   La lista de items del riel NO vive acá tampoco — está en
+│   │   │                              #   project-nav-rail.data.ts (ver componente).
+│   │   │                              #   DiagramEditorPage y las futuras ProjectTasksPage/
+│   │   │                              #   ProjectNotesPage viven DENTRO de este layout, no cada una con
+│   │   │                              #   su propio cascarón suelto.
+│   │   └── CanvasLayout.tsx           # Pantalla completa SOLO para el área de canvas (toolbar, zoom,
+│   │                                  #   minimapa) — se monta DENTRO de ProjectLayout en la ruta del
+│   │                                  #   Diagrama, no lo reemplaza.
 │   │
 │   ├── lib/                           # Configuraciones de clientes e infraestructura
-│   │   ├── api.ts                     # Cliente fetch/axios con baseURL y JWT interceptor
+│   │   ├── api.ts                     # ✅ existe (2026-09-06), solo `API_URL` desde
+│   │   │                              #   `import.meta.env.VITE_API_URL` por ahora — 🔜 falta el
+│   │   │                              #   interceptor de JWT (adjuntar `Authorization: Bearer`
+│   │   │                              #   automático). `authApi.ts` ya lo usa; el resto de los
+│   │   │                              #   `xxxApi.ts` futuros deben importar `API_URL` de acá,
+│   │   │                              #   nunca hardcodear `http://localhost:8081` de nuevo
 │   │   ├── utils.ts                   # cn() y formateadores generales
+│   │   ├── avatar.ts                  # ✅ existe (2026-09-08) — `colorAvatar()` (color determinístico
+│   │   │                              #   por hash de id) + `iniciales()`. Extraído de
+│   │   │                              #   `project-card.tsx` al reusarse en `project-nav-rail` y
+│   │   │                              #   `task-card` — regla de extracción del proyecto (2+ lugares)
 │   │   └── constants.ts               # Constantes globales del sistema
 │   │
 │   ├── routes/                        # Enrutamiento de la aplicación
@@ -153,26 +225,40 @@ case-frontend/
 │       │   ├── api/
 │       │   │   └── projectsApi.ts     # getMyProjects(), createProject(), delete(),
 │       │   │                          #   addMember(projectId, usuario), removeMember(...)
+│       │   │                          #   + notas/tareas del proyecto (ver abajo)
 │       │   ├── types/
-│       │   │   └── projects.types.ts  # Project, ProjectRequest, ProjectResponse,
-│       │   │                          #   ProjectMiembro, RolProyecto (ADMIN, MIEMBRO)
+│       │   │   └── projects.types.ts  # Proyecto, ProyectoRequest, ProyectoResponse,
+│       │   │                          #   MiembroProyecto, RolProyecto (ADMIN, COLABORADOR,
+│       │   │                          #   LECTOR — corregido 2026-09-06, ya no es solo ADMIN/MIEMBRO),
+│       │   │                          #   NotaProyecto, TareaProyecto — los 4 ya construidos en el
+│       │   │                          #   backend (`modules/proyecto`), falta el frontend
 │       │   ├── hooks/
 │       │   │   ├── useProjects.ts
 │       │   │   ├── useProjectMutations.ts
 │       │   │   └── useProjectMembers.ts   # colaboradores directos del proyecto (sin Grupo)
 │       │   ├── components/
-│       │   │   ├── project-card/      # Tarjeta individual de proyecto
-│       │   │   ├── project-grid/      # Grilla de proyectos con búsqueda
+│       │   │   ├── project-card/      # 🔄 confirmado por el prototipo: título + pill de estado
+│       │   │   │                      #   (Activo/Archivado), descripción, stack de avatares
+│       │   │   │                      #   superpuestos (máx. 4 + contador "+N"), "hace Xh/días" de
+│       │   │   │                      #   última edición
+│       │   │   ├── project-grid/      # 🔄 confirmado: grilla + buscador + toggle Tarjetas/Lista
+│       │   │   │                      #   (ver project-view-toggle/ abajo) + tarjeta fantasma final
+│       │   │   │                      #   "+ Crear proyecto nuevo"
+│       │   │   ├── project-view-toggle/ # 🆕 confirmado por el prototipo: switch Tarjetas | Lista
 │       │   │   ├── create-project-dialog/
 │       │   │   └── project-members-dialog/ # Agregar/quitar colaboradores de ESE proyecto
 │       │   └── pages/
 │       │       └── ProjectsDashboardPage.tsx
 │       │
+│       │   # Nota (2026-09-05): sustantivos de dominio en español (Proyecto, NotaProyecto,
+│       │   # TareaProyecto) para que coincidan 1:1 con las entidades del backend. Nombres de carpetas,
+│       │   # archivos y rutas se quedan en inglés (convención normal de proyectos JS/TS).
+│       │
 │       ├── diagram/                   # Módulo 3: Lienzo UML (@xyflow/react)
 │       │   ├── api/
 │       │   │   └── diagramApi.ts      # getDiagram(projectId), saveEntities(), saveRelations()
 │       │   ├── types/
-│       │   ├── diagram.types.ts   # DiagramEntity, EntityAttribute, DiagramRelation
+│       │   ├── diagram.types.ts   # EntidadDiagrama, AtributoEntidad, RelacionDiagrama
 │       │   │   └── canvas.types.ts    # Nodos y bordes de React Flow
 │       │   ├── hooks/
 │       │   │   ├── useDiagramSync.ts  # Carga y persistencia del diagrama
@@ -180,16 +266,32 @@ case-frontend/
 │       │   │   └── useCanvasShortcuts.ts # Atajos de teclado (Ctrl+Z, Supr, etc.)
 │       │   ├── components/
 │       │   │   ├── nodes/
-│       │   │   │   ├── EntityNode.tsx # Nodo de tabla/clase UML con PK, FK, tipos
-│       │   │   │   └── NodeAttributeRow.tsx
+│       │   │   │   ├── EntityNode.tsx # Nodo de tabla/clase UML — header con nombre editable,
+│       │   │   │   │                  #   botón "eliminar tabla" y botón "+ atributo" al final;
+│       │   │   │   │                  #   delega cada fila a node-attribute-row/ (abajo)
+│       │   │   │   └── node-attribute-row/  # 🔄 confirmado por el prototipo: pasa de archivo suelto
+│       │   │   │       ├── node-attribute-row.tsx      #   a carpeta (2026-09-06) — ahora sí aplica
+│       │   │   │       ├── node-attribute-row.data.ts  #   el criterio de la sección 1.C: el combobox
+│       │   │   │       │                                #   de tipo SQL es una lista de opciones real
+│       │   │   │       │                                #   (VARCHAR, INT, BOOLEAN, DATE, DECIMAL...),
+│       │   │   │       │                                #   no texto suelto. Edita inline: input de
+│       │   │   │       │                                #   nombre, combobox de tipo, toggles
+│       │   │   │       │                                #   PK/FK/NULL, botón "×". Clase `nodrag` en
+│       │   │   │       │                                #   los inputs para no pelear con el drag del
+│       │   │   │       │                                #   nodo (React Flow)
+│       │   │   │       └── index.ts
 │       │   │   ├── edges/
 │       │   │   │   └── UmlRelationEdge.tsx # Conectores 1:1, 1:N, N:M con multiplicidad
 │       │   │   ├── toolbar/
 │       │   │   │   ├── CanvasToolbar.tsx # Agregar tabla, zoom, exportar, deshacer
 │       │   │   │   └── toolbar.data.ts
-│       │   │   ├── entity-editor-panel/  # Sidebar para editar atributos y tipos SQL
+│       │   │   ├── ai-command-bar/    # 🆕 confirmado por el prototipo: input flotante abajo-
+│       │   │   │                      #   centro, "Pide un cambio al modelo... ⌘K" + botón de
+│       │   │   │                      #   voz + enviar — UI conjunta de CU13 (generar backend) y
+│       │   │   │                      #   CU14 (voz); el mic de acá reemplaza al voice-mic-button
+│       │   │   │                      #   flotante que tenía planeado el módulo voice/ por separado
 │       │   │   └── minimap/
-│       │   │       └── CanvasMinimap.tsx
+│       │   │       └── CanvasMinimap.tsx # esquina inferior derecha — confirmado, sin cambios
 │       │   └── pages/
 │       │       └── DiagramEditorPage.tsx # Vista principal del modelador UML
 │       │
@@ -221,7 +323,10 @@ case-frontend/
 │       │   ├── parser/
 │       │   │   └── commandParser.ts   # Intérprete de lenguaje natural a acciones del lienzo
 │       │   └── components/
-│       │       └── voice-mic-button/   # Botón flotante de dictado con indicador visual
+│       │       └── voice-mic-button/   # 🔄 sigue existiendo para uso fuera del canvas (ej. dashboard
+│       │                              #   de proyectos), pero DENTRO del editor de diagrama el mic ya
+│       │                              #   vive integrado en `diagram/components/ai-command-bar/` — no
+│       │                              #   duplicar el botón flotante ahí.
 │       │
 │       └── collaboration/             # Módulo 7: Tiempo Real (WebSocket / STOMP)
 │           ├── api/

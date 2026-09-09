@@ -1,0 +1,91 @@
+import { useState } from "react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useProjects } from "../hooks/useProjects"
+import { ProjectCard } from "../components/project-card/project-card"
+import { CreateProjectDialog } from "../components/create-project-dialog/create-project-dialog"
+
+export function ProjectsDashboardPage() {
+  const { projects, loading, error, getMyProjects } = useProjects()
+  const [busqueda, setBusqueda] = useState("")
+
+  const filtrados = projects.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+
+  let content: React.ReactNode = null
+  if (loading) {
+    content = (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="w-full max-w-sm">
+            <CardHeader>
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-5 w-16" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  } else if (!error && projects.length === 0) {
+    content = (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Todavía no tenés proyectos</EmptyTitle>
+          <EmptyDescription>Creá tu primer proyecto para empezar a modelar una base de datos.</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <CreateProjectDialog onCreated={() => getMyProjects()} />
+        </EmptyContent>
+      </Empty>
+    )
+  } else if (!error && filtrados.length === 0) {
+    content = (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>Sin resultados</EmptyTitle>
+          <EmptyDescription>Ningún proyecto coincide con "{busqueda}".</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  } else if (!error) {
+    content = (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filtrados.map((proyecto) => (
+          <ProjectCard key={proyecto.id} proyecto={proyecto} />
+        ))}
+        <CreateProjectDialog onCreated={() => getMyProjects()} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Proyectos</h1>
+          <p className="text-muted-foreground">Modelos de base de datos en los que colaborás.</p>
+        </div>
+        <Input
+          placeholder="Buscar proyectos..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="sm:w-64"
+        />
+      </header>
+
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>No se pudieron cargar los proyectos</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {content}
+    </div>
+  )
+}

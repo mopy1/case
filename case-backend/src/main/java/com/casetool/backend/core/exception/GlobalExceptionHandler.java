@@ -4,12 +4,17 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.casetool.backend.modules.diagrama.exception.NombreDuplicadoDiagramaException;
+import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
+import com.casetool.backend.modules.proyecto.exception.MiembroYaExisteException;
+import com.casetool.backend.modules.proyecto.exception.RolInsuficienteProyectoException;
 import com.casetool.backend.modules.seguridad.exception.CredencialesInvalidasException;
 import com.casetool.backend.modules.seguridad.exception.RecursoDuplicadoException;
 
@@ -26,9 +31,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body(HttpStatus.UNAUTHORIZED, ex.getMessage()));
     }
 
-    @ExceptionHandler(RecursoDuplicadoException.class)
-    public ResponseEntity<Map<String, Object>> handleRecursoDuplicado(RecursoDuplicadoException ex) {
+    @ExceptionHandler({RecursoDuplicadoException.class, MiembroYaExisteException.class, NombreDuplicadoDiagramaException.class})
+    public ResponseEntity<Map<String, Object>> handleRecursoDuplicado(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    @ExceptionHandler({AccesoDenegadoProyectoException.class, RolInsuficienteProyectoException.class})
+    public ResponseEntity<Map<String, Object>> handleAccesoDenegado(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body(HttpStatus.FORBIDDEN, ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -43,6 +53,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body(HttpStatus.BAD_REQUEST, ex.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String message = "No se puede completar la operación: hay otros datos que dependen de este recurso";
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body(HttpStatus.CONFLICT, message));
     }
 
     private Map<String, Object> body(HttpStatus status, String message) {
