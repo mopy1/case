@@ -27,7 +27,7 @@ function renderFormattedContent(text: string) {
         }
 
         const isBullet = trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")
-        const content = isBullet ? trimmed.replace(/^[•\-\*]\s*/, "") : trimmed
+        const content = isBullet ? trimmed.replace(/^[•\-*]\s*/, "") : trimmed
 
         const formatted = content.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, pIdx) => {
           if (part.startsWith("**") && part.endsWith("**")) {
