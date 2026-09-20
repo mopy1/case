@@ -17,7 +17,7 @@ services:
   backend-app:
     build:
       context: ./case-backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: case_backend
     restart: always
     depends_on:
@@ -35,7 +35,7 @@ services:
   frontend-app:
     build:
       context: ./case-frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: case_frontend
     restart: always
     ports:
