@@ -386,6 +386,10 @@ spring.h2.console.path=/h2-console
 springdoc.swagger-ui.path=/swagger-ui.html
 springdoc.api-docs.path=/v3/api-docs
 
+# Tolerancia JSON para clientes móviles e integraciones con IA
+spring.jackson.deserialization.fail-on-unknown-properties=false
+spring.jackson.serialization.write-dates-as-timestamps=false
+
 # ==============================================================================
 # ¿Prefieres usar PostgreSQL?
 # 1. Inicia PostgreSQL con Docker: docker compose up -d
@@ -414,6 +418,10 @@ spring.jpa.properties.hibernate.format_sql=true
 # Swagger / OpenAPI UI
 springdoc.swagger-ui.path=/swagger-ui.html
 springdoc.api-docs.path=/v3/api-docs
+
+# Tolerancia JSON para clientes móviles e integraciones con IA
+spring.jackson.deserialization.fail-on-unknown-properties=false
+spring.jackson.serialization.write-dates-as-timestamps=false
 `
 }
 
@@ -537,6 +545,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -560,7 +569,23 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now());
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("error", "Bad Request");
-        body.put("message", "Error de validación en los campos enviados");
+
+        Map<String, String> fieldErrors = new HashMap<>();
+        for (var error : ex.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(error.getField(), error.getDefaultMessage());
+        }
+        body.put("errors", fieldErrors);
+        body.put("message", "Error de validación en campos: " + fieldErrors.keySet());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleNotReadable(HttpMessageNotReadableException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Bad Request");
+        body.put("message", "Formato de JSON o datos inválido. Verifique tipos de datos y fechas (formato ISO-8601 esperado: YYYY-MM-DDTHH:mm:ss)");
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -925,7 +950,11 @@ ${allSetters}
 function generarControllerJava(entidad: EntidadDiagramaResponse): string {
   const className = toPascalCase(entidad.nombre)
   const idType = obtenerTipoId(entidad)
-  const endpointPath = toKebabCase(entidad.nombre)
+  const singularPath = entidad.nombre.trim().replace(/[_-\s]+/g, "-").toLowerCase()
+  const pluralPath = toKebabCase(entidad.nombre)
+  const pathExpr = singularPath === pluralPath 
+    ? `"/api/${pluralPath}"` 
+    : `{"/api/${pluralPath}", "/api/${singularPath}"}`
 
   return `package ${BASE_PACKAGE}.controller;
 
@@ -941,7 +970,7 @@ import ${BASE_PACKAGE}.dto.${className}Response;
 import ${BASE_PACKAGE}.service.${className}Service;
 
 @RestController
-@RequestMapping("/api/${endpointPath}")
+@RequestMapping(${pathExpr})
 @Tag(name = "${className}", description = "Operaciones CRUD para ${className}")
 public class ${className}Controller {
 
