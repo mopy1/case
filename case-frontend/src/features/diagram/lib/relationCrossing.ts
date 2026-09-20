@@ -75,6 +75,32 @@ function tangenteYEstilo(muestra: { puntos: Punto[]; el: SVGPathElement }, indic
   }
 }
 
+export interface BoundingBox {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+function calcularBoundingBox(puntos: Punto[]): BoundingBox {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  for (let i = 0; i < puntos.length; i++) {
+    const p = puntos[i]
+    if (p.x < minX) minX = p.x
+    if (p.x > maxX) maxX = p.x
+    if (p.y < minY) minY = p.y
+    if (p.y > maxY) maxY = p.y
+  }
+  return { minX, maxX, minY, maxY }
+}
+
+function cajasSolapan(b1: BoundingBox, b2: BoundingBox): boolean {
+  return b1.minX <= b2.maxX && b1.maxX >= b2.minX && b1.minY <= b2.maxY && b1.maxY >= b2.minY
+}
+
 export function calcularSaltos(edges: Edge[]): Salto[] {
   const muestras = edges
     .map((edge) => {
@@ -84,9 +110,9 @@ export function calcularSaltos(edges: Edge[]): Salto[] {
       if (!el) return null
       const puntos = recortarPuntas(muestrearPath(el))
       if (puntos.length < 2) return null
-      return { edge, puntos, el }
+      return { edge, puntos, el, box: calcularBoundingBox(puntos) }
     })
-    .filter((m): m is { edge: Edge; puntos: Punto[]; el: SVGPathElement } => m !== null)
+    .filter((m): m is { edge: Edge; puntos: Punto[]; el: SVGPathElement; box: BoundingBox } => m !== null)
 
   const saltos: Salto[] = []
   const radio = 8
@@ -94,6 +120,9 @@ export function calcularSaltos(edges: Edge[]): Salto[] {
   for (let i = 0; i < muestras.length; i++) {
     for (let j = i + 1; j < muestras.length; j++) {
       const [m1, m2] = [muestras[i], muestras[j]]
+      // Descarte rápido si las cajas contenedoras de ambas aristas ni siquiera se solapan
+      if (!cajasSolapan(m1.box, m2.box)) continue
+
       // La que "salta" es siempre la de id numéricamente mayor — determinístico, no depende del
       // orden de iteración ni de cuál se dibujó encima.
       const cedeEsM1 = Number(m1.edge.id) > Number(m2.edge.id)

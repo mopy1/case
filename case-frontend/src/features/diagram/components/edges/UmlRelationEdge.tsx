@@ -1,3 +1,4 @@
+import { memo } from "react"
 import { BaseEdge, EdgeLabelRenderer, useInternalNode, useReactFlow, type EdgeProps, type Node } from "@xyflow/react"
 import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,10 +23,11 @@ import type { LadoMultiplicidad, PuntoControl, RelacionDiagramaResponse } from "
  * `hooks/usePuntosControlArrastre.ts` (regla "Anti-1k-Lines" del proyecto), acá solo se conecta a
  * la línea/puntos que dibuja.
  */
-export function UmlRelationEdge({
+export const UmlRelationEdge = memo(function UmlRelationEdge({
   selected,
   data,
 }: EdgeProps & {
+
   data: {
     relacion: RelacionDiagramaResponse
     onEditOrigen: (lado: LadoMultiplicidad) => void
@@ -149,4 +151,5 @@ export function UmlRelationEdge({
       </EdgeLabelRenderer>
     </>
   )
-}
+})
+

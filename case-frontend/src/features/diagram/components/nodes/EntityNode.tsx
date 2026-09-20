@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react"
 import { Handle, Position } from "@xyflow/react"
 import { Circle, KeyRound, Link2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -7,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils"
 import type { AtributoEntidadResponse, EntidadDiagramaResponse } from "../../types/diagram.types"
 
-function FilaAtributo({ atributo, zebra }: { atributo: AtributoEntidadResponse; zebra: boolean }) {
+const FilaAtributo = memo(function FilaAtributo({ atributo, zebra }: { atributo: AtributoEntidadResponse; zebra: boolean }) {
   return (
     <div className={cn("flex items-center justify-between gap-2 rounded-md px-1.5 py-1 text-xs", zebra && "bg-muted/30")}>
       <div className="flex min-w-0 items-center gap-1.5">
@@ -46,9 +47,9 @@ function FilaAtributo({ atributo, zebra }: { atributo: AtributoEntidadResponse; 
       </div>
     </div>
   )
-}
+})
 
-export function EntityNode({
+export const EntityNode = memo(function EntityNode({
   data,
   selected,
 }: {
@@ -58,8 +59,9 @@ export function EntityNode({
   const { entidad, onDelete, esTablaIntermedia } = data
   // Las PK van agrupadas arriba, separadas del resto — así se lee la estructura de un vistazo,
   // como en cualquier herramienta de diagramas de base de datos.
-  const pk = entidad.atributos.filter((a) => a.esPk)
-  const resto = entidad.atributos.filter((a) => !a.esPk)
+  const pk = useMemo(() => entidad.atributos.filter((a) => a.esPk), [entidad.atributos])
+  const resto = useMemo(() => entidad.atributos.filter((a) => !a.esPk), [entidad.atributos])
+
 
   return (
     <div
@@ -120,4 +122,4 @@ export function EntityNode({
       </div>
     </div>
   )
-}
+})

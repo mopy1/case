@@ -1,23 +1,10 @@
-import { useState } from "react"
-import { LogOut } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useMemo, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { colorAvatar, iniciales } from "@/lib/avatar"
-import { useAuth } from "@/hooks/useAuth"
+import { UserAvatarMenu } from "@/components/common/UserAvatarMenu"
 import { useProjects } from "../hooks/useProjects"
 import { ProjectCard } from "../components/project-card/project-card"
 import { CreateProjectDialog } from "../components/create-project-dialog/create-project-dialog"
@@ -25,10 +12,11 @@ import { CreateProjectDialog } from "../components/create-project-dialog/create-
 export function ProjectsDashboardPage() {
   const { projects, loading, error, getMyProjects } = useProjects()
   const [busqueda, setBusqueda] = useState("")
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
 
-  const filtrados = projects.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+  const filtrados = useMemo(
+    () => projects.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase())),
+    [projects, busqueda]
+  )
 
   let content: React.ReactNode = null
   if (loading) {
@@ -93,31 +81,7 @@ export function ProjectsDashboardPage() {
             onChange={(e) => setBusqueda(e.target.value)}
             className="sm:w-64"
           />
-          {user && (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="cursor-pointer rounded-full outline-none">
-                <Avatar size="sm" className="ring-2 ring-primary">
-                  <AvatarFallback className={colorAvatar(user.id)}>{iniciales(user.username)}</AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    logout()
-                    navigate("/login")
-                  }}
-                >
-                  <LogOut className="size-4" />
-                  Cerrar sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <UserAvatarMenu align="end" />
         </div>
       </header>
 

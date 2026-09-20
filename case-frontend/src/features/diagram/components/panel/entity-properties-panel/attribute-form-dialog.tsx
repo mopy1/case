@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -18,6 +18,7 @@ import { useAttributeMutations } from "../../../hooks/useAttributeMutations"
 import type { AtributoEntidadResponse, EntidadDiagramaResponse } from "../../../types/diagram.types"
 
 const TIPOS_SQL = ["VARCHAR", "TEXT", "INTEGER", "BIGINT", "BOOLEAN", "DATE", "TIMESTAMP", "DECIMAL", "UUID"]
+const TIPOS_SQL_ITEMS = TIPOS_SQL.map((t) => ({ value: t, label: t }))
 
 /** Crear o editar un atributo — el modo lo decide la presencia de `atributo`. */
 export function AttributeFormDialog({
@@ -46,7 +47,14 @@ export function AttributeFormDialog({
   const [nullable, setNullable] = useState(true)
   const { create, update, loading, error } = useAttributeMutations(proyectoId, entidad.id)
   const esEdicion = !!atributo
-  const otrasEntidades = entidades.filter((e) => e.id !== entidad.id)
+  const otrasEntidades = useMemo(
+    () => entidades.filter((e) => e.id !== entidad.id),
+    [entidades, entidad.id]
+  )
+  const otrasEntidadesItems = useMemo(
+    () => otrasEntidades.map((e) => ({ value: String(e.id), label: e.nombre })),
+    [otrasEntidades]
+  )
 
   useEffect(() => {
     if (!open) return
@@ -93,7 +101,7 @@ export function AttributeFormDialog({
             <Field>
               <FieldLabel>Tipo de dato</FieldLabel>
               <Select
-                items={TIPOS_SQL.map((t) => ({ value: t, label: t }))}
+                items={TIPOS_SQL_ITEMS}
                 value={tipoSql}
                 onValueChange={(v) => setTipoSql(v as string)}
               >
@@ -130,7 +138,7 @@ export function AttributeFormDialog({
               <Field>
                 <FieldLabel>Referencia a</FieldLabel>
                 <Select
-                  items={otrasEntidades.map((e) => ({ value: String(e.id), label: e.nombre }))}
+                  items={otrasEntidadesItems}
                   value={referenciaEntidadId}
                   onValueChange={(v) => setReferenciaEntidadId(v as string)}
                 >

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useEdgesState, useNodesState, type Connection, type Edge, type EdgeChange, type Node } from "@xyflow/react"
 import { useDiagram } from "./useDiagram"
 import { useEntityMutations } from "./useEntityMutations"
@@ -48,8 +48,14 @@ export function useDiagramCanvas(proyectoId: number) {
     }
   }
 
-  const { asociaciones, idsFisicasConsumidas } = detectarAsociacionesClase(diagrama)
-  const idsTablaIntermedia = new Set(asociaciones.map((a) => a.junctionId))
+  const { asociaciones, idsFisicasConsumidas } = useMemo(
+    () => detectarAsociacionesClase(diagrama),
+    [diagrama]
+  )
+  const idsTablaIntermedia = useMemo(
+    () => new Set(asociaciones.map((a) => a.junctionId)),
+    [asociaciones]
+  )
 
   useEffect(() => {
     setNodes(
@@ -59,6 +65,7 @@ export function useDiagramCanvas(proyectoId: number) {
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagrama.entidades, diagrama.relaciones])
+
 
   /** Edita un único lado de la relación (click en su "(1..*)") — el otro lado queda tal cual
    * estaba, sin invertir origen/destino (cada lado guarda su propia multiplicidad, ver
@@ -150,7 +157,10 @@ export function useDiagramCanvas(proyectoId: number) {
     if (creada) await refetch()
   }
 
-  const selectedEntidad = diagrama.entidades.find((e) => e.id === selectedEntidadId) ?? null
+  const selectedEntidad = useMemo(
+    () => diagrama.entidades.find((e) => e.id === selectedEntidadId) ?? null,
+    [diagrama.entidades, selectedEntidadId]
+  )
 
   return {
     nodes,

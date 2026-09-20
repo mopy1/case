@@ -1,3 +1,4 @@
+import { memo } from "react"
 import { Trash2 } from "lucide-react"
 import { useInternalNode, ViewportPortal } from "@xyflow/react"
 import { Button } from "@/components/ui/button"
@@ -29,7 +30,7 @@ function puntoDeEntrada(desde: { x: number; y: number }, nodo: NonNullable<Retur
 
 /** Una línea punteada de "clase de asociación" (UML): sale del punto medio de la relación N:M
  * hacia la tabla intermedia — no dos aristas sueltas tocando cada entidad. */
-function AssociationClassLine({
+const AssociationClassLine = memo(function AssociationClassLine({
   asociacion,
   onDelete,
   resaltada,
@@ -103,7 +104,7 @@ function AssociationClassLine({
       </foreignObject>
     </>
   )
-}
+})
 
 export function AssociationClassOverlay({
   asociaciones,

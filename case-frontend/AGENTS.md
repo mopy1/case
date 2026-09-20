@@ -621,6 +621,34 @@ hoy, funcional y probado contra el backend real:
     tocar nada acá:** el frontend nunca interpreta el contenido del archivo (exportar solo baja un
     `Blob`, importar solo sube un `File`), así que el cambio de dialecto XMI (ver
     `case-backend/AGENTS.md`) no tocó ni una línea de `features/xmi/`.
+- **Auditoría arquitectónica y optimización de rendimiento frontend (2026-09-20, pedido explícito:
+  "optimizar codigo que puedas, en frontend, ver la arquitectura y patron de diseño"):**
+  - **Code Splitting & Reducción de Bundle (`App.tsx`):** todas las páginas se migraron a `React.lazy()`
+    con `<Suspense fallback={<PageLoader />}>`. El chunk principal de la aplicación bajó de **714 kB a
+    316 kB** (101 kB gzipped), eliminando la advertencia de Vite sobre chunks > 500 kB. La librería pesada
+    de lienzo `@xyflow/react` quedó aislada en el chunk bajo demanda `DiagramEditorPage` (213 kB / 68 kB
+    gzipped), haciendo que login, registro y dashboard carguen instantáneamente.
+  - **Extracción de componente DRY transversal (`UserAvatarMenu.tsx`):** se extrajo el dropdown de
+    usuario con avatar, nombre y "Cerrar sesión" a `src/components/common/UserAvatarMenu.tsx`,
+    eliminando la implementación duplicada que existía entre `ProjectsDashboardPage` y `ProjectNavRail`.
+  - **Desmonolitización de `project-members-dialog`:** se redujo `project-members-dialog.tsx` de 165 a
+    110 líneas dividiéndolo en `project-members-dialog.data.ts` (roles disponibles, Data-Driven UI) y
+    `member-item.tsx` (fila de colaborador individual).
+  - **Rendimiento de renderizado en React Flow:**
+    - `React.memo` en nodos, aristas y overlays de alta frecuencia (`EntityNode`, `FilaAtributo`,
+      `UmlRelationEdge`, `MultiplicidadBadge`, `PuntoControlHandle`, `AssociationClassLine`), cortando
+      re-renders innecesarios durante el zoom, paneo o arrastre de elementos individuales en el lienzo.
+    - `useMemo` para cálculo de PKs vs resto de atributos en `EntityNode.tsx`.
+    - `useMemo` en `useDiagramCanvas.ts` para `asociaciones`, `idsTablaIntermedia` y `selectedEntidad`.
+  - **Aceleración geométrica en `relationCrossing.ts` (AABB Spatial Pre-filtering):** se implementó
+    descarte temprano por caja envolvente (`calcularBoundingBox` y `cajasSolapan`). El cálculo de cruces
+    de líneas ahora salta las pruebas de intersección segmento a segmento ($O(N \cdot M)$) para cualquier
+    par de aristas que no comparta un área delimitada, aligerando el cálculo en lienzos grandes.
+  - **Memoización de filtrado de datos:** `useMemo` en búsqueda de proyectos (`ProjectsDashboardPage`),
+    agrupación de tareas por estado en un único paso O(N) (`ProjectTasksPage`) y listas estáticas/entidades
+    en `attribute-form-dialog.tsx`.
+  - **Verificación:** `npm run build` (`tsc -b && vite build`) y `oxlint` limpios con 0 errores de tipos
+    y sin warnings de bundle size.
 
 ---
 
@@ -726,6 +754,8 @@ case-frontend/
 │   │   └── common/                    # Componentes reutilizables generales
 │   │       ├── ConfirmDialog.tsx      # ✅ construido (2026-09-11) — genérico sobre `Dialog`,
 │   │       │                          #   usado en eliminar tarea y quitar colaborador
+│   │       ├── UserAvatarMenu.tsx     # ✅ (2026-09-20, optimización DRY) — menú desplegable con avatar,
+│   │       │                          #   perfil y "Cerrar sesión" compartido entre ProjectsDashboard y nav-rail
 │   │       ├── SearchInput.tsx
 │   │       └── project-nav-rail/      # 🆕 extraído de ProjectLayout (2026-09-06) — la lista de
 │   │           ├── project-nav-rail.tsx     #   items del riel (Diagrama/Tareas/Notas/XMI/
@@ -839,13 +869,14 @@ case-frontend/
 │       │   │   │                      #   "+ Crear proyecto nuevo"
 │       │   │   ├── project-view-toggle/ # 🆕 confirmado por el prototipo: switch Tarjetas | Lista
 │       │   │   ├── create-project-dialog/
-│       │   │   └── project-members-dialog/ # ✅ construido (2026-09-11) — trigger "Colaboradores"
-│       │   │                          #   en `ProjectNavRail`. ADMIN agrega (usuario/email + rol),
-│       │   │                          #   cambia rol y quita (con `ConfirmDialog`); demás roles ven
-│       │   │                          #   la lista de solo lectura. Requirió `useMemberMutations.ts`
-│       │   │                          #   (hook nuevo en `hooks/`) y sumar `getProjectMembers`/
-│       │   │                          #   `addMember`/`changeMemberRole`/`removeMember` a
-│       │   │                          #   `projectsApi.ts` (verbos en inglés, ver nota arriba)
+│       │   │   └── project-members-dialog/ # ✅ construido (2026-09-11, optimizado 2026-09-20) — trigger "Colaboradores"
+│       │   │       ├── project-members-dialog.tsx     # Diálogo principal de miembros (110 líneas)
+│       │   │       ├── project-members-dialog.data.ts # ROLES_DISPONIBLES (Data-Driven UI)
+│       │   │       ├── member-item.tsx                # Fila de colaborador individual
+│       │   │       └── index.ts
+│       │   │                          #   ADMIN agrega (usuario/email + rol), cambia rol y quita
+│       │   │                          #   (con `ConfirmDialog`); demás roles ven la lista de solo lectura.
+│       │   │                          #   Requirió `useMemberMutations.ts` y métodos en `projectsApi.ts`.
 │       │   └── pages/
 │       │       └── ProjectsDashboardPage.tsx
 │       │

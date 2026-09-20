@@ -1,8 +1,6 @@
 import { useState } from "react"
-import { Trash2, Users } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Users } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import {
   Dialog,
   DialogClose,
@@ -17,16 +15,11 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { colorAvatar, iniciales } from "@/lib/avatar"
 import { useProjectMembers } from "../../hooks/useProjectMembers"
 import { useMemberMutations } from "../../hooks/useMemberMutations"
 import type { RolProyecto } from "../../types/projects.type"
-
-const ROLES: { value: RolProyecto; label: string }[] = [
-  { value: "ADMIN", label: "Admin" },
-  { value: "COLABORADOR", label: "Colaborador" },
-  { value: "LECTOR", label: "Lector" },
-]
+import { ROLES } from "./project-members-dialog.data"
+import { MemberItem } from "./member-item"
 
 export function ProjectMembersDialog({ proyectoId, miRol }: { proyectoId: number; miRol: RolProyecto }) {
   const [open, setOpen] = useState(false)
@@ -74,48 +67,14 @@ export function ProjectMembersDialog({ proyectoId, miRol }: { proyectoId: number
 
         <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
           {miembros.map((miembro) => (
-            <div key={miembro.id} className="flex items-center gap-3 rounded-2xl border px-3 py-2">
-              <Avatar size="sm">
-                <AvatarFallback className={colorAvatar(miembro.usuarioId)}>{iniciales(miembro.username)}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{miembro.username}</p>
-                <p className="truncate text-xs text-muted-foreground">{miembro.email}</p>
-              </div>
-              {esAdmin ? (
-                <>
-                  <Select
-                    items={ROLES}
-                    value={miembro.rol}
-                    onValueChange={(v) => handleChangeRole(miembro.usuarioId, v as RolProyecto)}
-                  >
-                    <SelectTrigger size="sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {ROLES.map((r) => (
-                          <SelectItem key={r.value} value={r.value}>
-                            {r.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <ConfirmDialog
-                    trigger={<Button type="button" variant="ghost" size="icon" disabled={loading} />}
-                    title="¿Quitar a este colaborador?"
-                    description={`${miembro.username} va a perder acceso al proyecto.`}
-                    confirmLabel="Quitar"
-                    onConfirm={() => handleRemove(miembro.usuarioId)}
-                  >
-                    <Trash2 className="size-4 text-destructive" />
-                  </ConfirmDialog>
-                </>
-              ) : (
-                <span className="text-xs text-muted-foreground">{miembro.rol}</span>
-              )}
-            </div>
+            <MemberItem
+              key={miembro.id}
+              miembro={miembro}
+              esAdmin={esAdmin}
+              loading={loading}
+              onChangeRole={handleChangeRole}
+              onRemove={handleRemove}
+            />
           ))}
         </div>
 

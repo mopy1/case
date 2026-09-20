@@ -1,3 +1,5 @@
+import { memo } from "react"
+
 /**
  * El círculo arrastrable de un punto de control manual — presentacional puro, toda la lógica de
  * arrastre/borrado vive en `UmlRelationEdge` (que ya sabe si el gesto fue un click o un drag real,
@@ -6,7 +8,7 @@
  * `size-2.5`) — un hit-target del tamaño del círculo real era muy chico para agarrar con el mouse
  * de forma confiable.
  */
-export function PuntoControlHandle({
+export const PuntoControlHandle = memo(function PuntoControlHandle({
   x,
   y,
   onPointerDown,
@@ -25,4 +27,4 @@ export function PuntoControlHandle({
       <div className="size-2.5 rounded-full border-2 border-background bg-primary shadow" />
     </div>
   )
-}
+})

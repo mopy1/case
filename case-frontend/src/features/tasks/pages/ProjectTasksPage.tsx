@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { useParams } from "react-router-dom"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardHeader } from "@/components/ui/card"
@@ -7,7 +8,7 @@ import { useTasks } from "../hooks/useTasks"
 import { useTaskMutations } from "../hooks/useTaskMutations"
 import { TaskCard } from "../components/task-card/task-card"
 import { CreateTaskDialog } from "../components/create-task-dialog/create-task-dialog"
-import type { EstadoTarea } from "../types/tasks.type"
+import type { EstadoTarea, TareaResponse } from "../types/tasks.type"
 
 const COLUMNAS: { estado: EstadoTarea; label: string }[] = [
   { estado: "PENDIENTE", label: "Pendiente" },
@@ -20,6 +21,20 @@ export function ProjectTasksPage() {
   const proyectoId = Number(id)
   const { tareas, loading, error, refetch } = useTasks(proyectoId)
   const { changeStatus, remove } = useTaskMutations(proyectoId)
+
+  const tareasPorEstado = useMemo(() => {
+    const mapa: Record<EstadoTarea, TareaResponse[]> = {
+      PENDIENTE: [],
+      EN_PROGRESO: [],
+      HECHO: [],
+    }
+    for (const tarea of tareas) {
+      if (mapa[tarea.estado]) {
+        mapa[tarea.estado].push(tarea)
+      }
+    }
+    return mapa
+  }, [tareas])
 
   return (
     <div className="p-6">
@@ -63,22 +78,20 @@ export function ProjectTasksPage() {
                 <h2 className="px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                   {columna.label}
                 </h2>
-                {tareas
-                  .filter((t) => t.estado === columna.estado)
-                  .map((tarea) => (
-                    <TaskCard
-                      key={tarea.id}
-                      tarea={tarea}
-                      onChangeEstado={async (estado) => {
-                        await changeStatus(tarea.id, { estado })
-                        refetch()
-                      }}
-                      onDelete={async () => {
-                        await remove(tarea.id)
-                        refetch()
-                      }}
-                    />
-                  ))}
+                {tareasPorEstado[columna.estado].map((tarea) => (
+                  <TaskCard
+                    key={tarea.id}
+                    tarea={tarea}
+                    onChangeEstado={async (estado) => {
+                      await changeStatus(tarea.id, { estado })
+                      refetch()
+                    }}
+                    onDelete={async () => {
+                      await remove(tarea.id)
+                      refetch()
+                    }}
+                  />
+                ))}
               </div>
             ))}
           </div>
@@ -87,3 +100,4 @@ export function ProjectTasksPage() {
     </div>
   )
 }
+

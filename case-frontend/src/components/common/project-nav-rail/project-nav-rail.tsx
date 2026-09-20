@@ -1,24 +1,17 @@
-import { ArrowLeft, LogOut } from "lucide-react"
-import { Link, NavLink, useNavigate } from "react-router-dom"
+import { ArrowLeft } from "lucide-react"
+import { Link, NavLink } from "react-router-dom"
 import { buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarGroupCount } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { UserAvatarMenu } from "@/components/common/UserAvatarMenu"
 import { cn } from "@/lib/utils"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 import { useAuth } from "@/hooks/useAuth"
 import { ProjectMembersDialog } from "@/features/projects/components/project-members-dialog"
 import type { MiembroProyectoResponse, RolProyecto } from "@/features/projects/types/projects.type"
 import { projectNavItems } from "./project-nav-rail.data"
+
 
 const MAX_AVATARES_RAIL = 4
 
@@ -31,8 +24,7 @@ export function ProjectNavRail({
   miembros: MiembroProyectoResponse[]
   miRol?: RolProyecto
 }) {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const otros = miembros.filter((miembro) => miembro.usuarioId !== user?.id)
   const visibles = otros.slice(0, MAX_AVATARES_RAIL)
   const restantes = otros.length - visibles.length
@@ -106,29 +98,7 @@ export function ProjectNavRail({
         {user && (
           <>
             <Separator className="mt-3 mb-2 w-8" />
-            <DropdownMenu>
-              <DropdownMenuTrigger className="cursor-pointer rounded-full outline-none">
-                <Avatar size="sm" className="ring-2 ring-primary">
-                  <AvatarFallback className={colorAvatar(user.id)}>{iniciales(user.username)}</AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" align="end">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    logout()
-                    navigate("/login")
-                  }}
-                >
-                  <LogOut className="size-4" />
-                  Cerrar sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <UserAvatarMenu side="right" align="end" />
           </>
         )}
       </div>
