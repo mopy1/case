@@ -1,0 +1,53 @@
+services:
+  # Base de Datos PostgreSQL
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: case_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: case_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-case_secure_pass_2026}
+      POSTGRES_DB: case_db
+    volumes:
+      - case_pgdata:/var/lib/postgresql/data
+    networks:
+      - case_network
+
+  # Backend Spring Boot (Java 21)
+  backend-app:
+    build:
+      context: ./case-backend
+      dockerfile: Dockerfile
+    container_name: case_backend
+    restart: always
+    depends_on:
+      - postgres-db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/case_db
+      SPRING_DATASOURCE_USERNAME: case_user
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-case_secure_pass_2026}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      CORS_ALLOWED_ORIGINS: "*"
+    networks:
+      - case_network
+
+  # Frontend React + Nginx Reverse Proxy (Puerto 80 Unificado)
+  frontend-app:
+    build:
+      context: ./case-frontend
+      dockerfile: Dockerfile
+    container_name: case_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend-app
+    networks:
+      - case_network
+
+volumes:
+  case_pgdata:
+
+networks:
+  case_network:
+    driver: bridge

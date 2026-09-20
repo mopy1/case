@@ -1,4 +1,4 @@
-export const API_URL = import.meta.env.VITE_API_URL
+export const API_URL = import.meta.env.VITE_API_URL ?? ""
 
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   const error = await response.json().catch(() => null)
