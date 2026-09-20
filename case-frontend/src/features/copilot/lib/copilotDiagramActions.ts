@@ -1,4 +1,4 @@
-import { createAttribute, createEntity, createRelation, getDiagram } from "@/features/diagram/api/diagramApi"
+import { createAttribute, createEntity, createRelation, updateRelation, getDiagram } from "@/features/diagram/api/diagramApi"
 import { findSafeEntityPosition } from "@/features/diagram/lib/positionGuide"
 import type { EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
 
@@ -55,12 +55,29 @@ export async function executeCreateRelation(
     throw new Error(`La tabla "${missing}" no existe en el lienzo. Créala antes de relacionarla.`)
   }
 
-  await createRelation(proyectoId, {
-    entidadOrigenId: origen.id,
-    entidadDestinoId: destino.id,
-    multiplicidadOrigen: relation.multiplicidadOrigen,
-    multiplicidadDestino: relation.multiplicidadDestino,
-  })
+  // Si ya existe una relación previa entre estas dos entidades, se actualiza para no duplicar líneas
+  const existingRel = diagram.relaciones.find(
+    (r) =>
+      (r.entidadOrigenId === origen.id && r.entidadDestinoId === destino.id) ||
+      (r.entidadOrigenId === destino.id && r.entidadDestinoId === origen.id)
+  )
+
+  if (existingRel) {
+    const isSameDir = existingRel.entidadOrigenId === origen.id
+    await updateRelation(proyectoId, existingRel.id, {
+      entidadOrigenId: existingRel.entidadOrigenId,
+      entidadDestinoId: existingRel.entidadDestinoId,
+      multiplicidadOrigen: isSameDir ? relation.multiplicidadOrigen : relation.multiplicidadDestino,
+      multiplicidadDestino: isSameDir ? relation.multiplicidadDestino : relation.multiplicidadOrigen,
+    })
+  } else {
+    await createRelation(proyectoId, {
+      entidadOrigenId: origen.id,
+      entidadDestinoId: destino.id,
+      multiplicidadOrigen: relation.multiplicidadOrigen,
+      multiplicidadDestino: relation.multiplicidadDestino,
+    })
+  }
 
   window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId } }))
 }

@@ -19,8 +19,22 @@ export function parseLadoMultiplicidad(str: string): LadoMultiplicidad {
   const s = str.trim().toUpperCase()
   if (s === "1" || s === "UNO" || s === "ONE") return "UNO"
   if (s === "0..1" || s === "CERO_O_UNO") return "CERO_O_UNO"
-  if (s === "1..*" || s === "1..N" || s === "UNO_O_MAS") return "UNO_O_MAS"
-  if (s === "*" || s === "N" || s === "0..*" || s === "0..N" || s === "CERO_O_MAS") return "CERO_O_MAS"
+  if (
+    s === "1..*" ||
+    s === "1..N" ||
+    s === "1..M" ||
+    s === "UNO_O_MAS" ||
+    s === "MUCHOS" ||
+    s === "VARIOS" ||
+    s === "N" ||
+    s === "M" ||
+    s === "MANY"
+  ) {
+    return "UNO_O_MAS"
+  }
+  if (s === "*" || s === "0..*" || s === "0..N" || s === "CERO_O_MAS" || s === "CERO_A_MUCHOS") {
+    return "CERO_O_MAS"
+  }
   return "UNO"
 }
 
@@ -38,7 +52,6 @@ export function parseEntitySuggestions(text: string, existingEntities: EntityPos
     const posX = m[2] ? Number(m[2]) : safePositions[i].posX
     const posY = m[3] ? Number(m[3]) : safePositions[i].posY
 
-    // Buscar atributos inmediatamente después de esta tabla
     const afterMatch = text.slice(m.index + m[0].length)
     const attrMatch = afterMatch.match(/^\s*ATRIBUTOS:\s*\[?([^\]\n]+)\]?/i)
 
@@ -72,7 +85,7 @@ export function parseEntitySuggestions(text: string, existingEntities: EntityPos
 
 export function parseRelationSuggestions(text: string): RelationSuggestion[] {
   const results: RelationSuggestion[] = []
-  const relRegex = /CREAR_RELACION:\s*\[?([a-zA-Z0-9_]+)\]?\s*(?:->|a|-)\s*\[?([a-zA-Z0-9_]+)\]?(?:\s*\(([^)]+)\))?/gi
+  const relRegex = /(?:CREAR_RELACION|ACTUALIZAR_RELACION):\s*\[?([a-zA-Z0-9_]+)\]?\s*(?:->|a|-)\s*\[?([a-zA-Z0-9_]+)\]?(?:\s*\(([^)]+)\))?/gi
   const matches = [...text.matchAll(relRegex)]
 
   for (const m of matches) {
@@ -82,7 +95,10 @@ export function parseRelationSuggestions(text: string): RelationSuggestion[] {
     let multiplicidadDestino: LadoMultiplicidad = "UNO_O_MAS"
 
     if (m[3]) {
-      const parts = m[3].split(/\s*(?:a|->|-)\s*/i)
+      const trimmedSpec = m[3].trim()
+      const colonParts = trimmedSpec.split(/\s*:\s*/)
+      const toParts = trimmedSpec.split(/\s*(?:a|->|-)\s*/i)
+      const parts = colonParts.length >= 2 ? colonParts : toParts
       if (parts.length >= 2) {
         multiplicidadOrigen = parseLadoMultiplicidad(parts[0])
         multiplicidadDestino = parseLadoMultiplicidad(parts[1])
@@ -106,8 +122,9 @@ export function cleanResponseText(rawText: string): string {
     .replace(/(?:##\s*ADR:?[\s\S]*$)/i, "")
     .replace(/(?:\*{0,2})ADR_SUGERIDA:?[\s\S]*$/i, "")
     .replace(/(?:\*{0,2})CREAR_TABLA:?[\s\S]*$/i, "")
-    .replace(/(?:\*{0,2})CREAR_RELACION:?[\s\S]*$/i, "")
+    .replace(/(?:\*{0,2})(?:CREAR_RELACION|ACTUALIZAR_RELACION):?[\s\S]*$/i, "")
     .replace(/(?:\*{0,2})Acci[oó]n:?(?:\*{0,2})[\s\S]*$/i, "")
     .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")
     .trim()
 }
+

@@ -37,11 +37,11 @@ export function CopilotRelationCard({
       <div className="flex items-center gap-2 text-xs">
         <span className="font-semibold text-foreground">{relation.origen}</span>
         <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-mono">
-          {formatMultiplicidad(relation.multiplicidadOrigen)}
+          ({formatMultiplicidad(relation.multiplicidadOrigen)})
         </Badge>
         <ArrowRight className="size-3 text-muted-foreground" />
         <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-mono">
-          {formatMultiplicidad(relation.multiplicidadDestino)}
+          ({formatMultiplicidad(relation.multiplicidadDestino)})
         </Badge>
         <span className="font-semibold text-foreground">{relation.destino}</span>
       </div>
@@ -50,7 +50,7 @@ export function CopilotRelationCard({
         {relation.creada ? (
           <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-[11px] text-emerald-600 dark:text-emerald-400">
             <Check className="size-3" />
-            ✓ Relación creada en el lienzo
+            ✓ Relación aplicada en el lienzo
           </Badge>
         ) : (
           <Button
@@ -63,12 +63,12 @@ export function CopilotRelationCard({
             {isCreating ? (
               <>
                 <Loader2 className="size-3 animate-spin" />
-                Creando relación en el lienzo...
+                Aplicando relación en el lienzo...
               </>
             ) : (
               <>
                 <GitCommit className="size-3 text-primary" />
-                Conectar en el lienzo
+                Conectar / Actualizar en el lienzo
               </>
             )}
           </Button>

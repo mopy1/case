@@ -58,15 +58,16 @@ export const DIAGRAM_KNOWLEDGE_TOPICS: KnowledgeTopic[] = [
     id: "uml-multiplicidades-nm",
     title: "Relaciones, Multiplicidades y Tablas Intermedias N:M",
     section: "diagrama",
-    summary: "Conexión entre tablas, multiplicidades (1:1, 1:N, N:M) y generación automática de tabla intermedia.",
-    content: `**1. Conectar tablas:** Arrastra desde el conector circular (handle) de una entidad hacia otra.
-**2. Multiplicidades:** Selecciona en el badge de la línea: \`0..1\`, \`1..1\`, \`0..*\` o \`1..*\`.
-• **1:1:** Asociación uno a uno biunívoca.
-• **1:N:** Uno a muchos (ej: \`Cliente\` 1:N \`Pedido\`). Genera \`@ManyToOne\` y \`@OneToMany\` en Spring Boot.
-• **N:M (Muchos a Muchos):** Al configurar multiplicidad \`*\` en ambos extremos, el sistema genera automáticamente una **tabla intermedia** (\`AssociationClassOverlay\`) descomponiendo la relación en dos 1:N y creando claves foráneas compuestas.`,
-    keywords: ["relacion", "multiplicidad", "cardinalidad", "1:1", "1:n", "n:m", "muchos a muchos", "tabla intermedia", "asociacion"],
+    summary: "Conexión entre tablas, multiplicidades (1:1, 1:N, N:M) y cambio directo haciendo clic en el badge (1).",
+    content: `**1. Conectar tablas:** Arrastra desde el conector circular (handle) de una entidad hacia otra. Nace por defecto como 1:1.
+**2. Cambiar Multiplicidad con 1 Clic:** Haz clic directamente sobre la etiqueta entre paréntesis **(1)** o **(1..*)** en el extremo de la línea en el lienzo. Se abrirá un menú desplegable para elegir: \`1\`, \`0..1\`, \`1..*\` o \`0..*\`. **NO hace falta borrar la relación**.
+• **1:1:** Uno a uno biunívoco.
+• **1:N (Uno a Muchos):** Ej: \`Cliente (1)\` a \`Mascota (1..*)\`. Genera \`@ManyToOne\` y \`@OneToMany\` en Spring Boot.
+• **N:M (Muchos a Muchos):** Si ambos lados son \`*\`, el sistema genera automáticamente una **tabla intermedia** (\`AssociationClassOverlay\`).`,
+    keywords: ["relacion", "multiplicidad", "cardinalidad", "1:1", "1:n", "n:m", "muchos a muchos", "cambiar multiplicidad", "1..*", "click", "badge", "tabla intermedia"],
     sampleQuestions: [
-      "¿Cómo crear una relación N:M?",
+      "¿Cómo cambiar la multiplicidad de una relación?",
+      "¿Cómo crear una relación 1:N o N:M?",
       "¿Cómo se generan las tablas intermedias automáticamente?",
     ],
     suggestedAdr: {
