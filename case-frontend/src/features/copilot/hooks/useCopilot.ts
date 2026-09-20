@@ -72,7 +72,7 @@ export function useCopilot(proyectoId: number) {
       if (!proyectoId || savingNoteId) return
       setSavingNoteId(messageId)
       try {
-        await createNote(proyectoId, {
+        const nuevaNota = await createNote(proyectoId, {
           accion: adr.accion,
           motivo: adr.motivo,
         })
@@ -82,6 +82,12 @@ export function useCopilot(proyectoId: number) {
               ? { ...msg, adrSuggestion: { ...msg.adrSuggestion, guardada: true } }
               : msg
           )
+        )
+        // Notificar a la pantalla de notas para que se actualice sola en tiempo real
+        window.dispatchEvent(
+          new CustomEvent("project:note-created", {
+            detail: { proyectoId, nota: nuevaNota },
+          })
         )
       } catch (err) {
         console.error("Error al guardar nota ADR:", err)
