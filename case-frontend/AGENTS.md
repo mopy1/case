@@ -120,15 +120,27 @@ case-frontend/src/
     │   ├── hooks/useXmiExchange.ts           # Orquestador de exportar (descarga al navegador) e importar
     │   └── pages/ProjectXmiPage.tsx          # Vista funcional de interoperabilidad
     │
-    └── generator/                            # ⚡ Generador de Backend Spring Boot (Fase 4 Client-Side)
-        ├── components/                       # Árbol de archivos y visor de código interactivo
-        │   ├── generator-file-tree.tsx, generator-code-viewer.tsx
-        ├── hooks/useProjectGenerator.ts      # Orquesta preview reactivo y empaquetado ZIP
-        ├── lib/                              # Motor generador TypeScript y empaquetador ZIP
-        │   ├── springBootGenerator.ts        # Transforma DiagramaResponse en proyecto Spring Boot 3.4 / Java 21
-        │   └── zipExporter.ts                # Empaquetado binario cliente y descarga con JSZip + FileSaver
-        ├── pages/ProjectGeneratorPage.tsx    # Vista completa con métricas, árbol interactivo y descarga
-        └── types/generator.types.ts          # Interfaces de archivos generados y preview
+    ├── generator/                            # ⚡ Generador de Backend Spring Boot (Fase 4 Client-Side)
+    │   ├── components/                       # Árbol de archivos y visor de código interactivo
+    │   │   ├── generator-file-tree.tsx, generator-code-viewer.tsx
+    │   ├── hooks/useProjectGenerator.ts      # Orquesta preview reactivo y empaquetado ZIP
+    │   ├── lib/                              # Motor generador TypeScript y empaquetador ZIP
+    │   │   ├── springBootGenerator.ts        # Transforma DiagramaResponse en proyecto Spring Boot 3.4 / Java 21
+    │   │   └── zipExporter.ts                # Empaquetado binario cliente y descarga con JSZip + FileSaver
+    │   ├── pages/ProjectGeneratorPage.tsx    # Vista completa con métricas, árbol interactivo y descarga
+    │   └── types/generator.types.ts          # Interfaces de archivos generados y preview
+    │
+    └── copilot/                              # 🤖 Copilot & Manual Contextual de Usuario
+        ├── components/                       # Panel lateral acoplado, header, lista de mensajes, input
+        │   ├── copilot-panel.tsx, copilot-header.tsx, copilot-input.tsx
+        │   ├── copilot-message-list.tsx, copilot-message-item.tsx, copilot-quick-suggestions.tsx
+        ├── hooks/useCopilot.ts               # Hook de orquestación, contexto activo y guardado de ADRs
+        ├── lib/                              # Base de conocimiento y motor de consulta
+        │   ├── copilotKnowledge.data.ts      # Manual exhaustivo del sistema (UML, ADRs, Spring, XMI)
+        │   ├── copilotKnowledge.ts           # Búsqueda ponderada y respuestas locales
+        │   └── geminiService.ts              # Conector a API Gemini con fallback local
+        ├── types/copilot.types.ts            # Tipos de mensajes, sugerencias ADR y temas
+        └── index.ts                          # API pública del feature
 ```
 
 ---
@@ -189,6 +201,7 @@ case-frontend/src/
 - [x] **Diagramador UML:** Lienzo interactivo con arrastre de tablas, CRUD de atributos, aristas inteligentes en ángulo recto, selector de multiplicidad, clases de asociación N:M, puntos de control manuales y salto visual de líneas.
 - [x] **Interoperabilidad XMI:** Descarga e importación funcional compatible con Enterprise Architect.
 - [x] **Generador de Backend (Fase 4 Completa):** Motor en cliente (TypeScript + JSZip + FileSaver) que toma el diagrama UML y genera un proyecto Spring Boot 3.4 / Java 21 compilable al 100% (Entity JPA con @ManyToOne/@OneToMany, Repository, Request/Response DTOs, Service transaccional, Controller REST OpenAPI, pom.xml, application.properties).
+- [x] **Copilot & Manual de Usuario Contextual:** Panel lateral acoplado a la derecha en proyectos con detección automática de contexto (Diagrama, Generador, XMI, Notas, Tareas), manual exhaustivo integrado, integración opcional con Gemini API con fallback seguro y capacidad de guardar sugerencias como notas ADR con 1 clic.
 
 ---
 
