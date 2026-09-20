@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { encodeProjectId } from "@/lib/projectCode"
 import { exportXmi, importXmi } from "../api/xmiApi"
 
 /** Exportar dispara la descarga del archivo directo en el navegador (sin pasos intermedios,
@@ -20,12 +21,14 @@ export function useXmiExchange(proyectoId: number) {
     setErrorExportar(null)
     try {
       const blob = await exportXmi(proyectoId)
-      const url = URL.createObjectURL(blob)
-      const enlace = document.createElement("a")
-      enlace.href = url
-      enlace.download = `diagrama-${proyectoId}.xmi`
-      enlace.click()
-      URL.revokeObjectURL(url)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `proyecto-${proyectoId}.xmi`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
     } catch (err: any) {
       setErrorExportar(err.message || "No se pudo exportar el XMI")
     } finally {
@@ -38,7 +41,7 @@ export function useXmiExchange(proyectoId: number) {
     setErrorImportar(null)
     try {
       await importXmi(proyectoId, archivo)
-      navigate(`/proyectos/${proyectoId}/diagrama`)
+      navigate(`/proyectos/${encodeProjectId(proyectoId)}/diagrama`)
       return true
     } catch (err: any) {
       setErrorImportar(err.message || "No se pudo importar el XMI")

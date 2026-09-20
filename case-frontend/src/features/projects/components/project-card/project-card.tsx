@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/compone
 import { Badge } from "@/components/ui/badge"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { colorAvatar, iniciales } from "@/lib/avatar"
+import { encodeProjectId } from "@/lib/projectCode"
 import { useProjectMembers } from "../../hooks/useProjectMembers"
 import type { listarProyectosResponse, RolProyecto } from "../../types/projects.type"
 
@@ -28,7 +29,7 @@ export function ProjectCard({ proyecto }: { proyecto: listarProyectosResponse })
   const restantes = miembros.length - visibles.length
 
   return (
-    <Link to={`/proyectos/${proyecto.id}`} className="block h-full">
+    <Link to={`/proyectos/${encodeProjectId(proyecto.id)}`} className="block h-full">
       <Card className="h-full min-h-[160px] justify-between border transition-all duration-300 hover:border-primary/50 hover:bg-primary/5 hover:shadow-lg active:border-primary active:bg-primary/10 sm:min-h-[200px]">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">

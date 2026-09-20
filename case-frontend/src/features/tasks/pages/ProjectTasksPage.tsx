@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardHeader } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { decodeProjectId } from "@/lib/projectCode"
 import { useTasks } from "../hooks/useTasks"
 import { useTaskMutations } from "../hooks/useTaskMutations"
 import { TaskCard } from "../components/task-card/task-card"
@@ -18,7 +19,7 @@ const COLUMNAS: { estado: EstadoTarea; label: string }[] = [
 
 export function ProjectTasksPage() {
   const { id } = useParams<{ id: string }>()
-  const proyectoId = Number(id)
+  const proyectoId = decodeProjectId(id)
   const { tareas, loading, error, refetch } = useTasks(proyectoId)
   const { changeStatus, remove } = useTaskMutations(proyectoId)
 

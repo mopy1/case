@@ -3,6 +3,7 @@ import { FileDown, FileUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { decodeProjectId } from "@/lib/projectCode"
 import { useXmiExchange } from "../hooks/useXmiExchange"
 import { XmiImportDialog } from "../components/xmi-import-dialog"
 
@@ -11,7 +12,7 @@ import { XmiImportDialog } from "../components/xmi-import-dialog"
  * formato `.xmi` que genera/lee el backend). */
 export function ProjectXmiPage() {
   const { id } = useParams<{ id: string }>()
-  const proyectoId = Number(id)
+  const proyectoId = decodeProjectId(id)
   const { handleExportar, handleImportar, exportando, importando, errorExportar, errorImportar } = useXmiExchange(proyectoId)
 
   return (

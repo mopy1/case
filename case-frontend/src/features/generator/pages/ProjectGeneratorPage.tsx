@@ -4,13 +4,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { decodeProjectId } from "@/lib/projectCode"
 import { useProjectGenerator } from "../hooks/useProjectGenerator"
 import { GeneratorFileTree } from "../components/generator-file-tree"
 import { GeneratorCodeViewer } from "../components/generator-code-viewer"
 
 export function ProjectGeneratorPage() {
   const { id } = useParams<{ id: string }>()
-  const proyectoId = Number(id)
+  const proyectoId = decodeProjectId(id)
   const { preview, selectedFile, setSelectedFile, loading, downloading, error, recargar, descargar } =
     useProjectGenerator(proyectoId)
 

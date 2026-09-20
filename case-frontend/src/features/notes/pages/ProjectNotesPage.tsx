@@ -2,13 +2,14 @@ import { useParams } from "react-router-dom"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
+import { decodeProjectId } from "@/lib/projectCode"
 import { useNotes } from "../hooks/useNotes"
 import { NoteItem } from "../components/note-item/note-item"
 import { CreateNoteDialog } from "../components/create-note-dialog/create-note-dialog"
 
 export function ProjectNotesPage() {
   const { id } = useParams<{ id: string }>()
-  const proyectoId = Number(id)
+  const proyectoId = decodeProjectId(id)
   const { notas, loading, error, refetch } = useNotes(proyectoId)
 
   return (

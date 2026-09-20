@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Outlet, useParams } from "react-router-dom"
+import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Bot } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ProjectNavRail } from "@/components/common/project-nav-rail"
@@ -8,12 +8,26 @@ import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import { CopilotPanel } from "@/features/copilot"
 import { usePushToTalk, VoicePushToTalkHud } from "@/features/voice"
 import { useIsMobile } from "@/hooks/useIsMobile"
+import { decodeProjectId, encodeProjectId } from "@/lib/projectCode"
 
 const COPILOT_STORAGE_KEY = "sw_case_copilot_open"
 
 export function ProjectLayout() {
   const { id } = useParams<{ id: string }>()
-  const proyectoId = Number(id)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const proyectoId = decodeProjectId(id)
+  const maskedCode = encodeProjectId(proyectoId)
+
+  // Reescribir suavemente en la barra de direcciones si se ingresó con ID numérico (ej: /proyectos/1)
+  useEffect(() => {
+    if (id && /^\d+$/.test(id) && maskedCode && id !== maskedCode) {
+      const nuevoPath = location.pathname.replace(`/proyectos/${id}`, `/proyectos/${maskedCode}`)
+      navigate(nuevoPath, { replace: true })
+    }
+  }, [id, maskedCode, location.pathname, navigate])
+
   const { proyecto, error } = useProject(proyectoId)
   const { miembros } = useProjectMembers(proyectoId)
   const isMobile = useIsMobile()
@@ -45,7 +59,7 @@ export function ProjectLayout() {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
       <ProjectNavRail
-        projectId={id!}
+        projectId={maskedCode || id!}
         miembros={miembros}
         miRol={proyecto?.miRol}
       />

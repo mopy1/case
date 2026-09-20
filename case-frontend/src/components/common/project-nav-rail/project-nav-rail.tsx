@@ -11,8 +11,8 @@ import { colorAvatar, iniciales } from "@/lib/avatar"
 import { useAuth } from "@/hooks/useAuth"
 import { ProjectMembersDialog } from "@/features/projects/components/project-members-dialog"
 import type { MiembroProyectoResponse, RolProyecto } from "@/features/projects/types/projects.type"
+import { decodeProjectId } from "@/lib/projectCode"
 import { projectNavItems } from "./project-nav-rail.data"
-
 
 const MAX_AVATARES_RAIL = 4
 
@@ -65,7 +65,7 @@ export function ProjectNavRail({
         {miRol && (
           <>
             <Separator className="w-8" />
-            <ProjectMembersDialog proyectoId={Number(projectId)} miRol={miRol} />
+            <ProjectMembersDialog proyectoId={decodeProjectId(projectId)} miRol={miRol} />
           </>
         )}
       </div>

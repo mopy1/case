@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom"
 import { Background, ConnectionMode, Controls, MiniMap, ReactFlow, type EdgeTypes, type NodeTypes } from "@xyflow/react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import { decodeProjectId } from "@/lib/projectCode"
 import { useTheme } from "@/contexts/ThemeContext"
 import { useDiagramCanvas } from "../hooks/useDiagramCanvas"
 import { CanvasToolbar } from "../components/toolbar/CanvasToolbar"
@@ -21,7 +22,7 @@ const edgeTypes: EdgeTypes = { relacion: UmlRelationEdge }
 
 export function DiagramEditorPage() {
   const { id } = useParams<{ id: string }>()
-  const proyectoId = Number(id)
+  const proyectoId = decodeProjectId(id)
   const {
     nodes,
     edges,

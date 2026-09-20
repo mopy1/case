@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
+import { encodeProjectId } from "@/lib/projectCode"
 import { createNote } from "@/features/notes/api/notesApi"
 import type {
   AdrSuggestion,
@@ -80,7 +81,7 @@ export function useCopilotSystemActionHandlers(
         } else if (action.tipo === "GENERAR_BACKEND") {
           await executeGenerateBackendAction(proyectoId)
         } else if (action.tipo === "NAVEGAR" && action.destino) {
-          navigate(`/proyectos/${proyectoId}/${action.destino}`)
+          navigate(`/proyectos/${encodeProjectId(proyectoId)}/${action.destino}`)
         }
         setMessages((prev) => updateSystemActionExecutedInMessages(prev, messageId, index))
       } finally {
