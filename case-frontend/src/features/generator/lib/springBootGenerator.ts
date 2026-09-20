@@ -708,7 +708,10 @@ public interface ${className}Repository extends JpaRepository<${className}, ${id
 `
 }
 
-function generarRequestDtoJava(entidad: EntidadDiagramaResponse): string {
+function generarRequestDtoJava(
+  entidad: EntidadDiagramaResponse,
+  rels?: RelacionesPorEntidad
+): string {
   const className = toPascalCase(entidad.nombre)
   const atributos = asegurarAtributosConPk(entidad)
   const noPkAttrs = atributos.filter((a) => !a.esPk)
@@ -722,8 +725,9 @@ function generarRequestDtoJava(entidad: EntidadDiagramaResponse): string {
   lines.push(`import java.time.LocalTime;\n`)
   lines.push(`public record ${className}Request(`)
 
-  for (let i = 0; i < noPkAttrs.length; i++) {
-    const attr = noPkAttrs[i]
+  const fields: string[] = []
+
+  for (const attr of noPkAttrs) {
     const fieldName = toCamelCase(attr.nombre)
     const javaType = toJavaType(attr.tipoSql)
 
@@ -735,16 +739,31 @@ function generarRequestDtoJava(entidad: EntidadDiagramaResponse): string {
         validation = `@NotNull(message = "${fieldName} es obligatorio") `
       }
     }
-
-    const comma = i < noPkAttrs.length - 1 ? "," : ""
-    lines.push(`    ${validation}${javaType} ${fieldName}${comma}`)
+    fields.push(`    ${validation}${javaType} ${fieldName}`)
   }
 
+  if (rels) {
+    for (const rel of rels.manyToOne) {
+      const fkFieldName = `${toCamelCase(rel.fieldName)}Id`
+      const alreadyHas = noPkAttrs.some(
+        (a) => toCamelCase(a.nombre) === fkFieldName || a.nombre.toLowerCase() === rel.columnName.toLowerCase()
+      )
+      if (!alreadyHas) {
+        const validation = !rel.nullable ? `@NotNull(message = "${fkFieldName} es obligatorio") ` : ""
+        fields.push(`    ${validation}Long ${fkFieldName}`)
+      }
+    }
+  }
+
+  lines.push(fields.join(",\n"))
   lines.push(`) {}\n`)
   return lines.join("\n")
 }
 
-function generarResponseDtoJava(entidad: EntidadDiagramaResponse): string {
+function generarResponseDtoJava(
+  entidad: EntidadDiagramaResponse,
+  rels?: RelacionesPorEntidad
+): string {
   const className = toPascalCase(entidad.nombre)
   const atributos = asegurarAtributosConPk(entidad)
 
@@ -757,40 +776,93 @@ function generarResponseDtoJava(entidad: EntidadDiagramaResponse): string {
   lines.push(`import ${BASE_PACKAGE}.model.${className};\n`)
   lines.push(`public record ${className}Response(`)
 
-  for (let i = 0; i < atributos.length; i++) {
-    const attr = atributos[i]
-    const comma = i < atributos.length - 1 ? "," : ""
-    lines.push(`    ${toJavaType(attr.tipoSql)} ${toCamelCase(attr.nombre)}${comma}`)
+  const fields: string[] = []
+  const fromArgs: string[] = []
+
+  for (const attr of atributos) {
+    fields.push(`    ${toJavaType(attr.tipoSql)} ${toCamelCase(attr.nombre)}`)
+    fromArgs.push(`            entity.get${toPascalCase(attr.nombre)}()`)
   }
 
+  if (rels) {
+    for (const rel of rels.manyToOne) {
+      const fkFieldName = `${toCamelCase(rel.fieldName)}Id`
+      const alreadyHas = atributos.some(
+        (a) => toCamelCase(a.nombre) === fkFieldName || a.nombre.toLowerCase() === rel.columnName.toLowerCase()
+      )
+      if (!alreadyHas) {
+        fields.push(`    Long ${fkFieldName}`)
+        fromArgs.push(
+          `            entity.get${toPascalCase(rel.fieldName)}() != null ? entity.get${toPascalCase(rel.fieldName)}().getId() : null`
+        )
+      }
+    }
+  }
+
+  lines.push(fields.join(",\n"))
   lines.push(`) {`)
   lines.push(`    public static ${className}Response from(${className} entity) {`)
   lines.push(`        return new ${className}Response(`)
-
-  for (let i = 0; i < atributos.length; i++) {
-    const attr = atributos[i]
-    const comma = i < atributos.length - 1 ? "," : ""
-    lines.push(`            entity.get${toPascalCase(attr.nombre)}()${comma}`)
-  }
-
+  lines.push(fromArgs.join(",\n"))
   lines.push(`        );`)
   lines.push(`    }`)
   lines.push(`}\n`)
   return lines.join("\n")
 }
 
-function generarServiceJava(entidad: EntidadDiagramaResponse): string {
+function generarServiceJava(
+  entidad: EntidadDiagramaResponse,
+  rels?: RelacionesPorEntidad
+): string {
   const className = toPascalCase(entidad.nombre)
   const idType = obtenerTipoId(entidad)
   const atributos = asegurarAtributosConPk(entidad)
   const noPkAttrs = atributos.filter((a) => !a.esPk)
 
-  const setters = noPkAttrs
+  const scalarSetters = noPkAttrs
     .map(
       (a) =>
         `        entity.set${toPascalCase(a.nombre)}(request.${toCamelCase(a.nombre)}());`
     )
     .join("\n")
+
+  const mtoRels = rels?.manyToOne ?? []
+  const uniqueForeignTargets = Array.from(
+    new Set(mtoRels.map((r) => r.targetEntityName).filter((t) => t !== className))
+  )
+
+  const repoFields = uniqueForeignTargets
+    .map((target) => `    private final ${target}Repository ${toCamelCase(target)}Repository;`)
+    .join("\n")
+
+  const ctorParams = [`${className}Repository repository`]
+    .concat(uniqueForeignTargets.map((t) => `${t}Repository ${toCamelCase(t)}Repository`))
+    .join(", ")
+
+  const ctorAssignments = [`        this.repository = repository;`]
+    .concat(uniqueForeignTargets.map((t) => `        this.${toCamelCase(t)}Repository = ${toCamelCase(t)}Repository;`))
+    .join("\n")
+
+  const relImports = uniqueForeignTargets
+    .map(
+      (target) =>
+        `import ${BASE_PACKAGE}.model.${target};\nimport ${BASE_PACKAGE}.repository.${target}Repository;`
+    )
+    .join("\n")
+
+  const relSetters = mtoRels
+    .map((rel) => {
+      const fkGetter = `request.${toCamelCase(rel.fieldName)}Id()`
+      const repoVar = rel.targetEntityName === className ? "this.repository" : `this.${toCamelCase(rel.targetEntityName)}Repository`
+      return `        if (${fkGetter} != null) {
+            ${rel.targetEntityName} ${rel.fieldName} = ${repoVar}.findById(${fkGetter})
+                    .orElseThrow(() -> new ResourceNotFoundException("${rel.targetEntityName} no encontrado con id: " + ${fkGetter}));
+            entity.set${toPascalCase(rel.fieldName)}(${rel.fieldName});
+        }`
+    })
+    .join("\n")
+
+  const allSetters = [scalarSetters, relSetters].filter(Boolean).join("\n")
 
   return `package ${BASE_PACKAGE}.service;
 
@@ -802,15 +874,15 @@ import ${BASE_PACKAGE}.dto.${className}Request;
 import ${BASE_PACKAGE}.dto.${className}Response;
 import ${BASE_PACKAGE}.model.${className};
 import ${BASE_PACKAGE}.repository.${className}Repository;
-
+${relImports ? relImports + "\n" : ""}
 @Service
 @Transactional
 public class ${className}Service {
 
     private final ${className}Repository repository;
-
-    public ${className}Service(${className}Repository repository) {
-        this.repository = repository;
+${repoFields ? repoFields + "\n" : ""}
+    public ${className}Service(${ctorParams}) {
+${ctorAssignments}
     }
 
     @Transactional(readOnly = true)
@@ -829,14 +901,14 @@ public class ${className}Service {
 
     public ${className}Response crear(${className}Request request) {
         ${className} entity = new ${className}();
-${setters}
+${allSetters}
         return ${className}Response.from(repository.save(entity));
     }
 
     public ${className}Response actualizar(${idType} id, ${className}Request request) {
         ${className} entity = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("${className} no encontrado con id: " + id));
-${setters}
+${allSetters}
         return ${className}Response.from(repository.save(entity));
     }
 
@@ -998,17 +1070,17 @@ export function generarProyectoSpringBoot(
     })
     archivos.push({
       ruta: `${BASE_PATH}dto/${className}Request.java`,
-      contenido: generarRequestDtoJava(entidad),
+      contenido: generarRequestDtoJava(entidad, rels),
       tipo: "JAVA",
     })
     archivos.push({
       ruta: `${BASE_PATH}dto/${className}Response.java`,
-      contenido: generarResponseDtoJava(entidad),
+      contenido: generarResponseDtoJava(entidad, rels),
       tipo: "JAVA",
     })
     archivos.push({
       ruta: `${BASE_PATH}service/${className}Service.java`,
-      contenido: generarServiceJava(entidad),
+      contenido: generarServiceJava(entidad, rels),
       tipo: "JAVA",
     })
     archivos.push({
