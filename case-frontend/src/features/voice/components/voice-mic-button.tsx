@@ -24,7 +24,7 @@ export function VoiceMicButton({
     ? "Reconocimiento de voz no soportado por este navegador"
     : isListening
       ? "Detener dictado por voz (o di 'enviar')"
-      : "Dictar mensaje por voz (Español)"
+      : "Dictar por voz (o mantén [Espacio] o [V] para Push-to-Talk rápido)"
 
   return (
     <div className="inline-flex items-center gap-1.5">

@@ -46,6 +46,17 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
     localStorage.setItem(WIDTH_STORAGE_KEY, String(width))
   }, [width])
 
+  useEffect(() => {
+    const onVoiceSubmit = (e: Event) => {
+      const custom = e as CustomEvent<{ text: string }>
+      if (custom.detail?.text) {
+        copilot.sendMessage(custom.detail.text)
+      }
+    }
+    window.addEventListener("copilot:voice-submit", onVoiceSubmit)
+    return () => window.removeEventListener("copilot:voice-submit", onVoiceSubmit)
+  }, [copilot])
+
   return (
     <aside
       aria-label="Panel Asistente IA y Manual CASE"

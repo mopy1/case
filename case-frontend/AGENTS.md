@@ -173,9 +173,13 @@ case-frontend/src/
     │   ├── types/collaboration.types.ts      # Tipos de presencia, cursores y mensajes
     │   └── index.ts                          # API pública del feature
     │
-    └── voice/                                # 🎙️ Reconocimiento de Voz Nativo (Web Speech API)
-        ├── components/voice-mic-button.tsx   # Botón de micrófono accesible con pulso activo y tooltip
-        ├── hooks/useSpeechRecognition.ts     # Hook reusable con soporte español, interim results y error handling
+    └── voice/                                # 🎙️ Reconocimiento de Voz Nativo & Push-to-Talk (Web Speech API)
+        ├── components/                       # Botón de micrófono y HUD flotante Push-to-Talk
+        │   ├── voice-mic-button.tsx          # Botón con pulso activo, tooltip de atajos y toggle
+        │   └── voice-push-to-talk-hud.tsx    # HUD flotante en pantalla [Espacio / V] con transcripción y auto-envío
+        ├── hooks/                            # Hooks desacoplados de captura y atajos
+        │   ├── useSpeechRecognition.ts       # Hook reusable con soporte español, interim results y error handling
+        │   └── usePushToTalk.ts              # Walkie-Talkie: presionar tecla para escuchar y soltar para auto-enviar
         ├── lib/speech-recognition.utils.ts   # Helpers de soporte de navegador, mensajes de error y parsing
         ├── types/speech-recognition.types.ts # Tipos e interfaces de Web Speech API
         └── index.ts                          # API pública del feature voice

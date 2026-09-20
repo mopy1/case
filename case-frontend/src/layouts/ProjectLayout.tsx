@@ -6,6 +6,7 @@ import { ProjectNavRail } from "@/components/common/project-nav-rail"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import { CopilotPanel } from "@/features/copilot"
+import { usePushToTalk, VoicePushToTalkHud } from "@/features/voice"
 
 const COPILOT_STORAGE_KEY = "sw_case_copilot_open"
 
@@ -24,6 +25,15 @@ export function ProjectLayout() {
   useEffect(() => {
     localStorage.setItem(COPILOT_STORAGE_KEY, String(isCopilotOpen))
   }, [isCopilotOpen])
+
+  const handleVoiceSend = (text: string) => {
+    setIsCopilotOpen(true)
+    window.dispatchEvent(new CustomEvent("copilot:voice-submit", { detail: { text } }))
+  }
+
+  const { isPushing, isSending, liveText } = usePushToTalk({
+    onSend: handleVoiceSend,
+  })
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
@@ -60,6 +70,12 @@ export function ProjectLayout() {
         proyectoId={proyectoId}
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
+      />
+
+      <VoicePushToTalkHud
+        isPushing={isPushing}
+        isSending={isSending}
+        liveText={liveText}
       />
     </div>
   )
