@@ -1,13 +1,16 @@
-import { Check, FileText, Loader2 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import type { AdrSuggestion, CopilotMessage } from "../types/copilot.types"
+import type { AdrSuggestion, CopilotMessage, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
+import { CopilotAdrCard } from "./copilot-adr-card"
+import { CopilotEntityCard } from "./copilot-entity-card"
+import { CopilotRelationCard } from "./copilot-relation-card"
 
 interface CopilotMessageItemProps {
   message: CopilotMessage
   isSavingAdr: boolean
+  creatingEntityKey?: string | null
+  creatingRelationKey?: string | null
   onSaveAdr: (messageId: string, adr: AdrSuggestion) => void
+  onCreateEntity: (messageId: string, entityIndex: number, entity: EntitySuggestion) => void
+  onCreateRelation: (messageId: string, relationIndex: number, relation: RelationSuggestion) => void
 }
 
 function renderFormattedContent(text: string) {
@@ -54,11 +57,19 @@ function renderFormattedContent(text: string) {
   )
 }
 
-export function CopilotMessageItem({ message, isSavingAdr, onSaveAdr }: CopilotMessageItemProps) {
+export function CopilotMessageItem({
+  message,
+  isSavingAdr,
+  creatingEntityKey,
+  creatingRelationKey,
+  onSaveAdr,
+  onCreateEntity,
+  onCreateRelation,
+}: CopilotMessageItemProps) {
   const isUser = message.sender === "user"
 
   return (
-    <div className={`flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
+    <div className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
       <div
         className={`rounded-2xl px-3.5 py-2.5 text-xs ${
           isUser
@@ -70,48 +81,42 @@ export function CopilotMessageItem({ message, isSavingAdr, onSaveAdr }: CopilotM
       </div>
 
       {message.adrSuggestion && !isUser && (
-        <Card className="flex max-w-[95%] flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
-          <div className="flex items-center gap-1.5 font-semibold text-foreground">
-            <FileText className="size-3.5 text-primary" />
-            <span>Sugerencia de Decisión Arquitectónica (ADR)</span>
-          </div>
-          <div className="space-y-1 text-muted-foreground">
-            <div>
-              <strong className="text-foreground">Acción: </strong>
-              {message.adrSuggestion.accion}
-            </div>
-            <div>
-              <strong className="text-foreground">Motivo: </strong>
-              {message.adrSuggestion.motivo}
-            </div>
-          </div>
+        <CopilotAdrCard
+          messageId={message.id}
+          adr={message.adrSuggestion}
+          isSaving={isSavingAdr}
+          onSave={onSaveAdr}
+        />
+      )}
 
-          <div className="pt-1">
-            {message.adrSuggestion.guardada ? (
-              <Badge variant="outline" className="gap-1 border-emerald-500/30 bg-emerald-500/10 text-[11px] text-emerald-600 dark:text-emerald-400">
-                <Check className="size-3" />
-                ✓ Nota guardada en el proyecto
-              </Badge>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1.5 text-xs hover:border-primary/40 hover:bg-primary/10"
-                disabled={isSavingAdr}
-                onClick={() => onSaveAdr(message.id, message.adrSuggestion!)}
-              >
-                {isSavingAdr ? (
-                  <>
-                    <Loader2 className="size-3 animate-spin" />
-                    Guardando nota...
-                  </>
-                ) : (
-                  "📝 Guardar como Nota ADR en el proyecto"
-                )}
-              </Button>
-            )}
-          </div>
-        </Card>
+      {message.entitySuggestions && !isUser && message.entitySuggestions.length > 0 && (
+        <div className="flex w-full flex-col gap-1.5">
+          {message.entitySuggestions.map((ent, i) => (
+            <CopilotEntityCard
+              key={i}
+              messageId={message.id}
+              entityIndex={i}
+              entity={ent}
+              isCreating={creatingEntityKey === `${message.id}-ent-${i}`}
+              onCreate={onCreateEntity}
+            />
+          ))}
+        </div>
+      )}
+
+      {message.relationSuggestions && !isUser && message.relationSuggestions.length > 0 && (
+        <div className="flex w-full flex-col gap-1.5">
+          {message.relationSuggestions.map((rel, i) => (
+            <CopilotRelationCard
+              key={i}
+              messageId={message.id}
+              relationIndex={i}
+              relation={rel}
+              isCreating={creatingRelationKey === `${message.id}-rel-${i}`}
+              onCreate={onCreateRelation}
+            />
+          ))}
+        </div>
       )}
 
       <span className="px-1 text-[10px] text-muted-foreground">{message.timestamp}</span>

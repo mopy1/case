@@ -1,20 +1,28 @@
 import { useEffect, useRef } from "react"
 import { Bot, Loader2 } from "lucide-react"
-import type { AdrSuggestion, CopilotMessage } from "../types/copilot.types"
+import type { AdrSuggestion, CopilotMessage, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
 import { CopilotMessageItem } from "./copilot-message-item"
 
 interface CopilotMessageListProps {
   messages: CopilotMessage[]
   loading: boolean
   savingNoteId: string | null
+  creatingEntityKey?: string | null
+  creatingRelationKey?: string | null
   onSaveAdr: (messageId: string, adr: AdrSuggestion) => void
+  onCreateEntity: (messageId: string, entityIndex: number, entity: EntitySuggestion) => void
+  onCreateRelation: (messageId: string, relationIndex: number, relation: RelationSuggestion) => void
 }
 
 export function CopilotMessageList({
   messages,
   loading,
   savingNoteId,
+  creatingEntityKey,
+  creatingRelationKey,
   onSaveAdr,
+  onCreateEntity,
+  onCreateRelation,
 }: CopilotMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -29,7 +37,11 @@ export function CopilotMessageList({
           key={message.id}
           message={message}
           isSavingAdr={savingNoteId === message.id}
+          creatingEntityKey={creatingEntityKey}
+          creatingRelationKey={creatingRelationKey}
           onSaveAdr={onSaveAdr}
+          onCreateEntity={onCreateEntity}
+          onCreateRelation={onCreateRelation}
         />
       ))}
 

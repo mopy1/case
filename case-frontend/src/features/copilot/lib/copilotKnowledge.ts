@@ -1,4 +1,5 @@
-import type { AdrSuggestion, CopilotSection, KnowledgeTopic } from "../types/copilot.types"
+import { findSafeEntityPosition, type EntityPosition } from "@/features/diagram/lib/positionGuide"
+import type { AdrSuggestion, CopilotSection, EntitySuggestion, KnowledgeTopic, RelationSuggestion } from "../types/copilot.types"
 import { KNOWLEDGE_TOPICS } from "./copilotKnowledge.data"
 
 export { KNOWLEDGE_TOPICS }
@@ -36,51 +37,60 @@ export function searchKnowledge(query: string, section?: CopilotSection): Knowle
     .map((item) => item.topic)
 }
 
-export function getQuickQuestionsForSection(section: CopilotSection): string[] {
-  switch (section) {
-    case "diagrama":
-      return [
-        "¿Cómo crear una relación N:M?",
-        "¿Qué tipos de datos soporta?",
-        "Sugerir decisiones de arquitectura",
-        "¿Cómo se arrastran los puntos de control?",
-      ]
-    case "generador":
-      return [
-        "¿Qué dependencias incluye el pom.xml?",
-        "¿Cómo ejecuto el backend descargado?",
-        "¿Qué capas de código genera?",
-      ]
-    case "xmi":
-      return [
-        "¿Cómo importar este XMI en Enterprise Architect?",
-        "¿Cómo exportar el diagrama para Enterprise Architect 16?",
-      ]
-    case "notas":
-      return [
-        "¿Qué es un ADR y por qué es inmutable?",
-        "¿Cómo justificar decisiones de arquitectura ante el docente?",
-        "Sugerir decisiones de arquitectura",
-      ]
-    case "tareas":
-      return [
-        "¿Cómo organizar el backlog del backend?",
-        "¿Cómo vincular tareas a los colaboradores del proyecto?",
-      ]
-    default:
-      return [
-        "¿Cómo crear una relación N:M?",
-        "¿Qué tipos de datos soporta?",
-        "Sugerir decisiones de arquitectura",
-      ]
-  }
-}
+export { getQuickQuestionsForSection } from "./copilotQuestions"
 
 export function generateLocalResponse(
   query: string,
-  section: CopilotSection
-): { text: string; adrSuggestion?: AdrSuggestion } {
+  section: CopilotSection,
+  existingEntities: EntityPosition[] = []
+): {
+  text: string
+  adrSuggestion?: AdrSuggestion
+  entitySuggestions?: EntitySuggestion[]
+  relationSuggestions?: RelationSuggestion[]
+} {
   const isAdrRequest = /sugerir|decision|adrs?|normaliza|arquitectura/i.test(query)
+  const isCreateTable = /(?:crear|nueva|agregar|diseñar)\s+(?:tabla|entidad)\s+([a-zA-Z0-9_]+)/i.exec(query)
+  const isCreateRelation = /(?:relacion(?:ar)?|conectar)\s+([a-zA-Z0-9_]+)\s+(?:con|a|y)\s+([a-zA-Z0-9_]+)/i.exec(query)
+
+  if (isCreateTable) {
+    const tableName = isCreateTable[1]
+    const safePos = findSafeEntityPosition(existingEntities)
+    return {
+      text: `He preparado la estructura para la tabla **${tableName}** en la posición segura libre (x: ${safePos.posX}, y: ${safePos.posY}) para evitar colisiones.`,
+      entitySuggestions: [
+        {
+          nombre: tableName.charAt(0).toUpperCase() + tableName.slice(1),
+          posX: safePos.posX,
+          posY: safePos.posY,
+          atributos: [
+            { nombre: "id", tipoSql: "BIGINT", esPk: true, esFk: false, nullable: false },
+            { nombre: "nombre", tipoSql: "VARCHAR", esPk: false, esFk: false, nullable: false },
+            { nombre: "estado", tipoSql: "VARCHAR", esPk: false, esFk: false, nullable: true },
+          ],
+          creada: false,
+        },
+      ],
+    }
+  }
+
+  if (isCreateRelation) {
+    const origen = isCreateRelation[1]
+    const destino = isCreateRelation[2]
+    return {
+      text: `He preparado la relación 1:N entre **${origen}** y **${destino}**. Puedes crearla directamente en el lienzo.`,
+      relationSuggestions: [
+        {
+          origen,
+          destino,
+          multiplicidadOrigen: "UNO_O_MAS",
+          multiplicidadDestino: "UNO",
+          creada: false,
+        },
+      ],
+    }
+  }
+
   const matches = searchKnowledge(query, section)
   const bestTopic = matches[0] || KNOWLEDGE_TOPICS[0]
 

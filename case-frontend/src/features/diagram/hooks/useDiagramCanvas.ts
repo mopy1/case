@@ -5,6 +5,7 @@ import { useEntityMutations } from "./useEntityMutations"
 import { useRelationMutations } from "./useRelationMutations"
 import { entidadANodo, relacionAArista } from "../lib/diagramMappers"
 import { calcularOffsetsParalelos, detectarAsociacionesClase, type AsociacionClase } from "../lib/relacionesDerivadas"
+import { findSafeEntityPosition } from "../lib/positionGuide"
 import type { LadoMultiplicidad, PuntoControl, RelacionDiagramaResponse } from "../types/diagram.types"
 
 export type { AsociacionClase }
@@ -109,10 +110,8 @@ export function useDiagramCanvas(proyectoId: number) {
   }
 
   async function handleCreate(nombre: string) {
-    const count = diagrama.entidades.length
-    const posX = 80 + (count % 4) * 440
-    const posY = 80 + Math.floor(count / 4) * 300
-    const creada = await entityMutations.create({ nombre, posX, posY })
+    const safePos = findSafeEntityPosition(diagrama.entidades)
+    const creada = await entityMutations.create({ nombre, posX: safePos.posX, posY: safePos.posY })
     if (!creada) return false
     await refetch()
     return true

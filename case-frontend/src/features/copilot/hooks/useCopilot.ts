@@ -1,35 +1,27 @@
 import { useState, useMemo, useCallback } from "react"
 import { useLocation } from "react-router-dom"
 import { createNote } from "@/features/notes/api/notesApi"
-import type { AdrSuggestion, CopilotMessage, CopilotSection } from "../types/copilot.types"
-import { getQuickQuestionsForSection } from "../lib/copilotKnowledge"
+import { getDiagram } from "@/features/diagram/api/diagramApi"
+import type { AdrSuggestion, CopilotMessage, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
+import { getQuickQuestionsForSection } from "../lib/copilotQuestions"
 import { askCopilot } from "../lib/geminiService"
-
-function detectActiveSection(pathname: string): CopilotSection {
-  if (pathname.includes("/diagrama")) return "diagrama"
-  if (pathname.includes("/tareas")) return "tareas"
-  if (pathname.includes("/notas")) return "notas"
-  if (pathname.includes("/xmi")) return "xmi"
-  if (pathname.includes("/generador")) return "generador"
-  return "general"
-}
+import {
+  executeCreateEntity,
+  executeCreateRelation,
+  updateEntityCreatedInMessages,
+  updateRelationCreatedInMessages,
+} from "../lib/copilotDiagramActions"
+import { createWelcomeMessage, detectActiveSection } from "../lib/copilotSection"
 
 export function useCopilot(proyectoId: number) {
   const location = useLocation()
   const activeSection = useMemo(() => detectActiveSection(location.pathname), [location.pathname])
 
-  const [messages, setMessages] = useState<CopilotMessage[]>([
-    {
-      id: "welcome",
-      sender: "assistant",
-      text: "¡Hola! Soy tu copiloto y manual contextual de CASE Tool. Puedo orientarte sobre modelado de datos, generación de backend Spring Boot 3.4, XMI 2.1 y registrar decisiones arquitectónicas (ADRs) directamente en tu proyecto.",
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      section: activeSection,
-    },
-  ])
-
+  const [messages, setMessages] = useState<CopilotMessage[]>([createWelcomeMessage(activeSection)])
   const [loading, setLoading] = useState(false)
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null)
+  const [creatingEntityKey, setCreatingEntityKey] = useState<string | null>(null)
+  const [creatingRelationKey, setCreatingRelationKey] = useState<string | null>(null)
 
   const quickQuestions = useMemo(() => getQuickQuestionsForSection(activeSection), [activeSection])
 
@@ -50,21 +42,26 @@ export function useCopilot(proyectoId: number) {
       setLoading(true)
 
       try {
-        const response = await askCopilot(trimmed, activeSection)
-        const assistantMsg: CopilotMessage = {
-          id: `assistant-${Date.now()}`,
-          sender: "assistant",
-          text: response.text,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          adrSuggestion: response.adrSuggestion,
-          section: activeSection,
-        }
-        setMessages((prev) => [...prev, assistantMsg])
+        const diagram = await getDiagram(proyectoId).catch(() => undefined)
+        const res = await askCopilot(trimmed, activeSection, diagram)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            sender: "assistant",
+            text: res.text,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            adrSuggestion: res.adrSuggestion,
+            entitySuggestions: res.entitySuggestions,
+            relationSuggestions: res.relationSuggestions,
+            section: activeSection,
+          },
+        ])
       } finally {
         setLoading(false)
       }
     },
-    [activeSection, loading]
+    [activeSection, loading, proyectoId]
   )
 
   const handleSaveAdr = useCallback(
@@ -72,23 +69,11 @@ export function useCopilot(proyectoId: number) {
       if (!proyectoId || savingNoteId) return
       setSavingNoteId(messageId)
       try {
-        const nuevaNota = await createNote(proyectoId, {
-          accion: adr.accion,
-          motivo: adr.motivo,
-        })
+        const nota = await createNote(proyectoId, { accion: adr.accion, motivo: adr.motivo })
         setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === messageId && msg.adrSuggestion
-              ? { ...msg, adrSuggestion: { ...msg.adrSuggestion, guardada: true } }
-              : msg
-          )
+          prev.map((m) => (m.id === messageId && m.adrSuggestion ? { ...m, adrSuggestion: { ...m.adrSuggestion, guardada: true } } : m))
         )
-        // Notificar a la pantalla de notas para que se actualice sola en tiempo real
-        window.dispatchEvent(
-          new CustomEvent("project:note-created", {
-            detail: { proyectoId, nota: nuevaNota },
-          })
-        )
+        window.dispatchEvent(new CustomEvent("project:note-created", { detail: { proyectoId, nota } }))
       } catch (err) {
         console.error("Error al guardar nota ADR:", err)
       } finally {
@@ -98,16 +83,40 @@ export function useCopilot(proyectoId: number) {
     [proyectoId, savingNoteId]
   )
 
+  const handleCreateEntity = useCallback(
+    async (messageId: string, index: number, entity: EntitySuggestion) => {
+      if (!proyectoId) return
+      setCreatingEntityKey(`${messageId}-ent-${index}`)
+      try {
+        await executeCreateEntity(proyectoId, entity)
+        setMessages((prev) => updateEntityCreatedInMessages(prev, messageId, index))
+      } catch (err) {
+        console.error("Error al crear tabla desde Copilot:", err)
+      } finally {
+        setCreatingEntityKey(null)
+      }
+    },
+    [proyectoId]
+  )
+
+  const handleCreateRelation = useCallback(
+    async (messageId: string, index: number, relation: RelationSuggestion) => {
+      if (!proyectoId) return
+      setCreatingRelationKey(`${messageId}-rel-${index}`)
+      try {
+        await executeCreateRelation(proyectoId, relation)
+        setMessages((prev) => updateRelationCreatedInMessages(prev, messageId, index))
+      } catch (err) {
+        console.error("Error al crear relación desde Copilot:", err)
+      } finally {
+        setCreatingRelationKey(null)
+      }
+    },
+    [proyectoId]
+  )
+
   const clearChat = useCallback(() => {
-    setMessages([
-      {
-        id: `welcome-${Date.now()}`,
-        sender: "assistant",
-        text: `Conversación reiniciada. ¿En qué te puedo ayudar en la sección de **${activeSection}**?`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        section: activeSection,
-      },
-    ])
+    setMessages([createWelcomeMessage(activeSection)])
   }, [activeSection])
 
   return {
@@ -116,8 +125,12 @@ export function useCopilot(proyectoId: number) {
     activeSection,
     quickQuestions,
     savingNoteId,
+    creatingEntityKey,
+    creatingRelationKey,
     sendMessage,
     handleSaveAdr,
+    handleCreateEntity,
+    handleCreateRelation,
     clearChat,
   }
 }

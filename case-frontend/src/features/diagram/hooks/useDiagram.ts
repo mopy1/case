@@ -30,5 +30,16 @@ export function useDiagram(proyectoId: number) {
     refetch().finally(() => setLoading(false))
   }, [refetch])
 
+  useEffect(() => {
+    const handleDiagramUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<{ proyectoId: number }>
+      if (customEvent.detail?.proyectoId === proyectoId) {
+        refetch()
+      }
+    }
+    window.addEventListener("project:diagram-updated", handleDiagramUpdated)
+    return () => window.removeEventListener("project:diagram-updated", handleDiagramUpdated)
+  }, [proyectoId, refetch])
+
   return { diagrama, loading, error, refetch }
 }

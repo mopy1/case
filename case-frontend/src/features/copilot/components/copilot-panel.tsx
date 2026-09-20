@@ -23,8 +23,12 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
     activeSection,
     quickQuestions,
     savingNoteId,
+    creatingEntityKey,
+    creatingRelationKey,
     sendMessage,
     handleSaveAdr,
+    handleCreateEntity,
+    handleCreateRelation,
     clearChat,
   } = useCopilot(proyectoId)
 
@@ -105,7 +109,11 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
           messages={messages}
           loading={loading}
           savingNoteId={savingNoteId}
+          creatingEntityKey={creatingEntityKey}
+          creatingRelationKey={creatingRelationKey}
           onSaveAdr={handleSaveAdr}
+          onCreateEntity={handleCreateEntity}
+          onCreateRelation={handleCreateRelation}
         />
 
         <CopilotQuickSuggestions

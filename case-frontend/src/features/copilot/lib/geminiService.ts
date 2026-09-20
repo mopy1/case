@@ -1,98 +1,77 @@
-import type { AdrSuggestion, CopilotSection } from "../types/copilot.types"
+import type { AdrSuggestion, CopilotSection, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
+import type { EntidadDiagramaResponse, RelacionDiagramaResponse } from "@/features/diagram/types/diagram.types"
+import { findSafeEntityPosition } from "@/features/diagram/lib/positionGuide"
 import { generateLocalResponse, KNOWLEDGE_TOPICS } from "./copilotKnowledge"
+import { cleanResponseText, parseAdrFromText, parseEntitySuggestions, parseRelationSuggestions } from "./copilotParsers"
 
-interface GeminiResponsePayload {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{ text?: string }>
-    }
-  }>
+export interface AskCopilotResult {
+  text: string
+  adrSuggestion?: AdrSuggestion
+  entitySuggestions?: EntitySuggestion[]
+  relationSuggestions?: RelationSuggestion[]
 }
 
-function parseAdrFromText(text: string): AdrSuggestion | undefined {
-  // 1. Formato exacto ADR_SUGERIDA: [...] MOTIVO: [...]
-  const adrMatch = text.match(/ADR_SUGERIDA:\s*\[([^\]]+)\]\s*MOTIVO:\s*\[([^\]]+)\]/i)
-  if (adrMatch) {
-    return { accion: adrMatch[1].trim(), motivo: adrMatch[2].trim() }
-  }
+function buildSystemContext(
+  section: CopilotSection,
+  diagram?: { entidades: EntidadDiagramaResponse[]; relaciones: RelacionDiagramaResponse[] }
+): string {
+  const existingEntities = diagram?.entidades ?? []
+  const safePos = findSafeEntityPosition(existingEntities)
+  const tablesList = existingEntities.length
+    ? existingEntities.map((e) => `- ${e.nombre} (x:${e.posX}, y:${e.posY})`).join("\n")
+    : "Sin tablas en el lienzo."
 
-  // 2. Formato sin corchetes o con negritas: ADR_SUGERIDA: ... MOTIVO: ...
-  const matchLoose = text.match(
-    /(?:\*{0,2})ADR_SUGERIDA:?(?:\*{0,2})\s*\[?([^\n\]]+)\]?\s*\n+\s*(?:\*{0,2})MOTIVO:?(?:\*{0,2})\s*\[?([^\n\]]+)\]?/i
-  )
-  if (matchLoose) {
-    return {
-      accion: matchLoose[1].trim().replace(/^\[|\]$/g, ""),
-      motivo: matchLoose[2].trim().replace(/^\[|\]$/g, ""),
-    }
-  }
+  return `Eres el Asistente Experto (Copilot y Manual de Usuario) de Collaborative CASE Tool.
+Sección actual: "${section}".
+Tablas actuales en el lienzo:
+${tablesList}
 
-  // 3. Formato natural: Acción:** ... Motivo:** ... o Acción: ... Motivo: ...
-  const matchNatural = text.match(
-    /(?:\*{0,2})Acci[oó]n:?(?:\*{0,2})\s*\n?\s*\[?([^\n\]]+)\]?\s*\n+(?:[•\-\*\s]*)(?:\*{0,2})Motivo(?: T[eé]cnico)?:?(?:\*{0,2})\s*\n?\s*\[?([^\n\]]+)\]?/i
-  )
-  if (matchNatural) {
-    return {
-      accion: matchNatural[1].trim().replace(/^\[|\]$/g, ""),
-      motivo: matchNatural[2].trim().replace(/^\[|\]$/g, ""),
-    }
-  }
+GUÍA DE POSICIONAMIENTO DE TABLAS:
+Las tablas miden 270px ancho x 220px alto. Para que NO SE CHOCEN, deben separarse por al menos 70px en X y 60px en Y.
+Próxima posición libre recomendada: x: ${safePos.posX}, y: ${safePos.posY}.
 
-  return undefined
-}
+REGLAS DE RESPUESTA:
+1. BREVEDAD: Responde en 1 a 2 oraciones (menos de 40 palabras).
+2. ACCIONES EN EL LIENZO: El sistema puede crear tablas y relaciones directamente.
+- Para crear tablas, añade al final:
+CREAR_TABLA: [Nombre] (x: ${safePos.posX}, y: ${safePos.posY})
+ATRIBUTOS: [id:BIGINT:PK, campo1:VARCHAR, campo2:INTEGER]
+- Para relaciones, añade al final:
+CREAR_RELACION: [Origen] -> [Destino] (UNO_O_MAS a UNO)
+- Para notas ADR:
+ADR_SUGERIDA: [Acción]
+MOTIVO: [Justificación técnica]
 
-function cleanResponseText(rawText: string): string {
-  return rawText
-    .replace(/(?:##\s*ADR:?[\s\S]*$)/i, "")
-    .replace(/(?:\*{0,2})ADR_SUGERIDA:?[\s\S]*$/i, "")
-    .replace(/(?:\*{0,2})Acci[oó]n:?(?:\*{0,2})[\s\S]*$/i, "")
-    .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")
-    .trim()
+Base de conocimiento:
+${KNOWLEDGE_TOPICS.map((t) => `- ${t.title}: ${t.summary}`).join("\n")}`
 }
 
 export async function askCopilot(
   query: string,
-  section: CopilotSection
-): Promise<{ text: string; adrSuggestion?: AdrSuggestion }> {
+  section: CopilotSection,
+  diagram?: { entidades: EntidadDiagramaResponse[]; relaciones: RelacionDiagramaResponse[] }
+): Promise<AskCopilotResult> {
   const deepseekKey =
     import.meta.env.VITE_DEEPSEEK_API_KEY ||
     (import.meta.env as unknown as Record<string, string>)["VITE_DEEPSEEk_API_KEY"]
   const geminiKey = import.meta.env.VITE_GEMINI_API_KEY
+  const existingEntities = diagram?.entidades ?? []
 
-  // Si no hay ninguna clave, responde el motor local con la base de conocimiento embebida (100% offline)
   if (!deepseekKey && !geminiKey) {
-    return generateLocalResponse(query, section)
+    return generateLocalResponse(query, section, existingEntities)
   }
 
-  const systemContext = `Eres el Asistente Experto (Copilot y Manual de Usuario) de la herramienta Collaborative CASE Tool.
-La vista actual del usuario es: "${section}".
-Base de Conocimiento del Sistema:
-${KNOWLEDGE_TOPICS.map((t) => `- ${t.title} (${t.section}): ${t.summary}\n${t.content}`).join("\n\n")}
+  const systemContext = buildSystemContext(section, diagram)
 
-REGLAS ESTRICTAS DE RESPUESTA:
-1. BREVEDAD EXTREMA: Responde de forma muy corta, directa y profesional. Máximo 1 a 2 oraciones (menos de 40 palabras). PROHIBIDO dar discursos largos, sermones, advertencias o tutoriales paso a paso no solicitados.
-2. NUNCA DIGAS QUE NO PUEDES GUARDAR O ESCRIBIR EN EL PROYECTO: El sistema tiene integración directa a la base de datos PostgreSQL. Tu trabajo es formular la nota y el sistema mostrará el botón interactivo para guardarla.
-3. SI EL USUARIO PIDE CREAR O GUARDAR UNA NOTA (o sugieres una decisión arquitectónica):
-Responde con una sola frase confirmando la nota y añade SIEMPRE este bloque exacto al final:
-ADR_SUGERIDA: [Título claro de la acción]
-MOTIVO: [Justificación técnica concisa de una línea]`
-
-  // 1. Si está configurada la clave de DeepSeek, usar DeepSeek-V3 (ultraeconómico)
   if (deepseekKey && typeof deepseekKey === "string" && deepseekKey.trim()) {
     try {
       const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${deepseekKey.trim()}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekKey.trim()}` },
         body: JSON.stringify({
           model: "deepseek-chat",
-          messages: [
-            { role: "system", content: systemContext },
-            { role: "user", content: query },
-          ],
-          temperature: 0.6,
+          messages: [{ role: "system", content: systemContext }, { role: "user", content: query }],
+          temperature: 0.5,
         }),
       })
 
@@ -100,17 +79,19 @@ MOTIVO: [Justificación técnica concisa de una línea]`
         const data = await res.json()
         const rawText = data.choices?.[0]?.message?.content
         if (rawText) {
-          const adrSuggestion = parseAdrFromText(rawText)
-          const cleanedText = cleanResponseText(rawText)
-          return { text: cleanedText || rawText, adrSuggestion }
+          return {
+            text: cleanResponseText(rawText) || rawText,
+            adrSuggestion: parseAdrFromText(rawText),
+            entitySuggestions: parseEntitySuggestions(rawText, existingEntities),
+            relationSuggestions: parseRelationSuggestions(rawText),
+          }
         }
       }
     } catch {
-      // Fallback si falla la llamada
+      // fallback
     }
   }
 
-  // 2. Si está configurada la clave de Gemini
   if (geminiKey && typeof geminiKey === "string" && geminiKey.trim()) {
     try {
       const res = await fetch(
@@ -126,18 +107,21 @@ MOTIVO: [Justificación técnica concisa de una línea]`
       )
 
       if (res.ok) {
-        const data: GeminiResponsePayload = await res.json()
+        const data = await res.json()
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
         if (rawText) {
-          const adrSuggestion = parseAdrFromText(rawText)
-          const cleanedText = cleanResponseText(rawText)
-          return { text: cleanedText || rawText, adrSuggestion }
+          return {
+            text: cleanResponseText(rawText) || rawText,
+            adrSuggestion: parseAdrFromText(rawText),
+            entitySuggestions: parseEntitySuggestions(rawText, existingEntities),
+            relationSuggestions: parseRelationSuggestions(rawText),
+          }
         }
       }
     } catch {
-      // Fallback
+      // fallback
     }
   }
 
-  return generateLocalResponse(query, section)
+  return generateLocalResponse(query, section, existingEntities)
 }
