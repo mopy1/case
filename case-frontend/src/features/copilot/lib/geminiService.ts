@@ -21,9 +21,11 @@ export async function askCopilot(
   query: string,
   section: CopilotSection
 ): Promise<{ text: string; adrSuggestion?: AdrSuggestion }> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+  const deepseekKey = import.meta.env.VITE_DEEPSEEK_API_KEY
+  const geminiKey = import.meta.env.VITE_GEMINI_API_KEY
 
-  if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
+  // Si no hay ninguna clave, responde el motor local con la base de conocimiento embebida (100% offline)
+  if (!deepseekKey && !geminiKey) {
     return generateLocalResponse(query, section)
   }
 
@@ -39,38 +41,67 @@ ADR_SUGERIDA: [Descripción breve de la acción técnica]
 MOTIVO: [Justificación técnica fundamentada]
 3. Resalta palabras clave y opciones del menú en negrita.`
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
+  // 1. Si está configurada la clave de DeepSeek, usar DeepSeek-V3 (ultraeconómico)
+  if (deepseekKey && typeof deepseekKey === "string" && deepseekKey.trim()) {
+    try {
+      const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${deepseekKey.trim()}`,
+        },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: query }] }],
-          systemInstruction: { parts: [{ text: systemContext }] },
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemContext },
+            { role: "user", content: query },
+          ],
+          temperature: 0.6,
         }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        const rawText = data.choices?.[0]?.message?.content
+        if (rawText) {
+          const adrSuggestion = parseAdrFromText(rawText)
+          const cleanedText = rawText.replace(/ADR_SUGERIDA:[\s\S]*$/, "").trim()
+          return { text: cleanedText || rawText, adrSuggestion }
+        }
       }
-    )
-
-    if (!res.ok) {
-      return generateLocalResponse(query, section)
+    } catch {
+      // Fallback si falla la llamada
     }
-
-    const data: GeminiResponsePayload = await res.json()
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (!rawText) {
-      return generateLocalResponse(query, section)
-    }
-
-    const adrSuggestion = parseAdrFromText(rawText)
-    const cleanedText = rawText.replace(/ADR_SUGERIDA:[\s\S]*$/, "").trim()
-
-    return {
-      text: cleanedText || rawText,
-      adrSuggestion,
-    }
-  } catch {
-    return generateLocalResponse(query, section)
   }
+
+  // 2. Si está configurada la clave de Gemini
+  if (geminiKey && typeof geminiKey === "string" && geminiKey.trim()) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey.trim()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: query }] }],
+            systemInstruction: { parts: [{ text: systemContext }] },
+          }),
+        }
+      )
+
+      if (res.ok) {
+        const data: GeminiResponsePayload = await res.json()
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
+        if (rawText) {
+          const adrSuggestion = parseAdrFromText(rawText)
+          const cleanedText = rawText.replace(/ADR_SUGERIDA:[\s\S]*$/, "").trim()
+          return { text: cleanedText || rawText, adrSuggestion }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  return generateLocalResponse(query, section)
 }
