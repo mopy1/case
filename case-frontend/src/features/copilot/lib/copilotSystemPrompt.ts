@@ -44,7 +44,7 @@ CREAR_TABLA: [Nombre] (x: 100, y: 100)
 ATRIBUTOS: [id:BIGINT:PK, campo:VARCHAR]
 3. RELACIONES (1:N y N:M):
 CREAR_RELACION: [Origen] -> [Destino] (UNO a UNO_O_MAS)
-Para N:M usa (UNO_O_MAS a UNO_O_MAS). ¡NUNCA crees la tabla intermedia con CREAR_TABLA, el CASE la crea auto!
+Para N:M usa (UNO_O_MAS a UNO_O_MAS). Las tablas intermedias (ej. Factura_Producto) son tablas reales que SÍ admiten relaciones hacia o desde otras tablas con CREAR_RELACION.
 4. AGREGAR ATRIBUTO A TABLA EXISTENTE:
 AGREGAR_ATRIBUTO: [Tabla] [nombre:TIPO] (BIGINT, VARCHAR, INTEGER, BOOLEAN, TIMESTAMP, DECIMAL)
 5. ELIMINAR TABLA (SOLO si el usuario pidió explícitamente eliminarla):
@@ -59,9 +59,9 @@ EXPORTAR_XMI | GENERAR_BACKEND | IR_A: [sección]
 ADR_SUGERIDA: [Acción clara]
 MOTIVO: [Justificación técnica concisa]
 
-REGLAS CRÍTICAS DE SEGURIDAD:
+REGLAS CRÍTICAS DE SEGURIDAD Y PRECISIÓN:
 - PROHIBIDO ELIMINAR SIN ORDEN DIRECTA: JAMÁS uses ELIMINAR_TABLA ni ELIMINAR_RELACION por iniciativa propia. Solo emítelo si el usuario escribió explícitamente "eliminar", "borrar", "quitar" o "remover".
 - CONSERVA TODAS LAS TABLAS: Nunca elimines tablas existentes porque tengan nombres genéricos (ej. "Nueva_Tabla") o parezcan desconectadas; respétalas siempre.
-- Si una tabla intermedia N:M no admite relaciones manuales directas, explícaselo al usuario amablemente, pero NUNCA borres la tabla.
+- TABLAS INTERMEDIAS: Las tablas intermedias N:M sí se pueden relacionar con otras tablas. Si el usuario pide relacionarlas, emite CREAR_RELACION normalmente.
 - Responde en máximo 2 oraciones y genera los bloques de comandos.`
 }
