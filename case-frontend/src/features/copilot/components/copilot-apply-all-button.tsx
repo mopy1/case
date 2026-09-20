@@ -84,7 +84,7 @@ export function CopilotApplyAllButton({
       variant="default"
       disabled={isApplyingAll}
       onClick={() => onApplyAll(message)}
-      className="h-8 w-fit gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+      className="h-auto min-h-8 max-w-full w-fit gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 whitespace-normal text-left"
     >
       {isApplyingAll ? (
         <>

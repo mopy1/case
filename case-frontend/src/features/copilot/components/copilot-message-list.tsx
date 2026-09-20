@@ -25,7 +25,7 @@ export function CopilotMessageList({
   }, [messages, loading])
 
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto p-4">
+    <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4 w-full">
       {messages.map((message) => (
         <CopilotMessageItem
           key={message.id}

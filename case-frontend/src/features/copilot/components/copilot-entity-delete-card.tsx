@@ -20,13 +20,13 @@ export function CopilotEntityDeleteCard({
   onDelete,
 }: CopilotEntityDeleteCardProps) {
   return (
-    <Card className="flex max-w-[95%] flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs shadow-xs dark:bg-destructive/10">
+    <Card className="flex w-full max-w-full flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-2.5 sm:p-3 text-xs shadow-xs dark:bg-destructive/10 overflow-hidden">
       <div className="flex items-center gap-1.5 font-semibold text-destructive dark:text-red-400">
-        <Trash2 className="size-3.5" />
+        <Trash2 className="size-3.5 shrink-0" />
         <span>Eliminar tabla duplicada o innecesaria</span>
       </div>
 
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="text-muted-foreground">Tabla a remover:</span>
         <code className="rounded bg-background px-1.5 py-0.5 font-mono font-semibold text-foreground border border-border">
           {suggestion.tabla}
@@ -43,7 +43,7 @@ export function CopilotEntityDeleteCard({
           <Button
             size="sm"
             variant="destructive"
-            className="h-7 gap-1.5 text-xs opacity-90 hover:opacity-100"
+            className="h-auto min-h-7 py-1 px-2.5 gap-1.5 text-xs whitespace-normal text-left opacity-90 hover:opacity-100"
             disabled={isDeleting}
             onClick={() => onDelete(messageId, deleteIndex, suggestion)}
           >

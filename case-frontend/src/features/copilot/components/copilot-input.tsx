@@ -95,7 +95,7 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
   }
 
   return (
-    <div className="border-t border-border bg-card/95 p-3 backdrop-blur-xs">
+    <div className="border-t border-border bg-card/95 p-2.5 sm:p-3 backdrop-blur-xs">
       <div className="flex flex-col rounded-xl border border-border/80 bg-background p-2 shadow-xs transition-colors focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30">
         <textarea
           ref={textareaRef}
@@ -105,14 +105,14 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
           placeholder={SECTION_PLACEHOLDERS[section] || "Escribe tu consulta o instrucción..."}
           disabled={loading}
           rows={1}
-          className="w-full resize-none bg-transparent px-2 py-1 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50 overflow-y-auto"
+          className="w-full resize-none bg-transparent px-2 py-1 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50 overflow-y-auto break-words"
           style={{ minHeight: "44px", maxHeight: "160px" }}
         />
-        <div className="flex items-center justify-between pt-1 px-1 text-[10px] text-muted-foreground/60">
+        <div className="flex items-center justify-between gap-1 pt-1 px-1 text-[10px] text-muted-foreground/60">
           <span className="hidden sm:inline-flex items-center gap-1 select-none">
             <CornerDownLeft className="size-2.5" /> ↵ Enviar • ⇧↵ Salto de línea
           </span>
-          <div className="flex items-center gap-1.5 ml-auto">
+          <div className="flex items-center gap-1.5 ml-auto shrink-0">
             <VoiceMicButton
               isListening={isListening}
               isSupported={isSupported}
@@ -124,7 +124,7 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
               size="icon"
               disabled={!text.trim() || loading}
               onClick={handleSend}
-              className="size-7 rounded-lg cursor-pointer"
+              className="size-8 sm:size-7 rounded-lg cursor-pointer shrink-0"
             >
               {loading ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUp className="size-3.5" />}
             </Button>

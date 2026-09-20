@@ -13,12 +13,12 @@ interface CopilotAdrCardProps {
 
 export function CopilotAdrCard({ messageId, adr, isSaving, onSave }: CopilotAdrCardProps) {
   return (
-    <Card className="flex max-w-[95%] flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs">
+    <Card className="flex w-full max-w-full flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2.5 sm:p-3 text-xs overflow-hidden">
       <div className="flex items-center gap-1.5 font-semibold text-foreground">
-        <FileText className="size-3.5 text-primary" />
+        <FileText className="size-3.5 text-primary shrink-0" />
         <span>Sugerencia de Decisión Arquitectónica (ADR)</span>
       </div>
-      <div className="space-y-1 text-muted-foreground">
+      <div className="space-y-1 text-muted-foreground break-words">
         <div>
           <strong className="text-foreground">Acción: </strong>
           {adr.accion}
@@ -39,7 +39,7 @@ export function CopilotAdrCard({ messageId, adr, isSaving, onSave }: CopilotAdrC
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1.5 text-xs hover:border-primary/40 hover:bg-primary/10"
+            className="h-auto min-h-7 py-1 px-2.5 gap-1.5 text-xs whitespace-normal text-left hover:border-primary/40 hover:bg-primary/10"
             disabled={isSaving}
             onClick={() => onSave(messageId, adr)}
           >

@@ -23,7 +23,7 @@ export function CopilotEntityCard({
   const columns = entity.atributos?.filter((a) => !a.esPk) ?? []
 
   return (
-    <Card className="flex max-w-[95%] flex-col gap-2.5 rounded-xl border border-border bg-card p-3 text-xs shadow-xs">
+    <Card className="flex w-full max-w-full flex-col gap-2.5 rounded-xl border border-border bg-card p-2.5 sm:p-3 text-xs shadow-xs overflow-hidden">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 font-semibold text-foreground">
           <Database className="size-3.5 text-primary" />
@@ -61,7 +61,7 @@ export function CopilotEntityCard({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1.5 text-xs hover:border-primary/40 hover:bg-primary/10"
+            className="h-auto min-h-7 py-1 px-2.5 gap-1.5 text-xs whitespace-normal text-left hover:border-primary/40 hover:bg-primary/10"
             disabled={isCreating}
             onClick={() => onCreate(messageId, entityIndex, entity)}
           >

@@ -23,19 +23,19 @@ export function CopilotSystemActionCard({
   const isBackend = action.tipo === "GENERAR_BACKEND"
 
   return (
-    <Card className="flex max-w-[95%] flex-col gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs shadow-xs dark:bg-primary/10">
+    <Card className="flex w-full max-w-full flex-col gap-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 sm:p-3 text-xs shadow-xs dark:bg-primary/10 overflow-hidden">
       <div className="flex items-center gap-1.5 font-semibold text-primary">
         {isBackend ? (
-          <FileCode className="size-3.5" />
+          <FileCode className="size-3.5 shrink-0" />
         ) : isXmi ? (
-          <Download className="size-3.5" />
+          <Download className="size-3.5 shrink-0" />
         ) : (
-          <ArrowUpRight className="size-3.5" />
+          <ArrowUpRight className="size-3.5 shrink-0" />
         )}
         <span>Acción del Sistema</span>
       </div>
 
-      <p className="text-xs text-foreground font-medium">{action.label}</p>
+      <p className="text-xs text-foreground font-medium break-words">{action.label}</p>
 
       <div className="pt-1">
         {action.ejecutada ? (
@@ -47,7 +47,7 @@ export function CopilotSystemActionCard({
           <Button
             size="sm"
             variant="default"
-            className="h-7 gap-1.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-auto min-h-7 py-1 px-2.5 gap-1.5 text-xs whitespace-normal text-left bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={isExecuting}
             onClick={() => onExecute(messageId, actionIndex, action)}
           >

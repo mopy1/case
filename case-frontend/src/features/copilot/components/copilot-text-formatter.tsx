@@ -1,14 +1,14 @@
 export function renderFormattedContent(text: string) {
   const lines = text.split("\n")
   return (
-    <div className="flex flex-col gap-1.5 leading-relaxed">
+    <div className="flex flex-col gap-1.5 leading-relaxed break-words">
       {lines.map((line, idx) => {
         const trimmed = line.trim()
         if (!trimmed) return <div key={idx} className="h-1" />
 
         if (trimmed.startsWith("### ")) {
           return (
-            <h4 key={idx} className="font-semibold text-foreground tracking-tight">
+            <h4 key={idx} className="font-semibold text-foreground tracking-tight break-words">
               {trimmed.replace("### ", "")}
             </h4>
           )
@@ -23,7 +23,7 @@ export function renderFormattedContent(text: string) {
           }
           if (part.startsWith("`") && part.endsWith("`")) {
             return (
-              <code key={pIdx} className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-primary">
+              <code key={pIdx} className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-primary break-all">
                 {part.slice(1, -1)}
               </code>
             )
@@ -34,7 +34,7 @@ export function renderFormattedContent(text: string) {
         return (
           <div key={idx} className={isBullet ? "flex items-start gap-1.5 pl-1" : ""}>
             {isBullet && <span className="text-primary font-bold">•</span>}
-            <span className="flex-1">{formatted}</span>
+            <span className="flex-1 min-w-0 break-words">{formatted}</span>
           </div>
         )
       })}

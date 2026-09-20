@@ -15,7 +15,7 @@ export function VoicePushToTalkHud({
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-red-500/30 bg-card/95 px-6 py-3.5 shadow-2xl backdrop-blur-md min-w-[320px] max-w-[540px]">
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-red-500/30 bg-card/95 px-4 sm:px-6 py-3.5 shadow-2xl backdrop-blur-md w-[92vw] sm:w-auto max-w-[480px]">
         <div className="flex items-center gap-3 w-full">
           <div className="relative flex size-8 items-center justify-center rounded-full bg-red-500/10 text-red-500">
             {isSending ? (

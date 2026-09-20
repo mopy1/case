@@ -28,13 +28,13 @@ export function CopilotRelationCard({
   onCreate,
 }: CopilotRelationCardProps) {
   return (
-    <Card className="flex max-w-[95%] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-xs shadow-xs">
+    <Card className="flex w-full max-w-full flex-col gap-2 rounded-xl border border-border bg-card p-2.5 sm:p-3 text-xs shadow-xs overflow-hidden">
       <div className="flex items-center gap-1.5 font-semibold text-foreground">
         <Link2 className="size-3.5 text-primary" />
         <span>Relación UML</span>
       </div>
 
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
         <span className="font-semibold text-foreground">{relation.origen}</span>
         <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-mono">
           ({formatMultiplicidad(relation.multiplicidadOrigen)})
@@ -56,7 +56,7 @@ export function CopilotRelationCard({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1.5 text-xs hover:border-primary/40 hover:bg-primary/10"
+            className="h-auto min-h-7 py-1 px-2.5 gap-1.5 text-xs whitespace-normal text-left hover:border-primary/40 hover:bg-primary/10"
             disabled={isCreating}
             onClick={() => onCreate(messageId, relationIndex, relation)}
           >

@@ -7,6 +7,7 @@ import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import { CopilotPanel } from "@/features/copilot"
 import { usePushToTalk, VoicePushToTalkHud } from "@/features/voice"
+import { useIsMobile } from "@/hooks/useIsMobile"
 
 const COPILOT_STORAGE_KEY = "sw_case_copilot_open"
 
@@ -15,16 +16,22 @@ export function ProjectLayout() {
   const proyectoId = Number(id)
   const { proyecto, error } = useProject(proyectoId)
   const { miembros } = useProjectMembers(proyectoId)
+  const isMobile = useIsMobile()
 
   const [isCopilotOpen, setIsCopilotOpen] = useState(() => {
+    // En móviles (< 768px), inicia por defecto cerrado para no ocultar el contenido principal
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return false
+    }
     const saved = localStorage.getItem(COPILOT_STORAGE_KEY)
-    // Por defecto ABIERTO para que el usuario lo vea inmediatamente al entrar al proyecto
     return saved !== null ? saved === "true" : true
   })
 
   useEffect(() => {
-    localStorage.setItem(COPILOT_STORAGE_KEY, String(isCopilotOpen))
-  }, [isCopilotOpen])
+    if (!isMobile) {
+      localStorage.setItem(COPILOT_STORAGE_KEY, String(isCopilotOpen))
+    }
+  }, [isCopilotOpen, isMobile])
 
   const handleVoiceSend = (text: string) => {
     setIsCopilotOpen(true)
@@ -57,11 +64,11 @@ export function ProjectLayout() {
           <button
             type="button"
             onClick={() => setIsCopilotOpen(true)}
-            className="absolute top-4 right-4 z-30 flex items-center gap-2 rounded-xl border border-border bg-card/95 px-3.5 py-2 text-xs font-semibold text-foreground shadow-md backdrop-blur hover:bg-muted hover:border-primary transition-all cursor-pointer"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 flex items-center gap-1.5 sm:gap-2 rounded-xl border border-border bg-card/95 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-foreground shadow-md backdrop-blur-xs hover:bg-muted hover:border-primary transition-all cursor-pointer"
             aria-label="Abrir Asistente Copilot IA"
           >
-            <Bot className="size-4 text-primary" />
-            <span>Copilot IA</span>
+            <Bot className="size-3.5 sm:size-4 text-primary shrink-0" />
+            <span className="text-[11px] sm:text-xs">Copilot IA</span>
           </button>
         )}
       </main>

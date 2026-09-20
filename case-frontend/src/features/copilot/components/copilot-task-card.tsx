@@ -27,7 +27,7 @@ export function CopilotTaskCard({
       : "outline"
 
   return (
-    <Card className="flex max-w-[95%] flex-col gap-2 rounded-xl border border-border bg-card p-3 text-xs shadow-xs">
+    <Card className="flex w-full max-w-full flex-col gap-2 rounded-xl border border-border bg-card p-2.5 sm:p-3 text-xs shadow-xs overflow-hidden">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 font-semibold text-foreground">
           <CheckSquare className="size-3.5 text-primary" />
@@ -38,7 +38,7 @@ export function CopilotTaskCard({
         </Badge>
       </div>
 
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 break-words">
         <strong className="font-semibold text-foreground">{task.titulo}</strong>
         <p className="text-[11px] text-muted-foreground">{task.descripcion}</p>
       </div>
@@ -53,7 +53,7 @@ export function CopilotTaskCard({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1.5 text-xs hover:border-primary/40 hover:bg-primary/10"
+            className="h-auto min-h-7 py-1 px-2.5 gap-1.5 text-xs whitespace-normal text-left hover:border-primary/40 hover:bg-primary/10"
             disabled={isCreating}
             onClick={() => onCreate(messageId, taskIndex, task)}
           >

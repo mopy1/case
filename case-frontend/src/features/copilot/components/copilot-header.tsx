@@ -72,15 +72,35 @@ export function CopilotHeader({
         </Tooltip>
 
         <Tooltip>
-          <TooltipTrigger render={<Button variant="ghost" size="icon" className="size-7" onClick={onClear} />}>
-            <RotateCcw className="size-3.5 text-muted-foreground" />
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 sm:size-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                onClick={onClear}
+                aria-label="Reiniciar conversación"
+              />
+            }
+          >
+            <RotateCcw className="size-3.5" />
           </TooltipTrigger>
           <TooltipContent side="bottom">Reiniciar conversación</TooltipContent>
         </Tooltip>
 
         <Tooltip>
-          <TooltipTrigger render={<Button variant="ghost" size="icon" className="size-7" onClick={onClose} />}>
-            <X className="size-4 text-muted-foreground" />
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-9 sm:size-7 flex items-center justify-center rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground cursor-pointer"
+                onClick={onClose}
+                aria-label="Cerrar panel Copilot"
+              />
+            }
+          >
+            <X className="size-5 sm:size-4 text-foreground/80 hover:text-foreground" />
           </TooltipTrigger>
           <TooltipContent side="bottom">Cerrar panel</TooltipContent>
         </Tooltip>
