@@ -10,6 +10,11 @@ import { UmlRelationEdge } from "../components/edges/UmlRelationEdge"
 import { AssociationClassOverlay } from "../components/edges/AssociationClassOverlay"
 import { RelationCrossingOverlay } from "../components/edges/RelationCrossingOverlay"
 import { EntityPropertiesPanel } from "../components/panel/entity-properties-panel"
+import {
+  CollaboratorPresenceBar,
+  RemoteCursorsLayer,
+  useRealtimeCollaboration,
+} from "@/features/collaboration"
 
 const nodeTypes: NodeTypes = { entidad: EntityNode }
 const edgeTypes: EdgeTypes = { relacion: UmlRelationEdge }
@@ -42,6 +47,12 @@ export function DiagramEditorPage() {
   } = useDiagramCanvas(proyectoId)
 
   const { theme } = useTheme()
+  const { collaborators, broadcastCursor } = useRealtimeCollaboration(proyectoId)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    broadcastCursor(e.clientX - rect.left, e.clientY - rect.top)
+  }
 
   if (loading) {
     return (
@@ -63,8 +74,16 @@ export function DiagramEditorPage() {
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div
+      className="relative h-full w-full overflow-hidden"
+      onMouseMove={handleMouseMove}
+    >
       <CanvasToolbar onCreate={onCreate} loading={creating} error={createError} />
+      <CollaboratorPresenceBar
+        collaborators={collaborators}
+        className="absolute top-4 left-36 z-10"
+      />
+      <RemoteCursorsLayer collaborators={collaborators} />
       {selectedEntidad && (
         <EntityPropertiesPanel
           proyectoId={proyectoId}

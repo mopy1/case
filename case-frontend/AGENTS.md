@@ -160,6 +160,17 @@ case-frontend/src/
         ├── types/copilot.types.ts            # Tipos de mensajes, tareas, eliminaciones, sistema
         └── index.ts                          # API pública del feature
     │
+    ├── collaboration/                        # 👥 Colaboración en Tiempo Real (BroadcastChannel & Presencia)
+    │   ├── components/                       # Barra de presencia y capa de cursores remotos
+    │   │   ├── collaborator-presence-bar.tsx # Avatares con iniciales, tooltip "En línea" y badge activa
+    │   │   └── remote-cursors-layer.tsx      # Punteros SVG en color del usuario y etiquetas flotantes animadas
+    │   ├── hooks/                            # Lógica reactiva de presencia y auto-sincronización
+    │   │   ├── useRealtimeCollaboration.ts   # Conexión BroadcastChannel, heartbeat y broadcast de cursores
+    │   │   └── useDiagramPolling.ts          # Polling silencioso (7s) de detección de mutaciones remotas
+    │   ├── lib/collaborationUtils.ts         # Paleta de colores distintivos y extracción de iniciales
+    │   ├── types/collaboration.types.ts      # Tipos de presencia, cursores y mensajes
+    │   └── index.ts                          # API pública del feature
+    │
     └── voice/                                # 🎙️ Reconocimiento de Voz Nativo (Web Speech API)
         ├── components/voice-mic-button.tsx   # Botón de micrófono accesible con pulso activo y tooltip
         ├── hooks/useSpeechRecognition.ts     # Hook reusable con soporte español, interim results y error handling
