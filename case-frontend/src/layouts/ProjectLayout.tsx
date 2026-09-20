@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Outlet, useParams } from "react-router-dom"
+import { Bot } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ProjectNavRail } from "@/components/common/project-nav-rail"
 import { useProject } from "@/features/projects/hooks/useProject"
@@ -16,7 +17,8 @@ export function ProjectLayout() {
 
   const [isCopilotOpen, setIsCopilotOpen] = useState(() => {
     const saved = localStorage.getItem(COPILOT_STORAGE_KEY)
-    return saved !== null ? saved === "true" : false
+    // Por defecto ABIERTO para que el usuario lo vea inmediatamente al entrar al proyecto
+    return saved !== null ? saved === "true" : true
   })
 
   useEffect(() => {
@@ -47,6 +49,21 @@ export function ProjectLayout() {
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
       />
+
+      {/* Botón flotante accesible cuando el panel esté colapsado */}
+      {!isCopilotOpen && (
+        <button
+          type="button"
+          onClick={() => setIsCopilotOpen(true)}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2.5 text-sm font-medium text-foreground shadow-2xl backdrop-blur hover:bg-muted hover:border-primary transition-all cursor-pointer"
+          aria-label="Abrir Asistente Copilot IA"
+        >
+          <div className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Bot className="size-3.5" />
+          </div>
+          <span>Copilot IA</span>
+        </button>
+      )}
     </div>
   )
 }
