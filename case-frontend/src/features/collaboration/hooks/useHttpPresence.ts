@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react"
 import type { CollaboratorPresence } from "../types/collaboration.types"
-import { syncPresenceApi } from "../api/collaborationApi"
+import { disconnectPresenceApi, syncPresenceApi } from "../api/collaborationApi"
 
 const HTTP_HEARTBEAT_MS = 800
 const THROTTLE_PUSH_MS = 250
@@ -57,11 +57,18 @@ export function useHttpPresence({
       void syncWithServer()
     }, HTTP_HEARTBEAT_MS)
 
+    const onBeforeUnload = () => {
+      void disconnectPresenceApi(proyectoId, clientId)
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+
     return () => {
       isMountedRef.current = false
       clearInterval(timer)
+      window.removeEventListener("beforeunload", onBeforeUnload)
+      void disconnectPresenceApi(proyectoId, clientId)
     }
-  }, [syncWithServer])
+  }, [proyectoId, clientId, syncWithServer])
 
   return { triggerPush }
 }

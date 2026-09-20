@@ -21,3 +21,16 @@ export async function syncPresenceApi(
     }
   )
 }
+
+export async function disconnectPresenceApi(
+  proyectoId: number,
+  clientId: string
+): Promise<void> {
+  return apiFetch<void>(
+    `/api/proyectos/${proyectoId}/colaboracion/desconectar`,
+    {
+      method: "POST",
+      body: JSON.stringify({ clientId }),
+    }
+  ).catch(() => {})
+}

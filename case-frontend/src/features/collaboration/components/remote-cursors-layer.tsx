@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import type { CollaboratorPresence } from "../types/collaboration.types"
 
 interface RemoteCursorsLayerProps {
@@ -5,9 +6,17 @@ interface RemoteCursorsLayerProps {
 }
 
 export function RemoteCursorsLayer({ collaborators }: RemoteCursorsLayerProps) {
-  const activeCursors = collaborators.filter(
-    (c) => c.cursor && (c.cursor.x > 0 || c.cursor.y > 0)
-  )
+  const activeCursors = useMemo(() => {
+    const seen = new Set<string>()
+    return collaborators.filter((c) => {
+      const hasMoved = c.cursor && (c.cursor.x > 0 || c.cursor.y > 0)
+      if (!hasMoved) return false
+      const key = (c.username || "").toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [collaborators])
 
   if (activeCursors.length === 0) return null
 

@@ -48,10 +48,14 @@ public class ColaboracionController {
 
         long now = System.currentTimeMillis();
         Map<String, PresenciaItem> mapa = PROYECTOS_PRESENCIA.computeIfAbsent(proyectoId, k -> new ConcurrentHashMap<>());
+
+        // Descartar sesiones anteriores con el mismo username para evitar duplicados al recargar
+        mapa.entrySet().removeIf(e -> !e.getKey().equals(clientId) && e.getValue().username().equalsIgnoreCase(username));
+
         mapa.put(clientId, new PresenciaItem(clientId, username, color, x, y, selectedEntityId, now));
 
-        // Purgar inactivos > 7 segundos
-        long cutoff = now - 7000;
+        // Purgar inactivos > 3.5 segundos
+        long cutoff = now - 3500;
         mapa.entrySet().removeIf(e -> e.getValue().lastActive() < cutoff);
 
         List<Map<String, Object>> otros = new ArrayList<>();
@@ -69,5 +73,19 @@ public class ColaboracionController {
         }
 
         return ResponseEntity.ok(otros);
+    }
+
+    @PostMapping("/desconectar")
+    public ResponseEntity<Void> desconectar(
+            @PathVariable Long proyectoId,
+            @RequestBody Map<String, Object> body) {
+        String clientId = (String) body.get("clientId");
+        if (clientId != null) {
+            Map<String, PresenciaItem> mapa = PROYECTOS_PRESENCIA.get(proyectoId);
+            if (mapa != null) {
+                mapa.remove(clientId);
+            }
+        }
+        return ResponseEntity.ok().build();
     }
 }

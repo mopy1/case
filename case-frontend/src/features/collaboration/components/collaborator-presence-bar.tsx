@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { cn } from "cn"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { CollaboratorPresence } from "../types/collaboration.types"
@@ -14,6 +15,19 @@ export function CollaboratorPresenceBar({
   myPresence,
   className,
 }: CollaboratorPresenceBarProps) {
+  const uniqueCollaborators = useMemo(() => {
+    const seen = new Set<string>()
+    if (myPresence?.username) {
+      seen.add(myPresence.username.toLowerCase())
+    }
+    return collaborators.filter((c) => {
+      const key = (c.username || "colaborador").toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [collaborators, myPresence?.username])
+
   return (
     <TooltipProvider delay={100}>
       <div
@@ -48,7 +62,7 @@ export function CollaboratorPresenceBar({
             </Tooltip>
           )}
 
-          {collaborators.map((c) => (
+          {uniqueCollaborators.map((c) => (
             <Tooltip key={c.id}>
               <TooltipTrigger
                 className="relative inline-flex size-6 items-center justify-center rounded-full text-[10px] font-bold text-white ring-2 ring-card shadow-xs transition-transform hover:z-20 hover:scale-110"
@@ -63,7 +77,7 @@ export function CollaboratorPresenceBar({
             </Tooltip>
           ))}
 
-          {collaborators.length === 0 && (
+          {uniqueCollaborators.length === 0 && (
             <span className="text-[11px] text-muted-foreground pl-2">
               (Esperando otros colaboradores...)
             </span>

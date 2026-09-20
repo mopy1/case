@@ -28,3 +28,17 @@ export function getInitials(name: string): string {
   }
   return clean.slice(0, 2).toUpperCase()
 }
+
+export function getStableClientId(userId: string | number | undefined): string {
+  if (typeof window === "undefined") return "guest-default"
+  const key = `sw_case_client_id_${userId ?? "guest"}`
+  try {
+    const existing = sessionStorage.getItem(key)
+    if (existing) return existing
+    const newId = `${userId ?? "guest"}-${Math.random().toString(36).slice(2, 7)}`
+    sessionStorage.setItem(key, newId)
+    return newId
+  } catch {
+    return `${userId ?? "guest"}-${Math.random().toString(36).slice(2, 7)}`
+  }
+}
