@@ -10,7 +10,7 @@
 ```text
 /home/lmc/projects/sw-case/
 ├── docker-compose.yml          # Orquestación de desarrollo local (Postgres 5434, Backend 8081, Frontend 5173)
-├── docker-compose.prod.yml     # Orquestación de producción para AWS EC2 (Nginx unificado en puerto 80)
+├── docker-compose.prod.yml     # Orquestación de producción para AWS EC2 (Nginx con SSL Let's Encrypt puertos 80 y 443)
 ├── deploy-aws.sh               # Script automatizado de despliegue en servidor AWS EC2
 ├── .env                        # Variables de entorno locales
 ├── .env.example                # Plantilla de variables de entorno
@@ -33,7 +33,7 @@
     │   ├── lib/                # Cliente apiFetch, avatar y utilidades
     │   └── routes/             # Enrutamiento protegido y público (React Router DOM v7)
     ├── Dockerfile              # Construcción con Node 22 y servicio estático con Nginx Alpine
-    ├── nginx.conf              # Configuración de Nginx con Reverse Proxy para /api/
+    ├── nginx.conf              # Configuración de Nginx con Reverse Proxy para /api/ y SSL Let's Encrypt
     └── AGENTS.md               # 📖 Especificación técnica completa del frontend
 ```
 
@@ -54,8 +54,9 @@ docker compose up -d
 cd case-frontend && npm run dev
 ```
 
-### ☁️ Modo Producción en la Nube (AWS EC2)
-* **Arquitectura de Puerto 80 Unificado:** Nginx atiende todo el tráfico HTTP en `http://<IP-AWS>/`.
+### ☁️ Modo Producción en la Nube (AWS EC2 - HTTPS)
+* **Dominio Oficial:** [https://casetool-sw.duckdns.org](https://casetool-sw.duckdns.org)
+* **Arquitectura:** Nginx Reverse Proxy con SSL/TLS Let's Encrypt (puerto 443 HTTPS, redirección 301 desde puerto 80 HTTP).
   * `/` $\rightarrow$ Sirve la SPA de React 19 compilada.
   * `/api/` $\rightarrow$ Reverse Proxy interno hacia `case_backend:8081`.
 * **Despliegue automatizado en 1 comando:**
