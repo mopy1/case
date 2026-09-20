@@ -817,11 +817,9 @@ case-frontend/
 │       │   │                          #   addMember(projectId, usuario), removeMember(...)
 │       │   │                          #   + notas/tareas del proyecto (ver abajo)
 │       │   ├── types/
-│       │   │   └── projects.types.ts  # Proyecto, ProyectoRequest, ProyectoResponse,
+│       │   │   └── projects.type.ts   # Proyecto, ProyectoRequest, ProyectoResponse,
 │       │   │                          #   MiembroProyecto, RolProyecto (ADMIN, COLABORADOR,
-│       │   │                          #   LECTOR — corregido 2026-09-06, ya no es solo ADMIN/MIEMBRO),
-│       │   │                          #   NotaProyecto, TareaProyecto — los 4 ya construidos en el
-│       │   │                          #   backend (`modules/proyecto`), falta el frontend.
+│       │   │                          #   LECTOR — corregido 2026-09-06, ya no es solo ADMIN/MIEMBRO).
 │       │   │                          #   `ProyectoResponse.rol` renombrado a `.miRol` (2026-09-11,
 │       │   │                          #   bug real: no coincidía con lo que el backend devuelve)
 │       │   ├── hooks/
@@ -851,10 +849,40 @@ case-frontend/
 │       │   └── pages/
 │       │       └── ProjectsDashboardPage.tsx
 │       │
-│       │   # Nota (2026-09-05): sustantivos de dominio en español (Proyecto, NotaProyecto,
-│       │   # TareaProyecto) para que coincidan 1:1 con las entidades del backend. Nombres de carpetas,
-│       │   # archivos y rutas se quedan en inglés (convención normal de proyectos JS/TS).
+│       ├── tasks/                     # Módulo Tareas: Kanban de 3 columnas (✅ 2026-09-08/11)
+│       │   ├── api/
+│       │   │   └── tasksApi.ts        # getTasks(), createTask(), updateTaskStatus(), deleteTask()
+│       │   ├── types/
+│       │   │   └── tasks.type.ts      # TareaProyecto, TareaProyectoRequest, CambiarEstadoTareaRequest
+│       │   ├── hooks/
+│       │   │   ├── useTasks.ts        # Fetch de tareas del proyecto
+│       │   │   └── useTaskMutations.ts # Creación, cambio de estado (flechas) y borrado
+│       │   ├── components/
+│       │   │   ├── create-task-dialog/
+│       │   │   │   └── create-task-dialog.tsx
+│       │   │   └── task-card/
+│       │   │       ├── task-card.tsx
+│       │   │       └── task-card.data.ts # ESTADOS_ORDEN y lógica de navegación de estado
+│       │   └── pages/
+│       │       └── ProjectTasksPage.tsx # Kanban (PENDIENTE / EN_PROGRESO / HECHO)
 │       │
+│       ├── notes/                     # Módulo Notas: Timeline de decisiones de diseño (✅ 2026-09-08)
+│       │   ├── api/
+│       │   │   └── notesApi.ts        # getNotes(), createNote()
+│       │   ├── types/
+│       │   │   └── notes.type.ts      # NotaProyecto, NotaProyectoRequest
+│       │   ├── hooks/
+│       │   │   ├── useNotes.ts        # Fetch de notas
+│       │   │   └── useNoteMutations.ts # Creación (acción + motivo obligatorio)
+│       │   ├── components/
+│       │   │   ├── create-note-dialog/
+│       │   │   │   └── create-note-dialog.tsx
+│       │   │   └── note-item/
+│       │   │       └── note-item.tsx
+│       │   └── pages/
+│       │       └── ProjectNotesPage.tsx # Feed inmutable tipo timeline
+│       │
+
 │       ├── diagram/                   # Módulo 3: Lienzo UML (@xyflow/react) — Fase 2 completa (2026-09-16)
 │       │   ├── api/
 │       │   │   └── diagramApi.ts      # ✅ getDiagram(), create/update/deleteEntity(),
