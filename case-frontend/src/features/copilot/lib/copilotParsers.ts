@@ -16,7 +16,8 @@ export function parseAdrFromText(text: string): AdrSuggestion | undefined {
 }
 
 export function parseLadoMultiplicidad(str: string): LadoMultiplicidad {
-  const s = str.trim().toUpperCase()
+  if (!str) return "UNO"
+  const s = str.trim().toUpperCase().replace(/[\(\)\[\]]/g, "")
   if (s === "1" || s === "UNO" || s === "ONE") return "UNO"
   if (s === "0..1" || s === "CERO_O_UNO") return "CERO_O_UNO"
   if (
@@ -25,7 +26,9 @@ export function parseLadoMultiplicidad(str: string): LadoMultiplicidad {
     s === "1..M" ||
     s === "UNO_O_MAS" ||
     s === "MUCHOS" ||
+    s === "MUCHAS" ||
     s === "VARIOS" ||
+    s === "VARIAS" ||
     s === "N" ||
     s === "M" ||
     s === "MANY"
@@ -96,9 +99,8 @@ export function parseRelationSuggestions(text: string): RelationSuggestion[] {
 
     if (m[3]) {
       const trimmedSpec = m[3].trim()
-      const colonParts = trimmedSpec.split(/\s*:\s*/)
-      const toParts = trimmedSpec.split(/\s*(?:a|->|-)\s*/i)
-      const parts = colonParts.length >= 2 ? colonParts : toParts
+      // Uso de límites de palabra (\b) para no partir la letra 'a' dentro de 'UNO_O_MAS'
+      const parts = trimmedSpec.split(/\s+\ba\b\s+|\s+\bto\b\s+|\s*:\s*|\s*->\s*|\s+-\s+/i)
       if (parts.length >= 2) {
         multiplicidadOrigen = parseLadoMultiplicidad(parts[0])
         multiplicidadDestino = parseLadoMultiplicidad(parts[1])
@@ -120,10 +122,10 @@ export function parseRelationSuggestions(text: string): RelationSuggestion[] {
 export function cleanResponseText(rawText: string): string {
   return rawText
     .replace(/(?:##\s*ADR:?[\s\S]*$)/i, "")
-    .replace(/(?:\*{0,2})ADR_SUGERIDA:?[\s\S]*$/i, "")
-    .replace(/(?:\*{0,2})CREAR_TABLA:?[\s\S]*$/i, "")
-    .replace(/(?:\*{0,2})(?:CREAR_RELACION|ACTUALIZAR_RELACION):?[\s\S]*$/i, "")
-    .replace(/(?:\*{0,2})Acci[oó]n:?(?:\*{0,2})[\s\S]*$/i, "")
+    .replace(/(?:\*{0,2})ADR_SUGERIDA:?[^\n]+(?:\n+(?:\*{0,2})MOTIVO:?[^\n]+)?/gi, "")
+    .replace(/(?:\*{0,2})CREAR_TABLA:?[^\n]+(?:\n+(?:\*{0,2})ATRIBUTOS:?[^\n]+)?/gi, "")
+    .replace(/(?:\*{0,2})(?:CREAR_RELACION|ACTUALIZAR_RELACION):?[^\n]+/gi, "")
+    .replace(/(?:\*{0,2})Acci[oó]n:?[^\n]+(?:\n+(?:\*{0,2})Motivo:?[^\n]+)?/gi, "")
     .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")
     .trim()
 }
