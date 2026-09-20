@@ -39,9 +39,13 @@ export interface AskCopilotResult {
 
 function processAssistantResponse(
   rawText: string,
-  existingEntities: EntidadDiagramaResponse[]
+  existingEntities: EntidadDiagramaResponse[],
+  userQuery = ""
 ): AskCopilotResult {
   const adrList = parseAdrListFromText(rawText)
+  const userWantsDelete = /\b(?:eliminar|borrar|quitar|remover|delete|drop)\b/i.test(userQuery)
+  const entityDeleteSuggestions = userWantsDelete ? parseEntityDeleteSuggestions(rawText) : []
+
   return {
     text: cleanResponseText(rawText) || rawText,
     adrSuggestion: adrList[0],
@@ -50,7 +54,7 @@ function processAssistantResponse(
     relationSuggestions: parseRelationSuggestions(rawText),
     relationDeleteSuggestions: parseRelationDeleteSuggestions(rawText),
     attributeSuggestions: parseAttributeSuggestions(rawText),
-    entityDeleteSuggestions: parseEntityDeleteSuggestions(rawText),
+    entityDeleteSuggestions,
     taskSuggestions: parseTaskSuggestions(rawText),
     systemActions: parseSystemActionSuggestions(rawText),
   }
@@ -89,7 +93,7 @@ export async function askCopilot(
         const data = await res.json()
         const rawText = data.choices?.[0]?.message?.content
         if (rawText) {
-          return processAssistantResponse(rawText, existingEntities)
+          return processAssistantResponse(rawText, existingEntities, query)
         }
       }
     } catch {
@@ -115,7 +119,7 @@ export async function askCopilot(
         const data = await res.json()
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
         if (rawText) {
-          return processAssistantResponse(rawText, existingEntities)
+          return processAssistantResponse(rawText, existingEntities, query)
         }
       }
     } catch {
