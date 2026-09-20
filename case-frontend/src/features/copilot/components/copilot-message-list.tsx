@@ -1,47 +1,22 @@
 import { useEffect, useRef } from "react"
 import { Bot, Loader2 } from "lucide-react"
-import type {
-  AdrSuggestion,
-  AttributeSuggestion,
-  CopilotMessage,
-  EntityDeleteSuggestion,
-  EntitySuggestion,
-  RelationSuggestion,
-} from "../types/copilot.types"
-import { CopilotMessageItem } from "./copilot-message-item"
+import type { CopilotMessage } from "../types/copilot.types"
+import { CopilotMessageItem, type CopilotMessageItemProps } from "./copilot-message-item"
 
-interface CopilotMessageListProps {
+interface CopilotMessageListProps
+  extends Omit<CopilotMessageItemProps, "message" | "isSavingAdr" | "isApplyingAll"> {
   messages: CopilotMessage[]
   loading: boolean
   savingNoteId: string | null
-  creatingEntityKey?: string | null
-  creatingRelationKey?: string | null
-  creatingAttributeKey?: string | null
-  deletingEntityKey?: string | null
   applyingAllMessageId?: string | null
-  onSaveAdr: (messageId: string, adr: AdrSuggestion) => void
-  onCreateEntity: (messageId: string, entityIndex: number, entity: EntitySuggestion) => void
-  onCreateRelation: (messageId: string, relationIndex: number, relation: RelationSuggestion) => void
-  onCreateAttribute: (messageId: string, attributeIndex: number, attribute: AttributeSuggestion) => void
-  onDeleteEntity: (messageId: string, deleteIndex: number, suggestion: EntityDeleteSuggestion) => void
-  onApplyAll: (message: CopilotMessage) => void
 }
 
 export function CopilotMessageList({
   messages,
   loading,
   savingNoteId,
-  creatingEntityKey,
-  creatingRelationKey,
-  creatingAttributeKey,
-  deletingEntityKey,
   applyingAllMessageId,
-  onSaveAdr,
-  onCreateEntity,
-  onCreateRelation,
-  onCreateAttribute,
-  onDeleteEntity,
-  onApplyAll,
+  ...itemProps
 }: CopilotMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -56,17 +31,8 @@ export function CopilotMessageList({
           key={message.id}
           message={message}
           isSavingAdr={savingNoteId === message.id}
-          creatingEntityKey={creatingEntityKey}
-          creatingRelationKey={creatingRelationKey}
-          creatingAttributeKey={creatingAttributeKey}
-          deletingEntityKey={deletingEntityKey}
           isApplyingAll={applyingAllMessageId === message.id}
-          onSaveAdr={onSaveAdr}
-          onCreateEntity={onCreateEntity}
-          onCreateRelation={onCreateRelation}
-          onCreateAttribute={onCreateAttribute}
-          onDeleteEntity={onDeleteEntity}
-          onApplyAll={onApplyAll}
+          {...itemProps}
         />
       ))}
 

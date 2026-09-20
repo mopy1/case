@@ -34,6 +34,23 @@ export function updateRelationCreatedInMessages(
   )
 }
 
+export function updateRelationDeletedInMessages(
+  messages: CopilotMessage[],
+  messageId: string,
+  index: number
+): CopilotMessage[] {
+  return messages.map((msg) =>
+    msg.id === messageId && msg.relationDeleteSuggestions
+      ? {
+          ...msg,
+          relationDeleteSuggestions: msg.relationDeleteSuggestions.map((r, i) =>
+            i === index ? { ...r, eliminada: true } : r
+          ),
+        }
+      : msg
+  )
+}
+
 export function updateAttributeCreatedInMessages(
   messages: CopilotMessage[],
   messageId: string,
@@ -68,6 +85,40 @@ export function updateEntityDeletedInMessages(
   )
 }
 
+export function updateTaskCreatedInMessages(
+  messages: CopilotMessage[],
+  messageId: string,
+  index: number
+): CopilotMessage[] {
+  return messages.map((msg) =>
+    msg.id === messageId && msg.taskSuggestions
+      ? {
+          ...msg,
+          taskSuggestions: msg.taskSuggestions.map((t, i) =>
+            i === index ? { ...t, creada: true } : t
+          ),
+        }
+      : msg
+  )
+}
+
+export function updateSystemActionExecutedInMessages(
+  messages: CopilotMessage[],
+  messageId: string,
+  index: number
+): CopilotMessage[] {
+  return messages.map((msg) =>
+    msg.id === messageId && msg.systemActions
+      ? {
+          ...msg,
+          systemActions: msg.systemActions.map((s, i) =>
+            i === index ? { ...s, ejecutada: true } : s
+          ),
+        }
+      : msg
+  )
+}
+
 export function markAllAppliedInMessage(
   messages: CopilotMessage[],
   messageId: string
@@ -80,8 +131,11 @@ export function markAllAppliedInMessage(
       adrSuggestions: msg.adrSuggestions?.map((a) => ({ ...a, guardada: true })),
       entitySuggestions: msg.entitySuggestions?.map((e) => ({ ...e, creada: true })),
       relationSuggestions: msg.relationSuggestions?.map((r) => ({ ...r, creada: true })),
+      relationDeleteSuggestions: msg.relationDeleteSuggestions?.map((r) => ({ ...r, eliminada: true })),
       attributeSuggestions: msg.attributeSuggestions?.map((a) => ({ ...a, creada: true })),
       entityDeleteSuggestions: msg.entityDeleteSuggestions?.map((d) => ({ ...d, eliminada: true })),
+      taskSuggestions: msg.taskSuggestions?.map((t) => ({ ...t, creada: true })),
+      systemActions: msg.systemActions?.map((s) => ({ ...s, ejecutada: true })),
     }
   })
 }

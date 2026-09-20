@@ -4,7 +4,10 @@ import type {
   CopilotSection,
   EntityDeleteSuggestion,
   EntitySuggestion,
+  RelationDeleteSuggestion,
   RelationSuggestion,
+  SystemActionSuggestion,
+  TaskSuggestion,
 } from "../types/copilot.types"
 import type { EntidadDiagramaResponse, RelacionDiagramaResponse } from "@/features/diagram/types/diagram.types"
 import { generateLocalResponse } from "./copilotKnowledge"
@@ -14,7 +17,10 @@ import {
   parseAttributeSuggestions,
   parseEntityDeleteSuggestions,
   parseEntitySuggestions,
+  parseRelationDeleteSuggestions,
   parseRelationSuggestions,
+  parseSystemActionSuggestions,
+  parseTaskSuggestions,
 } from "./copilotParsers"
 import { buildSystemContext } from "./copilotSystemPrompt"
 
@@ -24,8 +30,11 @@ export interface AskCopilotResult {
   adrSuggestions?: AdrSuggestion[]
   entitySuggestions?: EntitySuggestion[]
   relationSuggestions?: RelationSuggestion[]
+  relationDeleteSuggestions?: RelationDeleteSuggestion[]
   attributeSuggestions?: AttributeSuggestion[]
   entityDeleteSuggestions?: EntityDeleteSuggestion[]
+  taskSuggestions?: TaskSuggestion[]
+  systemActions?: SystemActionSuggestion[]
 }
 
 function processAssistantResponse(
@@ -39,8 +48,11 @@ function processAssistantResponse(
     adrSuggestions: adrList,
     entitySuggestions: parseEntitySuggestions(rawText, existingEntities),
     relationSuggestions: parseRelationSuggestions(rawText),
+    relationDeleteSuggestions: parseRelationDeleteSuggestions(rawText),
     attributeSuggestions: parseAttributeSuggestions(rawText),
     entityDeleteSuggestions: parseEntityDeleteSuggestions(rawText),
+    taskSuggestions: parseTaskSuggestions(rawText),
+    systemActions: parseSystemActionSuggestions(rawText),
   }
 }
 
@@ -69,7 +81,7 @@ export async function askCopilot(
         body: JSON.stringify({
           model: "deepseek-chat",
           messages: [{ role: "system", content: systemContext }, { role: "user", content: query }],
-          temperature: 0.4,
+          temperature: 0.3,
         }),
       })
 

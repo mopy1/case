@@ -130,29 +130,34 @@ case-frontend/src/
     │   ├── pages/ProjectGeneratorPage.tsx    # Vista completa con métricas, árbol interactivo y descarga
     │   └── types/generator.types.ts          # Interfaces de archivos generados y preview
     │
-    └── copilot/                              # 🤖 Copilot & Manual Contextual de Usuario (Control Total del Lienzo)
-        ├── components/                       # Panel lateral acoplado, header, lista de mensajes, input y tarjetas de acción
+    └── copilot/                              # 🤖 Agente Autónomo Copilot & Control Total del Sistema
+        ├── components/                       # Panel lateral acoplado, header con toggle Autónomo, lista de mensajes y tarjetas
         │   ├── copilot-panel.tsx, copilot-header.tsx, copilot-input.tsx
-        │   ├── copilot-message-list.tsx, copilot-message-item.tsx, copilot-text-formatter.tsx
+        │   ├── copilot-message-list.tsx, copilot-message-item.tsx, copilot-card-list.tsx, copilot-text-formatter.tsx
         │   ├── copilot-quick-suggestions.tsx, copilot-apply-all-button.tsx
         │   ├── copilot-adr-card.tsx, copilot-entity-card.tsx, copilot-relation-card.tsx
-        │   ├── copilot-attribute-card.tsx, copilot-entity-delete-card.tsx
+        │   ├── copilot-attribute-card.tsx, copilot-entity-delete-card.tsx, copilot-relation-delete-card.tsx
+        │   ├── copilot-task-card.tsx, copilot-system-action-card.tsx
         ├── hooks/                            # Custom hooks desacoplados (< 150 líneas)
-        │   ├── useCopilot.ts                 # Orquestador del estado y entrada de chat
-        │   └── useCopilotActionHandlers.ts   # Handlers para ADRs, tablas, atributos, relaciones, borrado y lote
+        │   ├── useCopilot.ts                 # Orquestador del estado, Modo Autónomo y envío de mensajes
+        │   ├── useCopilotDiagramActionHandlers.ts # Handlers para tablas, atributos, relaciones y borrado
+        │   ├── useCopilotSystemActionHandlers.ts  # Handlers para tareas Kanban, ADRs, XMI y generador
+        │   └── useCopilotActionHandlers.ts   # Facade de composición de handlers
         ├── lib/                              # Base de conocimiento, prompts y motores de ejecución
         │   ├── copilotKnowledge.data.ts      # Manual exhaustivo del sistema (UML, ADRs, Spring, XMI)
         │   ├── copilotKnowledge.diagram.data.ts # Reglas especializadas de diagramación
         │   ├── copilotKnowledge.ts           # Búsqueda ponderada y respuestas locales
-        │   ├── copilotSystemPrompt.ts        # Inyección del esquema real del lienzo y reglas estrictas N:M
+        │   ├── copilotSystemPrompt.ts        # Inyección del esquema real, diseño de sistemas completos y reglas N:M
         │   ├── copilotDiagramParsers.ts      # Extracción de tablas, relaciones, atributos y eliminaciones
+        │   ├── copilotSystemParsers.ts       # Extracción de tareas, borrado de relaciones y acciones de sistema
         │   ├── copilotParsers.ts             # Facade de parsing y limpieza de markdown
         │   ├── copilotDiagramActions.ts      # Ejecución de llamadas API al backend (CRUD de entidades y atributos)
+        │   ├── copilotSystemActions.ts       # Ejecución de tareas Kanban, XMI y descarga Spring Boot
         │   ├── copilotBatchExecutor.ts       # Ejecución en lote de todos los cambios de un mensaje
         │   ├── copilotMessageUpdaters.ts     # Actualizadores inmutables de mensajes en React
         │   ├── geminiService.ts              # Conector a API DeepSeek / Gemini con fallback local
         │   └── copilotSection.ts, copilotQuestions.ts
-        ├── types/copilot.types.ts            # Tipos de mensajes, sugerencias ADR, atributos, eliminaciones
+        ├── types/copilot.types.ts            # Tipos de mensajes, tareas, eliminaciones, sistema
         └── index.ts                          # API pública del feature
 ```
 

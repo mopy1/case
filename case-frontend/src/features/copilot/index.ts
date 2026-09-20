@@ -8,4 +8,7 @@ export type {
   KnowledgeTopic,
   AttributeSuggestion,
   EntityDeleteSuggestion,
+  TaskSuggestion,
+  RelationDeleteSuggestion,
+  SystemActionSuggestion,
 } from "./types/copilot.types"

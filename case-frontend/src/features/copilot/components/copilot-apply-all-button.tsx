@@ -11,6 +11,9 @@ interface CopilotApplyAllButtonProps {
 
 export function countPendingActions(message: CopilotMessage): number {
   let count = 0
+  if (message.relationDeleteSuggestions) {
+    count += message.relationDeleteSuggestions.filter((r) => !r.eliminada).length
+  }
   if (message.entityDeleteSuggestions) {
     count += message.entityDeleteSuggestions.filter((d) => !d.eliminada).length
   }
@@ -23,6 +26,12 @@ export function countPendingActions(message: CopilotMessage): number {
   if (message.relationSuggestions) {
     count += message.relationSuggestions.filter((r) => !r.creada).length
   }
+  if (message.taskSuggestions) {
+    count += message.taskSuggestions.filter((t) => !t.creada).length
+  }
+  if (message.systemActions) {
+    count += message.systemActions.filter((s) => !s.ejecutada).length
+  }
   if (message.adrSuggestions) {
     count += message.adrSuggestions.filter((a) => !a.guardada).length
   } else if (message.adrSuggestion && !message.adrSuggestion.guardada) {
@@ -33,10 +42,13 @@ export function countPendingActions(message: CopilotMessage): number {
 
 export function hasAnyActions(message: CopilotMessage): boolean {
   return !!(
+    (message.relationDeleteSuggestions && message.relationDeleteSuggestions.length > 0) ||
     (message.entityDeleteSuggestions && message.entityDeleteSuggestions.length > 0) ||
     (message.entitySuggestions && message.entitySuggestions.length > 0) ||
     (message.attributeSuggestions && message.attributeSuggestions.length > 0) ||
     (message.relationSuggestions && message.relationSuggestions.length > 0) ||
+    (message.taskSuggestions && message.taskSuggestions.length > 0) ||
+    (message.systemActions && message.systemActions.length > 0) ||
     (message.adrSuggestions && message.adrSuggestions.length > 0) ||
     message.adrSuggestion
   )

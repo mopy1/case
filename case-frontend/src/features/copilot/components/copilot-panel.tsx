@@ -17,26 +17,7 @@ const MIN_WIDTH = 280
 const MAX_WIDTH = 720
 
 export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps) {
-  const {
-    messages,
-    loading,
-    activeSection,
-    quickQuestions,
-    savingNoteId,
-    creatingEntityKey,
-    creatingRelationKey,
-    creatingAttributeKey,
-    deletingEntityKey,
-    applyingAllMessageId,
-    sendMessage,
-    handleSaveAdr,
-    handleCreateEntity,
-    handleCreateRelation,
-    handleCreateAttribute,
-    handleDeleteEntity,
-    handleApplyAll,
-    clearChat,
-  } = useCopilot(proyectoId)
+  const copilot = useCopilot(proyectoId)
 
   const [width, setWidth] = useState(() => {
     const saved = localStorage.getItem(WIDTH_STORAGE_KEY)
@@ -47,25 +28,15 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
 
   useEffect(() => {
     if (!isDragging) return
-
-    const handleMouseMove = (e: MouseEvent) => {
-      // Al estar a la derecha, el nuevo ancho es la distancia desde el cursor hasta el borde derecho
-      const newWidth = Math.min(Math.max(window.innerWidth - e.clientX, MIN_WIDTH), MAX_WIDTH)
-      setWidth(newWidth)
-    }
-
-    const handleMouseUp = () => {
-      setIsDragging(false)
-    }
-
-    window.addEventListener("mousemove", handleMouseMove)
-    window.addEventListener("mouseup", handleMouseUp)
+    const onMove = (e: MouseEvent) => setWidth(Math.min(Math.max(window.innerWidth - e.clientX, MIN_WIDTH), MAX_WIDTH))
+    const onUp = () => setIsDragging(false)
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
     document.body.style.cursor = "col-resize"
     document.body.style.userSelect = "none"
-
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-      window.removeEventListener("mouseup", handleMouseUp)
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("mouseup", onUp)
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
     }
@@ -81,17 +52,11 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
       style={{ width: isOpen ? `${width}px` : 0 }}
       className={`relative h-full shrink-0 border-border bg-card ${
         isDragging ? "select-none" : "transition-[width,opacity] duration-200 ease-out"
-      } ${
-        isOpen
-          ? "border-l opacity-100 shadow-xl"
-          : "border-l-0 overflow-hidden opacity-0 pointer-events-none"
-      }`}
+      } ${isOpen ? "border-l opacity-100 shadow-xl" : "border-l-0 overflow-hidden opacity-0 pointer-events-none"}`}
     >
-      {/* Tirador para arrastrar y agrandar/achicar ancho (estilo VS Code) */}
       {isOpen && (
         <div
           role="separator"
-          aria-orientation="vertical"
           onMouseDown={(e) => {
             e.preventDefault()
             setIsDragging(true)
@@ -106,40 +71,48 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
 
       <div className="flex h-full w-full flex-col overflow-hidden">
         <CopilotHeader
-          section={activeSection}
-          onClear={clearChat}
+          section={copilot.activeSection}
+          autoMode={copilot.autoMode}
+          onToggleAutoMode={copilot.toggleAutoMode}
+          onClear={copilot.clearChat}
           onClose={onClose}
         />
 
         <CopilotMessageList
-          messages={messages}
-          loading={loading}
-          savingNoteId={savingNoteId}
-          creatingEntityKey={creatingEntityKey}
-          creatingRelationKey={creatingRelationKey}
-          creatingAttributeKey={creatingAttributeKey}
-          deletingEntityKey={deletingEntityKey}
-          applyingAllMessageId={applyingAllMessageId}
-          onSaveAdr={handleSaveAdr}
-          onCreateEntity={handleCreateEntity}
-          onCreateRelation={handleCreateRelation}
-          onCreateAttribute={handleCreateAttribute}
-          onDeleteEntity={handleDeleteEntity}
-          onApplyAll={handleApplyAll}
+          messages={copilot.messages}
+          loading={copilot.loading}
+          savingNoteId={copilot.savingNoteId}
+          creatingEntityKey={copilot.creatingEntityKey}
+          creatingRelationKey={copilot.creatingRelationKey}
+          deletingRelationKey={copilot.deletingRelationKey}
+          creatingAttributeKey={copilot.creatingAttributeKey}
+          deletingEntityKey={copilot.deletingEntityKey}
+          creatingTaskKey={copilot.creatingTaskKey}
+          executingSystemActionKey={copilot.executingSystemActionKey}
+          applyingAllMessageId={copilot.applyingAllMessageId}
+          onSaveAdr={copilot.handleSaveAdr}
+          onCreateEntity={copilot.handleCreateEntity}
+          onCreateRelation={copilot.handleCreateRelation}
+          onDeleteRelation={copilot.handleDeleteRelation}
+          onCreateAttribute={copilot.handleCreateAttribute}
+          onDeleteEntity={copilot.handleDeleteEntity}
+          onCreateTask={copilot.handleCreateTask}
+          onExecuteSystemAction={copilot.handleExecuteSystemAction}
+          onApplyAll={copilot.handleApplyAll}
         />
 
-        {messages.length <= 1 && (
+        {copilot.messages.length <= 1 && (
           <CopilotQuickSuggestions
-            questions={quickQuestions}
-            onSelect={sendMessage}
-            disabled={loading}
+            questions={copilot.quickQuestions}
+            onSelect={copilot.sendMessage}
+            disabled={copilot.loading}
           />
         )}
 
         <CopilotInput
-          section={activeSection}
-          loading={loading}
-          onSend={sendMessage}
+          section={copilot.activeSection}
+          loading={copilot.loading}
+          onSend={copilot.sendMessage}
         />
       </div>
     </aside>

@@ -6,15 +6,29 @@ import { getQuickQuestionsForSection } from "../lib/copilotQuestions"
 import { askCopilot } from "../lib/geminiService"
 import { createWelcomeMessage, detectActiveSection } from "../lib/copilotSection"
 import { useCopilotActionHandlers } from "./useCopilotActionHandlers"
+import { executeAllMessageChanges } from "../lib/copilotBatchExecutor"
+import { markAllAppliedInMessage } from "../lib/copilotMessageUpdaters"
+import { hasAnyActions } from "../components/copilot-apply-all-button"
+
+const AUTO_MODE_KEY = "sw_case_copilot_auto_mode"
 
 export function useCopilot(proyectoId: number) {
   const location = useLocation()
   const activeSection = useMemo(() => detectActiveSection(location.pathname), [location.pathname])
   const [messages, setMessages] = useState<CopilotMessage[]>([createWelcomeMessage(activeSection)])
   const [loading, setLoading] = useState(false)
+  const [autoMode, setAutoMode] = useState<boolean>(() => localStorage.getItem(AUTO_MODE_KEY) === "true")
 
   const quickQuestions = useMemo(() => getQuickQuestionsForSection(activeSection), [activeSection])
   const handlers = useCopilotActionHandlers(proyectoId, setMessages)
+
+  const toggleAutoMode = useCallback(() => {
+    setAutoMode((prev) => {
+      const next = !prev
+      localStorage.setItem(AUTO_MODE_KEY, String(next))
+      return next
+    })
+  }, [])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -35,27 +49,40 @@ export function useCopilot(proyectoId: number) {
       try {
         const diagram = await getDiagram(proyectoId).catch(() => undefined)
         const res = await askCopilot(trimmed, activeSection, diagram)
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `assistant-${Date.now()}`,
-            sender: "assistant",
-            text: res.text,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            adrSuggestion: res.adrSuggestion,
-            adrSuggestions: res.adrSuggestions,
-            entitySuggestions: res.entitySuggestions,
-            relationSuggestions: res.relationSuggestions,
-            attributeSuggestions: res.attributeSuggestions,
-            entityDeleteSuggestions: res.entityDeleteSuggestions,
-            section: activeSection,
-          },
-        ])
+        const assistantMsgId = `assistant-${Date.now()}`
+        const assistantMsg: CopilotMessage = {
+          id: assistantMsgId,
+          sender: "assistant",
+          text: res.text,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          adrSuggestion: res.adrSuggestion,
+          adrSuggestions: res.adrSuggestions,
+          entitySuggestions: res.entitySuggestions,
+          relationSuggestions: res.relationSuggestions,
+          relationDeleteSuggestions: res.relationDeleteSuggestions,
+          attributeSuggestions: res.attributeSuggestions,
+          entityDeleteSuggestions: res.entityDeleteSuggestions,
+          taskSuggestions: res.taskSuggestions,
+          systemActions: res.systemActions,
+          section: activeSection,
+        }
+
+        setMessages((prev) => [...prev, assistantMsg])
+
+        // Si el Modo Autónomo está activo y hay acciones que ejecutar, ejecutarlas de inmediato
+        if (autoMode && hasAnyActions(assistantMsg)) {
+          try {
+            await executeAllMessageChanges(proyectoId, assistantMsg)
+            setMessages((prev) => markAllAppliedInMessage(prev, assistantMsgId))
+          } catch (err) {
+            console.error("Error al auto-aplicar cambios en Modo Autónomo:", err)
+          }
+        }
       } finally {
         setLoading(false)
       }
     },
-    [activeSection, loading, proyectoId]
+    [activeSection, autoMode, loading, proyectoId]
   )
 
   const clearChat = useCallback(() => {
@@ -65,6 +92,8 @@ export function useCopilot(proyectoId: number) {
   return {
     messages,
     loading,
+    autoMode,
+    toggleAutoMode,
     activeSection,
     quickQuestions,
     sendMessage,
