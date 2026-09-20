@@ -97,9 +97,34 @@ interface RelacionesPorEntidad {
 }
 
 function asegurarAtributosConPk(entidad: EntidadDiagramaResponse): AtributoEntidadResponse[] {
-  const lista = [...entidad.atributos]
-  const tienePk = lista.some((a) => a.esPk)
-  if (!tienePk) {
+  const lista = entidad.atributos.map((a) => ({ ...a }))
+  const pks = lista.filter((a) => a.esPk)
+
+  if (pks.length > 1) {
+    const idAttr = lista.find((a) => a.nombre.toLowerCase() === "id")
+    if (idAttr) {
+      return lista.map((a) => ({
+        ...a,
+        esPk: a.nombre.toLowerCase() === "id",
+      }))
+    } else {
+      const normalizados = lista.map((a) => ({ ...a, esPk: false }))
+      normalizados.unshift({
+        id: 0,
+        entidadId: entidad.id,
+        nombre: "id",
+        tipoSql: "BIGSERIAL",
+        esPk: true,
+        esFk: false,
+        referenciaEntidadId: null,
+        referenciaEntidadNombre: null,
+        nullable: false,
+      })
+      return normalizados
+    }
+  }
+
+  if (pks.length === 0) {
     lista.unshift({
       id: 0,
       entidadId: entidad.id,
@@ -111,7 +136,9 @@ function asegurarAtributosConPk(entidad: EntidadDiagramaResponse): AtributoEntid
       referenciaEntidadNombre: null,
       nullable: false,
     })
+    return lista
   }
+
   return lista
 }
 
@@ -510,7 +537,9 @@ function generarModelJava(
 
     if (attr.esPk) {
       lines.push(`    @Id`)
-      lines.push(`    @GeneratedValue(strategy = GenerationType.IDENTITY)`)
+      if (javaType === "Long" || javaType === "Integer") {
+        lines.push(`    @GeneratedValue(strategy = GenerationType.IDENTITY)`)
+      }
     }
     const nullablePart = !attr.nullable ? ", nullable = false" : ""
     lines.push(`    @Column(name = "${attr.nombre.toLowerCase()}"${nullablePart})`)
@@ -760,7 +789,6 @@ import ${BASE_PACKAGE}.service.${className}Service;
 
 @RestController
 @RequestMapping("/api/${endpointPath}")
-@CrossOrigin(origins = "*")
 @Tag(name = "${className}", description = "Operaciones CRUD para ${className}")
 public class ${className}Controller {
 
