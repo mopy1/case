@@ -10,11 +10,44 @@ interface GeminiResponsePayload {
 }
 
 function parseAdrFromText(text: string): AdrSuggestion | undefined {
+  // 1. Formato exacto ADR_SUGERIDA: [...] MOTIVO: [...]
   const adrMatch = text.match(/ADR_SUGERIDA:\s*\[([^\]]+)\]\s*MOTIVO:\s*\[([^\]]+)\]/i)
   if (adrMatch) {
     return { accion: adrMatch[1].trim(), motivo: adrMatch[2].trim() }
   }
+
+  // 2. Formato sin corchetes o con negritas: ADR_SUGERIDA: ... MOTIVO: ...
+  const matchLoose = text.match(
+    /(?:\*{0,2})ADR_SUGERIDA:?(?:\*{0,2})\s*\[?([^\n\]]+)\]?\s*\n+\s*(?:\*{0,2})MOTIVO:?(?:\*{0,2})\s*\[?([^\n\]]+)\]?/i
+  )
+  if (matchLoose) {
+    return {
+      accion: matchLoose[1].trim().replace(/^\[|\]$/g, ""),
+      motivo: matchLoose[2].trim().replace(/^\[|\]$/g, ""),
+    }
+  }
+
+  // 3. Formato natural: Acción:** ... Motivo:** ... o Acción: ... Motivo: ...
+  const matchNatural = text.match(
+    /(?:\*{0,2})Acci[oó]n:?(?:\*{0,2})\s*\n?\s*\[?([^\n\]]+)\]?\s*\n+(?:[•\-\*\s]*)(?:\*{0,2})Motivo(?: T[eé]cnico)?:?(?:\*{0,2})\s*\n?\s*\[?([^\n\]]+)\]?/i
+  )
+  if (matchNatural) {
+    return {
+      accion: matchNatural[1].trim().replace(/^\[|\]$/g, ""),
+      motivo: matchNatural[2].trim().replace(/^\[|\]$/g, ""),
+    }
+  }
+
   return undefined
+}
+
+function cleanResponseText(rawText: string): string {
+  return rawText
+    .replace(/(?:##\s*ADR:?[\s\S]*$)/i, "")
+    .replace(/(?:\*{0,2})ADR_SUGERIDA:?[\s\S]*$/i, "")
+    .replace(/(?:\*{0,2})Acci[oó]n:?(?:\*{0,2})[\s\S]*$/i, "")
+    .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")
+    .trim()
 }
 
 export async function askCopilot(
@@ -36,12 +69,13 @@ La vista actual del usuario es: "${section}".
 Base de Conocimiento del Sistema:
 ${KNOWLEDGE_TOPICS.map((t) => `- ${t.title} (${t.section}): ${t.summary}\n${t.content}`).join("\n\n")}
 
-Instrucciones:
-1. Responde de forma clara, profesional y didáctica en español.
-2. Si sugieres una decisión arquitectónica o el usuario pregunta por arquitectura/ADR, incluye al final este formato exacto:
-ADR_SUGERIDA: [Descripción breve de la acción técnica]
-MOTIVO: [Justificación técnica fundamentada]
-3. Resalta palabras clave y opciones del menú en negrita.`
+REGLAS ESTRICTAS DE RESPUESTA:
+1. BREVEDAD EXTREMA: Responde de forma muy corta, directa y profesional. Máximo 1 a 2 oraciones (menos de 40 palabras). PROHIBIDO dar discursos largos, sermones, advertencias o tutoriales paso a paso no solicitados.
+2. NUNCA DIGAS QUE NO PUEDES GUARDAR O ESCRIBIR EN EL PROYECTO: El sistema tiene integración directa a la base de datos PostgreSQL. Tu trabajo es formular la nota y el sistema mostrará el botón interactivo para guardarla.
+3. SI EL USUARIO PIDE CREAR O GUARDAR UNA NOTA (o sugieres una decisión arquitectónica):
+Responde con una sola frase confirmando la nota y añade SIEMPRE este bloque exacto al final:
+ADR_SUGERIDA: [Título claro de la acción]
+MOTIVO: [Justificación técnica concisa de una línea]`
 
   // 1. Si está configurada la clave de DeepSeek, usar DeepSeek-V3 (ultraeconómico)
   if (deepseekKey && typeof deepseekKey === "string" && deepseekKey.trim()) {
@@ -67,7 +101,7 @@ MOTIVO: [Justificación técnica fundamentada]
         const rawText = data.choices?.[0]?.message?.content
         if (rawText) {
           const adrSuggestion = parseAdrFromText(rawText)
-          const cleanedText = rawText.replace(/ADR_SUGERIDA:[\s\S]*$/, "").trim()
+          const cleanedText = cleanResponseText(rawText)
           return { text: cleanedText || rawText, adrSuggestion }
         }
       }
@@ -96,7 +130,7 @@ MOTIVO: [Justificación técnica fundamentada]
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
         if (rawText) {
           const adrSuggestion = parseAdrFromText(rawText)
-          const cleanedText = rawText.replace(/ADR_SUGERIDA:[\s\S]*$/, "").trim()
+          const cleanedText = cleanResponseText(rawText)
           return { text: cleanedText || rawText, adrSuggestion }
         }
       }
