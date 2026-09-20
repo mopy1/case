@@ -21,7 +21,9 @@ export async function askCopilot(
   query: string,
   section: CopilotSection
 ): Promise<{ text: string; adrSuggestion?: AdrSuggestion }> {
-  const deepseekKey = import.meta.env.VITE_DEEPSEEK_API_KEY
+  const deepseekKey =
+    import.meta.env.VITE_DEEPSEEK_API_KEY ||
+    (import.meta.env as unknown as Record<string, string>)["VITE_DEEPSEEk_API_KEY"]
   const geminiKey = import.meta.env.VITE_GEMINI_API_KEY
 
   // Si no hay ninguna clave, responde el motor local con la base de conocimiento embebida (100% offline)
