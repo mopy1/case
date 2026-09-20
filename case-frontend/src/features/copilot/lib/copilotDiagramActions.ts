@@ -1,6 +1,6 @@
-import { createAttribute, createEntity, createRelation, updateRelation, getDiagram } from "@/features/diagram/api/diagramApi"
+import { createAttribute, createEntity, createRelation, deleteEntity, getDiagram, updateRelation } from "@/features/diagram/api/diagramApi"
 import { findSafeEntityPosition } from "@/features/diagram/lib/positionGuide"
-import type { EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
+import type { AttributeSuggestion, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
 
 export async function executeCreateEntity(
   proyectoId: number,
@@ -55,7 +55,6 @@ export async function executeCreateRelation(
     throw new Error(`La tabla "${missing}" no existe en el lienzo. Créala antes de relacionarla.`)
   }
 
-  // Si ya existe una relación previa entre estas dos entidades, se actualiza para no duplicar líneas
   const existingRel = diagram.relaciones.find(
     (r) =>
       (r.entidadOrigenId === origen.id && r.entidadDestinoId === destino.id) ||
@@ -82,37 +81,47 @@ export async function executeCreateRelation(
   window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId } }))
 }
 
-export function updateEntityCreatedInMessages(
-  messages: any[],
-  messageId: string,
-  index: number
-): any[] {
-  return messages.map((msg) =>
-    msg.id === messageId && msg.entitySuggestions
-      ? {
-          ...msg,
-          entitySuggestions: msg.entitySuggestions.map((e: any, i: number) =>
-            i === index ? { ...e, creada: true } : e
-          ),
-        }
-      : msg
+export async function executeAddAttribute(
+  proyectoId: number,
+  attr: AttributeSuggestion
+): Promise<void> {
+  const diagram = await getDiagram(proyectoId)
+  const entidad = diagram.entidades.find(
+    (e) => e.nombre.trim().toLowerCase() === attr.tabla.trim().toLowerCase()
   )
+
+  if (!entidad) {
+    throw new Error(`La tabla "${attr.tabla}" no existe en el lienzo.`)
+  }
+
+  const yaExiste = entidad.atributos?.some(
+    (a) => a.nombre.trim().toLowerCase() === attr.nombre.trim().toLowerCase()
+  )
+  if (yaExiste) return
+
+  await createAttribute(proyectoId, entidad.id, {
+    nombre: attr.nombre,
+    tipoSql: attr.tipoSql || "VARCHAR",
+    esPk: !!attr.esPk,
+    esFk: false,
+    referenciaEntidadId: null,
+    nullable: attr.nullable ?? !attr.esPk,
+  })
+
+  window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId } }))
 }
 
-export function updateRelationCreatedInMessages(
-  messages: any[],
-  messageId: string,
-  index: number
-): any[] {
-  return messages.map((msg) =>
-    msg.id === messageId && msg.relationSuggestions
-      ? {
-          ...msg,
-          relationSuggestions: msg.relationSuggestions.map((r: any, i: number) =>
-            i === index ? { ...r, creada: true } : r
-          ),
-        }
-      : msg
+export async function executeDeleteEntityByName(
+  proyectoId: number,
+  tableName: string
+): Promise<void> {
+  const diagram = await getDiagram(proyectoId)
+  const entidad = diagram.entidades.find(
+    (e) => e.nombre.trim().toLowerCase() === tableName.trim().toLowerCase()
   )
-}
 
+  if (!entidad) return
+
+  await deleteEntity(proyectoId, entidad.id)
+  window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId } }))
+}

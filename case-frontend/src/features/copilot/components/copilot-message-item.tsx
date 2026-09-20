@@ -1,60 +1,33 @@
-import type { AdrSuggestion, CopilotMessage, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
+import type {
+  AdrSuggestion,
+  AttributeSuggestion,
+  CopilotMessage,
+  EntityDeleteSuggestion,
+  EntitySuggestion,
+  RelationSuggestion,
+} from "../types/copilot.types"
 import { CopilotAdrCard } from "./copilot-adr-card"
+import { CopilotApplyAllButton } from "./copilot-apply-all-button"
+import { CopilotAttributeCard } from "./copilot-attribute-card"
 import { CopilotEntityCard } from "./copilot-entity-card"
+import { CopilotEntityDeleteCard } from "./copilot-entity-delete-card"
 import { CopilotRelationCard } from "./copilot-relation-card"
+import { renderFormattedContent } from "./copilot-text-formatter"
 
-interface CopilotMessageItemProps {
+export interface CopilotMessageItemProps {
   message: CopilotMessage
   isSavingAdr: boolean
   creatingEntityKey?: string | null
   creatingRelationKey?: string | null
+  creatingAttributeKey?: string | null
+  deletingEntityKey?: string | null
+  isApplyingAll?: boolean
   onSaveAdr: (messageId: string, adr: AdrSuggestion) => void
   onCreateEntity: (messageId: string, entityIndex: number, entity: EntitySuggestion) => void
   onCreateRelation: (messageId: string, relationIndex: number, relation: RelationSuggestion) => void
-}
-
-function renderFormattedContent(text: string) {
-  const lines = text.split("\n")
-  return (
-    <div className="flex flex-col gap-1.5 leading-relaxed">
-      {lines.map((line, idx) => {
-        const trimmed = line.trim()
-        if (!trimmed) return <div key={idx} className="h-1" />
-
-        if (trimmed.startsWith("### ")) {
-          return (
-            <h4 key={idx} className="font-semibold text-foreground tracking-tight">
-              {trimmed.replace("### ", "")}
-            </h4>
-          )
-        }
-
-        const isBullet = trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")
-        const content = isBullet ? trimmed.replace(/^[•\-*]\s*/, "") : trimmed
-
-        const formatted = content.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, pIdx) => {
-          if (part.startsWith("**") && part.endsWith("**")) {
-            return <strong key={pIdx} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-          }
-          if (part.startsWith("`") && part.endsWith("`")) {
-            return (
-              <code key={pIdx} className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-primary">
-                {part.slice(1, -1)}
-              </code>
-            )
-          }
-          return part
-        })
-
-        return (
-          <div key={idx} className={isBullet ? "flex items-start gap-1.5 pl-1" : ""}>
-            {isBullet && <span className="text-primary font-bold">•</span>}
-            <span className="flex-1">{formatted}</span>
-          </div>
-        )
-      })}
-    </div>
-  )
+  onCreateAttribute: (messageId: string, attributeIndex: number, attribute: AttributeSuggestion) => void
+  onDeleteEntity: (messageId: string, deleteIndex: number, suggestion: EntityDeleteSuggestion) => void
+  onApplyAll: (message: CopilotMessage) => void
 }
 
 export function CopilotMessageItem({
@@ -62,9 +35,15 @@ export function CopilotMessageItem({
   isSavingAdr,
   creatingEntityKey,
   creatingRelationKey,
+  creatingAttributeKey,
+  deletingEntityKey,
+  isApplyingAll,
   onSaveAdr,
   onCreateEntity,
   onCreateRelation,
+  onCreateAttribute,
+  onDeleteEntity,
+  onApplyAll,
 }: CopilotMessageItemProps) {
   const isUser = message.sender === "user"
 
@@ -80,28 +59,26 @@ export function CopilotMessageItem({
         {isUser ? <p className="whitespace-pre-wrap">{message.text}</p> : renderFormattedContent(message.text)}
       </div>
 
-      {message.adrSuggestions && !isUser && message.adrSuggestions.length > 0 ? (
+      {!isUser && (
+        <CopilotApplyAllButton message={message} isApplyingAll={!!isApplyingAll} onApplyAll={onApplyAll} />
+      )}
+
+      {message.entityDeleteSuggestions && !isUser && (
         <div className="flex w-full flex-col gap-1.5">
-          {message.adrSuggestions.map((adr, i) => (
-            <CopilotAdrCard
+          {message.entityDeleteSuggestions.map((del, i) => (
+            <CopilotEntityDeleteCard
               key={i}
               messageId={message.id}
-              adr={adr}
-              isSaving={isSavingAdr}
-              onSave={onSaveAdr}
+              deleteIndex={i}
+              suggestion={del}
+              isDeleting={deletingEntityKey === `${message.id}-del-${i}`}
+              onDelete={onDeleteEntity}
             />
           ))}
         </div>
-      ) : message.adrSuggestion && !isUser ? (
-        <CopilotAdrCard
-          messageId={message.id}
-          adr={message.adrSuggestion}
-          isSaving={isSavingAdr}
-          onSave={onSaveAdr}
-        />
-      ) : null}
+      )}
 
-      {message.entitySuggestions && !isUser && message.entitySuggestions.length > 0 && (
+      {message.entitySuggestions && !isUser && (
         <div className="flex w-full flex-col gap-1.5">
           {message.entitySuggestions.map((ent, i) => (
             <CopilotEntityCard
@@ -116,7 +93,22 @@ export function CopilotMessageItem({
         </div>
       )}
 
-      {message.relationSuggestions && !isUser && message.relationSuggestions.length > 0 && (
+      {message.attributeSuggestions && !isUser && (
+        <div className="flex w-full flex-col gap-1.5">
+          {message.attributeSuggestions.map((attr, i) => (
+            <CopilotAttributeCard
+              key={i}
+              messageId={message.id}
+              attributeIndex={i}
+              attribute={attr}
+              isCreating={creatingAttributeKey === `${message.id}-attr-${i}`}
+              onCreate={onCreateAttribute}
+            />
+          ))}
+        </div>
+      )}
+
+      {message.relationSuggestions && !isUser && (
         <div className="flex w-full flex-col gap-1.5">
           {message.relationSuggestions.map((rel, i) => (
             <CopilotRelationCard
@@ -130,6 +122,16 @@ export function CopilotMessageItem({
           ))}
         </div>
       )}
+
+      {message.adrSuggestions && !isUser ? (
+        <div className="flex w-full flex-col gap-1.5">
+          {message.adrSuggestions.map((adr, i) => (
+            <CopilotAdrCard key={i} messageId={message.id} adr={adr} isSaving={isSavingAdr} onSave={onSaveAdr} />
+          ))}
+        </div>
+      ) : message.adrSuggestion && !isUser ? (
+        <CopilotAdrCard messageId={message.id} adr={message.adrSuggestion} isSaving={isSavingAdr} onSave={onSaveAdr} />
+      ) : null}
 
       <span className="px-1 text-[10px] text-muted-foreground">{message.timestamp}</span>
     </div>

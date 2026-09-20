@@ -32,6 +32,21 @@ export interface RelationSuggestion {
   creada?: boolean
 }
 
+export interface AttributeSuggestion {
+  tabla: string
+  nombre: string
+  tipoSql: string
+  esPk?: boolean
+  esFk?: boolean
+  nullable?: boolean
+  creada?: boolean
+}
+
+export interface EntityDeleteSuggestion {
+  tabla: string
+  eliminada?: boolean
+}
+
 export interface CopilotMessage {
   id: string
   sender: "user" | "assistant"
@@ -41,6 +56,8 @@ export interface CopilotMessage {
   adrSuggestions?: AdrSuggestion[]
   entitySuggestions?: EntitySuggestion[]
   relationSuggestions?: RelationSuggestion[]
+  attributeSuggestions?: AttributeSuggestion[]
+  entityDeleteSuggestions?: EntityDeleteSuggestion[]
   section?: CopilotSection
 }
 

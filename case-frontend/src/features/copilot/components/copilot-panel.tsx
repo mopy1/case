@@ -25,10 +25,16 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
     savingNoteId,
     creatingEntityKey,
     creatingRelationKey,
+    creatingAttributeKey,
+    deletingEntityKey,
+    applyingAllMessageId,
     sendMessage,
     handleSaveAdr,
     handleCreateEntity,
     handleCreateRelation,
+    handleCreateAttribute,
+    handleDeleteEntity,
+    handleApplyAll,
     clearChat,
   } = useCopilot(proyectoId)
 
@@ -111,9 +117,15 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
           savingNoteId={savingNoteId}
           creatingEntityKey={creatingEntityKey}
           creatingRelationKey={creatingRelationKey}
+          creatingAttributeKey={creatingAttributeKey}
+          deletingEntityKey={deletingEntityKey}
+          applyingAllMessageId={applyingAllMessageId}
           onSaveAdr={handleSaveAdr}
           onCreateEntity={handleCreateEntity}
           onCreateRelation={handleCreateRelation}
+          onCreateAttribute={handleCreateAttribute}
+          onDeleteEntity={handleDeleteEntity}
+          onApplyAll={handleApplyAll}
         />
 
         {messages.length <= 1 && (

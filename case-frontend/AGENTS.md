@@ -130,16 +130,29 @@ case-frontend/src/
     │   ├── pages/ProjectGeneratorPage.tsx    # Vista completa con métricas, árbol interactivo y descarga
     │   └── types/generator.types.ts          # Interfaces de archivos generados y preview
     │
-    └── copilot/                              # 🤖 Copilot & Manual Contextual de Usuario
-        ├── components/                       # Panel lateral acoplado, header, lista de mensajes, input
+    └── copilot/                              # 🤖 Copilot & Manual Contextual de Usuario (Control Total del Lienzo)
+        ├── components/                       # Panel lateral acoplado, header, lista de mensajes, input y tarjetas de acción
         │   ├── copilot-panel.tsx, copilot-header.tsx, copilot-input.tsx
-        │   ├── copilot-message-list.tsx, copilot-message-item.tsx, copilot-quick-suggestions.tsx
-        ├── hooks/useCopilot.ts               # Hook de orquestación, contexto activo y guardado de ADRs
-        ├── lib/                              # Base de conocimiento y motor de consulta
+        │   ├── copilot-message-list.tsx, copilot-message-item.tsx, copilot-text-formatter.tsx
+        │   ├── copilot-quick-suggestions.tsx, copilot-apply-all-button.tsx
+        │   ├── copilot-adr-card.tsx, copilot-entity-card.tsx, copilot-relation-card.tsx
+        │   ├── copilot-attribute-card.tsx, copilot-entity-delete-card.tsx
+        ├── hooks/                            # Custom hooks desacoplados (< 150 líneas)
+        │   ├── useCopilot.ts                 # Orquestador del estado y entrada de chat
+        │   └── useCopilotActionHandlers.ts   # Handlers para ADRs, tablas, atributos, relaciones, borrado y lote
+        ├── lib/                              # Base de conocimiento, prompts y motores de ejecución
         │   ├── copilotKnowledge.data.ts      # Manual exhaustivo del sistema (UML, ADRs, Spring, XMI)
+        │   ├── copilotKnowledge.diagram.data.ts # Reglas especializadas de diagramación
         │   ├── copilotKnowledge.ts           # Búsqueda ponderada y respuestas locales
-        │   └── geminiService.ts              # Conector a API Gemini con fallback local
-        ├── types/copilot.types.ts            # Tipos de mensajes, sugerencias ADR y temas
+        │   ├── copilotSystemPrompt.ts        # Inyección del esquema real del lienzo y reglas estrictas N:M
+        │   ├── copilotDiagramParsers.ts      # Extracción de tablas, relaciones, atributos y eliminaciones
+        │   ├── copilotParsers.ts             # Facade de parsing y limpieza de markdown
+        │   ├── copilotDiagramActions.ts      # Ejecución de llamadas API al backend (CRUD de entidades y atributos)
+        │   ├── copilotBatchExecutor.ts       # Ejecución en lote de todos los cambios de un mensaje
+        │   ├── copilotMessageUpdaters.ts     # Actualizadores inmutables de mensajes en React
+        │   ├── geminiService.ts              # Conector a API DeepSeek / Gemini con fallback local
+        │   └── copilotSection.ts, copilotQuestions.ts
+        ├── types/copilot.types.ts            # Tipos de mensajes, sugerencias ADR, atributos, eliminaciones
         └── index.ts                          # API pública del feature
 ```
 
@@ -201,7 +214,7 @@ case-frontend/src/
 - [x] **Diagramador UML:** Lienzo interactivo con arrastre de tablas, CRUD de atributos, aristas inteligentes en ángulo recto, selector de multiplicidad, clases de asociación N:M, puntos de control manuales y salto visual de líneas.
 - [x] **Interoperabilidad XMI:** Descarga e importación funcional compatible con Enterprise Architect.
 - [x] **Generador de Backend (Fase 4 Completa):** Motor en cliente (TypeScript + JSZip + FileSaver) que toma el diagrama UML y genera un proyecto Spring Boot 3.4 / Java 21 compilable al 100% (Entity JPA con @ManyToOne/@OneToMany, Repository, Request/Response DTOs, Service transaccional, Controller REST OpenAPI, pom.xml, application.properties).
-- [x] **Copilot & Manual de Usuario Contextual:** Panel lateral acoplado a la derecha en proyectos con detección automática de contexto (Diagrama, Generador, XMI, Notas, Tareas), manual exhaustivo integrado, integración opcional con Gemini API con fallback seguro y capacidad de guardar sugerencias como notas ADR con 1 clic.
+- [x] **Copilot & Control Total del Lienzo por Chat:** Panel lateral acoplado a la derecha en proyectos con detección automática de contexto (Diagrama, Generador, XMI, Notas, Tareas), manual exhaustivo integrado, integración con DeepSeek / Gemini y motor de acciones completas sobre el lienzo: creación de entidades en posiciones seguras, creación/actualización de relaciones (con soporte N:M nativo sin inventar tablas intermedias manuales), agregación de atributos a tablas existentes, eliminación de tablas y botón "⚡ Aplicar todos los cambios" en lote. Cumple estrictamente con la regla de componentes y hooks < 150 líneas.
 
 ---
 

@@ -1,5 +1,13 @@
 import { findSafeEntityPosition, type EntityPosition } from "@/features/diagram/lib/positionGuide"
-import type { AdrSuggestion, CopilotSection, EntitySuggestion, KnowledgeTopic, RelationSuggestion } from "../types/copilot.types"
+import type {
+  AdrSuggestion,
+  AttributeSuggestion,
+  CopilotSection,
+  EntityDeleteSuggestion,
+  EntitySuggestion,
+  KnowledgeTopic,
+  RelationSuggestion,
+} from "../types/copilot.types"
 import { KNOWLEDGE_TOPICS } from "./copilotKnowledge.data"
 
 export { KNOWLEDGE_TOPICS }
@@ -48,16 +56,39 @@ export function generateLocalResponse(
   adrSuggestion?: AdrSuggestion
   entitySuggestions?: EntitySuggestion[]
   relationSuggestions?: RelationSuggestion[]
+  attributeSuggestions?: AttributeSuggestion[]
+  entityDeleteSuggestions?: EntityDeleteSuggestion[]
 } {
-  const isAdrRequest = /sugerir|decision|adrs?|normaliza|arquitectura/i.test(query)
   const isCreateTable = /(?:crear|nueva|agregar|diseñar)\s+(?:tabla|entidad)\s+([a-zA-Z0-9_]+)/i.exec(query)
   const isCreateRelation = /(?:relacion(?:ar)?|conectar)\s+([a-zA-Z0-9_]+)\s+(?:con|a|y)\s+([a-zA-Z0-9_]+)/i.exec(query)
+  const isAddAttribute = /(?:agregar|añadir|crear)\s+atributo\s+([a-zA-Z0-9_]+)(?:\s*:([a-zA-Z0-9_]+))?\s+a\s+([a-zA-Z0-9_]+)/i.exec(query)
+  const isDeleteTable = /(?:eliminar|borrar|quitar)\s+tabla\s+([a-zA-Z0-9_]+)/i.exec(query)
+
+  if (isAddAttribute) {
+    const attrName = isAddAttribute[1]
+    const tipo = (isAddAttribute[2] || "VARCHAR").toUpperCase()
+    const tableName = isAddAttribute[3]
+    return {
+      text: `He preparado el atributo **${attrName}** (${tipo}) para la tabla **${tableName}**.`,
+      attributeSuggestions: [
+        { tabla: tableName, nombre: attrName, tipoSql: tipo, esPk: false, nullable: true, creada: false },
+      ],
+    }
+  }
+
+  if (isDeleteTable) {
+    const tableName = isDeleteTable[1]
+    return {
+      text: `He preparado la eliminación de la tabla **${tableName}** del lienzo.`,
+      entityDeleteSuggestions: [{ tabla: tableName, eliminada: false }],
+    }
+  }
 
   if (isCreateTable) {
     const tableName = isCreateTable[1]
     const safePos = findSafeEntityPosition(existingEntities)
     return {
-      text: `He preparado la estructura para la tabla **${tableName}** en la posición segura libre (x: ${safePos.posX}, y: ${safePos.posY}) para evitar colisiones.`,
+      text: `He preparado la estructura para la tabla **${tableName}** en la posición libre (x: ${safePos.posX}, y: ${safePos.posY}).`,
       entitySuggestions: [
         {
           nombre: tableName.charAt(0).toUpperCase() + tableName.slice(1),
@@ -77,20 +108,24 @@ export function generateLocalResponse(
   if (isCreateRelation) {
     const origen = isCreateRelation[1]
     const destino = isCreateRelation[2]
+    const isMany = /muchos|n:m|n a m|varias|varios/i.test(query)
     return {
-      text: `He preparado la relación 1:N entre **${origen}** y **${destino}**. Puedes crearla directamente en el lienzo.`,
+      text: isMany
+        ? `He preparado la relación muchos a muchos (N:M) entre **${origen}** y **${destino}**. El sistema creará la tabla intermedia automáticamente.`
+        : `He preparado la relación 1:N entre **${origen}** y **${destino}**.`,
       relationSuggestions: [
         {
           origen,
           destino,
           multiplicidadOrigen: "UNO_O_MAS",
-          multiplicidadDestino: "UNO",
+          multiplicidadDestino: isMany ? "UNO_O_MAS" : "UNO",
           creada: false,
         },
       ],
     }
   }
 
+  const isAdrRequest = /sugerir|decision|adrs?|normaliza|arquitectura/i.test(query)
   const matches = searchKnowledge(query, section)
   const bestTopic = matches[0] || KNOWLEDGE_TOPICS[0]
 
@@ -98,26 +133,17 @@ export function generateLocalResponse(
     const topicWithAdr = matches.find((t) => t.suggestedAdr) || KNOWLEDGE_TOPICS.find((t) => t.suggestedAdr)
     const adr = topicWithAdr?.suggestedAdr ?? {
       accion: "Normalizar relación N:M mediante tabla intermedia de asociación",
-      motivo: "Descomponer la relación muchos a muchos en dos relaciones 1:N hacia una entidad puente para almacenar atributos de transacción y garantizar la 3FN.",
+      motivo: "Descomponer la relación muchos a muchos en dos relaciones 1:N para garantizar la 3FN.",
     }
 
     return {
-      text: `### 💡 Decisión Arquitectónica Recomendada
-
-Para mantener un diseño relacional escalable y alineado con las buenas prácticas de la herramienta CASE, se sugiere la siguiente decisión:
-
-• **Acción:** ${adr.accion}
-• **Motivo Técnico:** ${adr.motivo}
-
-Puedes registrar esta decisión directamente en la bitácora del proyecto con el botón a continuación.`,
+      text: `### 💡 Decisión Arquitectónica Recomendada\n\n• **Acción:** ${adr.accion}\n• **Motivo Técnico:** ${adr.motivo}`,
       adrSuggestion: adr,
     }
   }
 
   return {
-    text: `### 📌 ${bestTopic.title}
-
-${bestTopic.content}`,
+    text: `### 📌 ${bestTopic.title}\n\n${bestTopic.content}`,
     adrSuggestion: bestTopic.suggestedAdr,
   }
 }
