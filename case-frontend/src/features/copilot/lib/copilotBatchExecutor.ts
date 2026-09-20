@@ -99,4 +99,5 @@ export async function executeAllMessageChanges(
 
   window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId } }))
   window.dispatchEvent(new CustomEvent("project:note-created", { detail: { proyectoId } }))
+  window.dispatchEvent(new CustomEvent("project:task-created", { detail: { proyectoId } }))
 }

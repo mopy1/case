@@ -19,10 +19,33 @@ export function useTaskMutations(proyectoId: number) {
     }
   }
 
-  const create = (tarea: TareaRequest) => withLoading(() => createTask(proyectoId, tarea))
-  const changeStatus = (tareaId: number, request: CambiarEstadoRequest) =>
-    withLoading(() => changeTaskStatus(proyectoId, tareaId, request))
-  const remove = (tareaId: number) => withLoading(() => deleteTask(proyectoId, tareaId))
+  const create = async (tarea: TareaRequest) => {
+    const result = await withLoading(() => createTask(proyectoId, tarea))
+    if (result) {
+      window.dispatchEvent(new CustomEvent("project:task-created", { detail: { proyectoId, task: result } }))
+    }
+    return result
+  }
+
+  const changeStatus = async (tareaId: number, request: CambiarEstadoRequest) => {
+    const result = await withLoading(() => changeTaskStatus(proyectoId, tareaId, request))
+    if (result) {
+      window.dispatchEvent(new CustomEvent("project:task-updated", { detail: { proyectoId, task: result } }))
+    }
+    return result
+  }
+
+  const remove = async (taskId: number) => {
+    let success = false
+    const result = await withLoading(async () => {
+      await deleteTask(proyectoId, taskId)
+      success = true
+    })
+    if (success) {
+      window.dispatchEvent(new CustomEvent("project:task-deleted", { detail: { proyectoId, taskId } }))
+    }
+    return result
+  }
 
   return { create, changeStatus, remove, loading, error }
 }
