@@ -28,8 +28,15 @@ export function useRealtimeCollaboration(proyectoId: number) {
   }, [])
 
   const post = useCallback((msg: CollaborationMessage) => {
-    channelRef.current?.postMessage(msg)
-  }, [])
+    try {
+      channelRef.current?.postMessage(msg)
+    } catch {}
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(`sw_collab_${proyectoId}`, JSON.stringify(msg))
+      }
+    } catch {}
+  }, [proyectoId])
 
   const broadcastCursor = useCallback((x: number, y: number) => {
     const now = Date.now()
@@ -46,40 +53,32 @@ export function useRealtimeCollaboration(proyectoId: number) {
   }, [clientId, username, color, post])
 
   useEffect(() => {
-    if (!proyectoId || typeof window === "undefined" || !("BroadcastChannel" in window)) return
+    if (!proyectoId || typeof window === "undefined") return
 
-    const channel = new BroadcastChannel(`sw-case-collaboration-project-${proyectoId}`)
-    channelRef.current = channel
+    let channel: BroadcastChannel | null = null
+    if ("BroadcastChannel" in window) {
+      channel = new BroadcastChannel(`sw-case-collaboration-project-${proyectoId}`)
+      channelRef.current = channel
+    }
 
     const sendJoin = (isReply = false) => {
       post({
-        type: "USER_JOIN",
-        senderId: clientId,
-        username,
-        color,
-        cursor: { x: 0, y: 0 },
-        selectedEntityId: null,
-        timestamp: Date.now(),
-        payload: { isReply },
+        type: "USER_JOIN", senderId: clientId, username, color,
+        cursor: { x: 0, y: 0 }, selectedEntityId: null, timestamp: Date.now(), payload: { isReply },
       })
     }
 
     sendJoin(false)
 
-    channel.onmessage = (event: MessageEvent<CollaborationMessage>) => {
-      const msg = event.data
+    const handleMessageData = (msg: CollaborationMessage) => {
       if (!msg || msg.senderId === clientId) return
-
       if (msg.type === "USER_LEAVE") {
         collaboratorsMap.current.delete(msg.senderId)
         syncState()
         return
       }
-
       if (msg.type === "DIAGRAM_MUTATION") {
-        window.dispatchEvent(
-          new CustomEvent("project:diagram-updated", { detail: { proyectoId, remote: true } })
-        )
+        window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId, remote: true } }))
         return
       }
 
@@ -89,7 +88,7 @@ export function useRealtimeCollaboration(proyectoId: number) {
         username: msg.username || existing?.username || "Colaborador",
         color: msg.color || existing?.color || "#2563eb",
         cursor: msg.cursor || existing?.cursor || { x: 0, y: 0 },
-        selectedEntityId: msg.selectedEntityId !== undefined ? msg.selectedEntityId : (existing?.selectedEntityId ?? null),
+        selectedEntityId: msg.selectedEntityId ?? existing?.selectedEntityId ?? null,
         lastActive: Date.now(),
       })
       syncState()
@@ -98,6 +97,21 @@ export function useRealtimeCollaboration(proyectoId: number) {
         sendJoin(true)
       }
     }
+
+    const onChannelMessage = (event: MessageEvent<CollaborationMessage>) => {
+      handleMessageData(event.data)
+    }
+    channel?.addEventListener("message", onChannelMessage)
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === `sw_collab_${proyectoId}` && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue) as CollaborationMessage
+          handleMessageData(parsed)
+        } catch {}
+      }
+    }
+    window.addEventListener("storage", onStorage)
 
     const heartbeatTimer = setInterval(() => sendJoin(true), HEARTBEAT_INTERVAL_MS)
     const cleanupTimer = setInterval(() => {
@@ -116,7 +130,9 @@ export function useRealtimeCollaboration(proyectoId: number) {
       clearInterval(heartbeatTimer)
       clearInterval(cleanupTimer)
       post({ type: "USER_LEAVE", senderId: clientId, username, timestamp: Date.now() })
-      channel.close()
+      channel?.removeEventListener("message", onChannelMessage)
+      channel?.close()
+      window.removeEventListener("storage", onStorage)
       channelRef.current = null
     }
   }, [proyectoId, clientId, username, color, post, syncState])

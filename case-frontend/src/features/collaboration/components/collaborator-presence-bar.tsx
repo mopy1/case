@@ -5,11 +5,13 @@ import { getInitials } from "../lib/collaborationUtils"
 
 interface CollaboratorPresenceBarProps {
   collaborators: CollaboratorPresence[]
+  myPresence?: { id: string; username: string; color: string }
   className?: string
 }
 
 export function CollaboratorPresenceBar({
   collaborators,
+  myPresence,
   className,
 }: CollaboratorPresenceBarProps) {
   return (
@@ -25,12 +27,27 @@ export function CollaboratorPresenceBar({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="hidden sm:inline font-medium">Colaboración activa</span>
+          <span className="hidden sm:inline font-medium">Colaboración</span>
         </div>
 
         <div className="h-4 w-px bg-border/70" />
 
         <div className="flex items-center -space-x-1.5">
+          {myPresence && (
+            <Tooltip>
+              <TooltipTrigger
+                className="relative inline-flex size-6 items-center justify-center rounded-full text-[10px] font-bold text-white ring-2 ring-primary/80 shadow-xs transition-transform hover:z-20 hover:scale-110"
+                style={{ backgroundColor: myPresence.color }}
+              >
+                {getInitials(myPresence.username)}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-center text-xs">
+                <div className="font-semibold text-foreground">{myPresence.username} (Tú)</div>
+                <div className="text-[11px] text-emerald-500 font-medium">● Conectado</div>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {collaborators.map((c) => (
             <Tooltip key={c.id}>
               <TooltipTrigger
@@ -47,8 +64,8 @@ export function CollaboratorPresenceBar({
           ))}
 
           {collaborators.length === 0 && (
-            <span className="text-[11px] text-muted-foreground px-1">
-              Esperando colaboradores...
+            <span className="text-[11px] text-muted-foreground pl-2">
+              (Esperando otros colaboradores...)
             </span>
           )}
         </div>

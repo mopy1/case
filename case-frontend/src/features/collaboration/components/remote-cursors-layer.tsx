@@ -12,7 +12,7 @@ export function RemoteCursorsLayer({ collaborators }: RemoteCursorsLayerProps) {
   if (activeCursors.length === 0) return null
 
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden z-20">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden z-50">
       {activeCursors.map((c) => (
         <div
           key={c.id}

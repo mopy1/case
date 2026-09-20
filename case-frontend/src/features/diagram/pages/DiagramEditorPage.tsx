@@ -47,9 +47,9 @@ export function DiagramEditorPage() {
   } = useDiagramCanvas(proyectoId)
 
   const { theme } = useTheme()
-  const { collaborators, broadcastCursor } = useRealtimeCollaboration(proyectoId)
+  const { collaborators, broadcastCursor, myPresence } = useRealtimeCollaboration(proyectoId)
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     broadcastCursor(e.clientX - rect.left, e.clientY - rect.top)
   }
@@ -76,14 +76,14 @@ export function DiagramEditorPage() {
   return (
     <div
       className="relative h-full w-full overflow-hidden"
-      onMouseMove={handleMouseMove}
+      onPointerMoveCapture={handlePointerMove}
     >
       <CanvasToolbar onCreate={onCreate} loading={creating} error={createError} />
       <CollaboratorPresenceBar
         collaborators={collaborators}
+        myPresence={myPresence}
         className="absolute top-4 left-36 z-10"
       />
-      <RemoteCursorsLayer collaborators={collaborators} />
       {selectedEntidad && (
         <EntityPropertiesPanel
           proyectoId={proyectoId}
@@ -132,6 +132,7 @@ export function DiagramEditorPage() {
         <AssociationClassOverlay asociaciones={asociaciones} onDelete={onDeleteAsociacion} selectedEntidadId={selectedEntidadId} />
         <RelationCrossingOverlay edges={edges} nodes={nodes} />
       </ReactFlow>
+      <RemoteCursorsLayer collaborators={collaborators} />
     </div>
   )
 }
