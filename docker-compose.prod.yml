@@ -31,7 +31,7 @@ services:
     networks:
       - case_network
 
-  # Frontend React + Nginx Reverse Proxy (Puerto 80 Unificado)
+  # Frontend React + Nginx Reverse Proxy (Puerto 80 HTTP y 443 HTTPS SSL)
   frontend-app:
     build:
       context: ./case-frontend
@@ -40,6 +40,9 @@ services:
     restart: always
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - backend-app
     networks:
