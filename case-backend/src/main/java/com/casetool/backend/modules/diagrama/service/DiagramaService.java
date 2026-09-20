@@ -12,6 +12,9 @@ import com.casetool.backend.modules.diagrama.repository.EntidadDiagramaRepositor
 import com.casetool.backend.modules.diagrama.repository.RelacionDiagramaRepository;
 import com.casetool.backend.modules.proyecto.service.ProyectoAccesoService;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @Transactional(readOnly = true)
 public class DiagramaService {
@@ -36,11 +39,18 @@ public class DiagramaService {
     public DiagramaResponse obtenerDiagrama(Long proyectoId, Long usuarioId) {
         accesoService.verificarMiembro(proyectoId, usuarioId);
 
-        var entidades = entidadDiagramaRepository.findByProyectoId(proyectoId).stream()
+        var entidadesDb = entidadDiagramaRepository.findByProyectoId(proyectoId);
+        var atributosDb = atributoEntidadRepository.findByProyectoId(proyectoId);
+
+        var atributosPorEntidad = atributosDb.stream()
+                .collect(Collectors.groupingBy(
+                        a -> a.getEntidad().getId(),
+                        Collectors.mapping(AtributoEntidadResponse::from, Collectors.toList())
+                ));
+
+        var entidades = entidadesDb.stream()
                 .map(entidad -> {
-                    var atributos = atributoEntidadRepository.findByEntidadId(entidad.getId()).stream()
-                            .map(AtributoEntidadResponse::from)
-                            .toList();
+                    var atributos = atributosPorEntidad.getOrDefault(entidad.getId(), List.of());
                     return EntidadDiagramaResponse.from(entidad, atributos);
                 })
                 .toList();

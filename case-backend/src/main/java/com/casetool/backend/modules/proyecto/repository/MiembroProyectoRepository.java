@@ -3,6 +3,7 @@ package com.casetool.backend.modules.proyecto.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.casetool.backend.modules.proyecto.model.MiembroProyecto;
@@ -13,7 +14,11 @@ public interface MiembroProyectoRepository extends JpaRepository<MiembroProyecto
 
   boolean existsByProyectoIdAndUsuarioId(Long proyectoId, Long usuarioId);
 
+  @EntityGraph(attributePaths = {"usuario"})
   List<MiembroProyecto> findByProyectoId(Long proyectoId);
 
+  @EntityGraph(attributePaths = {"proyecto"})
   List<MiembroProyecto> findByUsuarioId(Long usuarioId);
+
+  long countByProyectoIdAndRol(Long proyectoId, MiembroProyecto.Rol rol);
 }

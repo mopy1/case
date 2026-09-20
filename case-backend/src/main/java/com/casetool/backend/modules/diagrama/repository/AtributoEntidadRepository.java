@@ -13,6 +13,9 @@ public interface AtributoEntidadRepository extends JpaRepository<AtributoEntidad
 
     List<AtributoEntidad> findByEntidadId(Long entidadId);
 
+    @Query("SELECT a FROM AtributoEntidad a WHERE a.entidad.proyecto.id = :proyectoId")
+    List<AtributoEntidad> findByProyectoId(@Param("proyectoId") Long proyectoId);
+
     boolean existsByEntidadIdAndNombre(Long entidadId, String nombre);
 
     /**

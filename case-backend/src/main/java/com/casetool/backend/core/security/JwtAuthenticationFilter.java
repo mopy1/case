@@ -50,19 +50,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(BEARER_PREFIX.length());
 
-        if (SecurityContextHolder.getContext().getAuthentication() == null && jwtService.isTokenValid(token)) {
-            try {
-                String username = jwtService.extractUsername(token);
-                UserDetails userDetails = usuarioDetailsService.loadUserByUsername(username);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            jwtService.validateAndExtractClaims(token).ifPresent(claims -> {
+                try {
+                    String username = claims.getSubject();
+                    UserDetails userDetails = usuarioDetailsService.loadUserByUsername(username);
 
-                var authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    var authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            } catch (UsernameNotFoundException ignored) {
-                // Token valido pero el usuario ya no existe: la request sigue sin autenticar.
-            }
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } catch (UsernameNotFoundException ignored) {
+                    // Token valido pero el usuario ya no existe: la request sigue sin autenticar.
+                }
+            });
         }
 
         filterChain.doFilter(request, response);

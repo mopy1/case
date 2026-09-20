@@ -1,6 +1,7 @@
 package com.casetool.backend.modules.proyecto.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
 import com.casetool.backend.modules.proyecto.exception.RolInsuficienteProyectoException;
@@ -13,6 +14,7 @@ import com.casetool.backend.modules.proyecto.repository.MiembroProyectoRepositor
  * autorizacion (y el mismo riesgo de que se desincronice) en cada service.
  */
 @Service
+@Transactional(readOnly = true)
 public class ProyectoAccesoService {
 
     private final MiembroProyectoRepository miembroProyectoRepository;
@@ -49,9 +51,7 @@ public class ProyectoAccesoService {
         if (objetivo.getRol() != MiembroProyecto.Rol.ADMIN) {
             return;
         }
-        long admins = miembroProyectoRepository.findByProyectoId(proyectoId).stream()
-                .filter(m -> m.getRol() == MiembroProyecto.Rol.ADMIN)
-                .count();
+        long admins = miembroProyectoRepository.countByProyectoIdAndRol(proyectoId, MiembroProyecto.Rol.ADMIN);
         if (admins <= 1) {
             throw new RolInsuficienteProyectoException("No se puede quitar/degradar al único ADMIN del proyecto");
         }

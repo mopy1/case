@@ -35,7 +35,20 @@ sin `PATCH`. El único endpoint que usa `PATCH` (`PATCH /api/proyectos/{id}/tare
 cambiar estado de una tarea) fallaba en el navegador con error de CORS en el preflight, aunque el
 endpoint en sí funcionaba bien probado por `curl`. Se encontró recién al construir el frontend real
 de Tareas — un `curl` no dispara preflight CORS, por eso no se había visto antes. Si se agrega
-algún otro endpoint `PATCH` en el futuro, ya está cubierto.
+## ⚡ Optimización de Rendimiento Backend (2026-09-20)
+
+- **Eliminación masiva de N+1 Queries:**
+  - **Lienzo de Diagrama (`DiagramaService.obtenerDiagrama`):** Antes ejecutaba $1 + N + 1 + 2M$ consultas individuales (para 10 tablas y 10 relaciones eran más de 30 consultas SQL). Se añadió `AtributoEntidadRepository.findByProyectoId` para traer todos los atributos del proyecto en un único lote agrupado en memoria con `Collectors.groupingBy(a -> a.getEntidad().getId())`, y `@EntityGraph(attributePaths = {"entidadOrigen", "entidadDestino"})` en `RelacionDiagramaRepository.findByProyectoId`. Ahora carga el diagrama completo en **exactamente 3 consultas SQL**.
+  - **Proyectos (`MiembroProyectoRepository`):** `@EntityGraph(attributePaths = {"proyecto"})` en `findByUsuarioId` para resolver membresías y proyectos asociados en un solo `JOIN`.
+  - **Colaboradores (`MiembroProyectoRepository`):** `@EntityGraph(attributePaths = {"usuario"})` en `findByProyectoId`.
+  - **Tareas y Notas (`TareaProyectoRepository` y `NotaProyectoRepository`):** `@EntityGraph(attributePaths = {"usuario"})` en `findByProyectoIdOrderByCreatedAtDesc` para evitar consultas diferidas por cada username asignado o autor de nota.
+- **Conteo Directo en Base de Datos:**
+  - En `ProyectoAccesoService.verificarNoEsUltimoAdmin`, se reemplazó la carga de todos los miembros en memoria de la JVM (`.stream().filter().count()`) por `miembroProyectoRepository.countByProyectoIdAndRol(proyectoId, Rol.ADMIN)` (`SELECT count(*)` directo en BD).
+  - `ProyectoAccesoService` marcado como `@Transactional(readOnly = true)`.
+- **Optimización Criptográfica de JWT (`JwtService` y `JwtAuthenticationFilter`):**
+  - Se pre-calcula y almacena en caché la `SecretKey` HMAC en el constructor de `JwtService`, evitando decodificar Base64 y recrear la clave en cada solicitud HTTP entrante.
+  - Se unificó la validación y extracción de claims en una sola pasada con `validateAndExtractClaims()`, eliminando la doble verificación criptográfica de firma que se realizaba por request en el filtro.
+- **Cero cambios en modelos o BD:** Todas las entidades JPA en `model/` y el esquema DDL de PostgreSQL se mantuvieron 100% intactos.
 
 ## Convención de paquetes (2026-09-05, guiada por `erp-backend`)
 
