@@ -3,9 +3,10 @@ import { useAuth } from "@/hooks/useAuth"
 import type { CollaborationMessage, CollaboratorPresence } from "../types/collaboration.types"
 import { getColorForUser } from "../lib/collaborationUtils"
 import { useDiagramPolling } from "./useDiagramPolling"
+import { useHttpPresence } from "./useHttpPresence"
 
-const INACTIVITY_TIMEOUT_MS = 8000
-const HEARTBEAT_INTERVAL_MS = 3500
+const TIMEOUT_MS = 7500
+const HEARTBEAT_MS = 3000
 
 export function useRealtimeCollaboration(proyectoId: number) {
   useDiagramPolling(proyectoId)
@@ -21,101 +22,85 @@ export function useRealtimeCollaboration(proyectoId: number) {
   const [collaborators, setCollaborators] = useState<CollaboratorPresence[]>([])
   const collaboratorsMap = useRef<Map<string | number, CollaboratorPresence>>(new Map())
   const channelRef = useRef<BroadcastChannel | null>(null)
-  const lastCursorSentRef = useRef(0)
+  const cursorRef = useRef({ x: 0, y: 0 })
+  const lastBroadcastRef = useRef(0)
 
   const syncState = useCallback(() => {
     setCollaborators(Array.from(collaboratorsMap.current.values()))
   }, [])
 
-  const post = useCallback((msg: CollaborationMessage) => {
-    try {
-      channelRef.current?.postMessage(msg)
-    } catch {}
-    try {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(`sw_collab_${proyectoId}`, JSON.stringify(msg))
-      }
-    } catch {}
-  }, [proyectoId])
+  const upsert = useCallback((p: CollaboratorPresence) => {
+    if (String(p.id) === clientId) return
+    const prev = collaboratorsMap.current.get(p.id)
+    collaboratorsMap.current.set(p.id, {
+      id: p.id,
+      username: p.username || prev?.username || "Colaborador",
+      color: p.color || prev?.color || "#2563eb",
+      cursor: p.cursor || prev?.cursor || { x: 0, y: 0 },
+      selectedEntityId: p.selectedEntityId ?? prev?.selectedEntityId ?? null,
+      lastActive: Date.now(),
+    })
+    syncState()
+  }, [clientId, syncState])
+
+  const handleHttpSync = useCallback((remote: CollaboratorPresence[]) => {
+    remote.forEach(upsert)
+  }, [upsert])
+
+  const { triggerPush } = useHttpPresence({
+    proyectoId, clientId, username, color, cursorRef, onSync: handleHttpSync,
+  })
 
   const broadcastCursor = useCallback((x: number, y: number) => {
+    cursorRef.current = { x, y }
     const now = Date.now()
-    if (now - lastCursorSentRef.current < 40) return
-    lastCursorSentRef.current = now
-    post({
-      type: "CURSOR_MOVE",
-      senderId: clientId,
-      username,
-      color,
-      cursor: { x, y },
-      timestamp: now,
-    })
-  }, [clientId, username, color, post])
+    if (now - lastBroadcastRef.current >= 40) {
+      lastBroadcastRef.current = now
+      try {
+        channelRef.current?.postMessage({
+          type: "CURSOR_MOVE", senderId: clientId, username, color, cursor: { x, y }, timestamp: now,
+        })
+      } catch {}
+    }
+    triggerPush()
+  }, [clientId, username, color, triggerPush])
 
   useEffect(() => {
-    if (!proyectoId || typeof window === "undefined") return
+    if (!proyectoId || typeof window === "undefined" || !("BroadcastChannel" in window)) return
+    const channel = new BroadcastChannel(`sw-case-collab-${proyectoId}`)
+    channelRef.current = channel
 
-    let channel: BroadcastChannel | null = null
-    if ("BroadcastChannel" in window) {
-      channel = new BroadcastChannel(`sw-case-collaboration-project-${proyectoId}`)
-      channelRef.current = channel
+    const sendPing = () => {
+      try {
+        channel.postMessage({
+          type: "USER_JOIN", senderId: clientId, username, color, cursor: cursorRef.current, timestamp: Date.now(),
+        })
+      } catch {}
     }
+    sendPing()
 
-    const sendJoin = (isReply = false) => {
-      post({
-        type: "USER_JOIN", senderId: clientId, username, color,
-        cursor: { x: 0, y: 0 }, selectedEntityId: null, timestamp: Date.now(), payload: { isReply },
-      })
-    }
-
-    sendJoin(false)
-
-    const handleMessageData = (msg: CollaborationMessage) => {
+    const onMessage = (e: MessageEvent<CollaborationMessage>) => {
+      const msg = e.data
       if (!msg || msg.senderId === clientId) return
       if (msg.type === "USER_LEAVE") {
         collaboratorsMap.current.delete(msg.senderId)
         syncState()
         return
       }
-      if (msg.type === "DIAGRAM_MUTATION") {
-        window.dispatchEvent(new CustomEvent("project:diagram-updated", { detail: { proyectoId, remote: true } }))
-        return
-      }
-
-      const existing = collaboratorsMap.current.get(msg.senderId)
-      collaboratorsMap.current.set(msg.senderId, {
+      upsert({
         id: msg.senderId,
-        username: msg.username || existing?.username || "Colaborador",
-        color: msg.color || existing?.color || "#2563eb",
-        cursor: msg.cursor || existing?.cursor || { x: 0, y: 0 },
-        selectedEntityId: msg.selectedEntityId ?? existing?.selectedEntityId ?? null,
+        username: msg.username,
+        color: msg.color || "#2563eb",
+        cursor: msg.cursor || { x: 0, y: 0 },
+        selectedEntityId: msg.selectedEntityId ?? null,
         lastActive: Date.now(),
       })
-      syncState()
-
-      if (msg.type === "USER_JOIN" && !(msg.payload as { isReply?: boolean })?.isReply) {
-        sendJoin(true)
-      }
     }
 
-    const onChannelMessage = (event: MessageEvent<CollaborationMessage>) => {
-      handleMessageData(event.data)
-    }
-    channel?.addEventListener("message", onChannelMessage)
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === `sw_collab_${proyectoId}` && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue) as CollaborationMessage
-          handleMessageData(parsed)
-        } catch {}
-      }
-    }
-    window.addEventListener("storage", onStorage)
-
-    const heartbeatTimer = setInterval(() => sendJoin(true), HEARTBEAT_INTERVAL_MS)
-    const cleanupTimer = setInterval(() => {
-      const cutoff = Date.now() - INACTIVITY_TIMEOUT_MS
+    channel.addEventListener("message", onMessage)
+    const hb = setInterval(sendPing, HEARTBEAT_MS)
+    const prune = setInterval(() => {
+      const cutoff = Date.now() - TIMEOUT_MS
       let changed = false
       for (const [id, c] of collaboratorsMap.current.entries()) {
         if (c.lastActive < cutoff) {
@@ -127,15 +112,16 @@ export function useRealtimeCollaboration(proyectoId: number) {
     }, 2000)
 
     return () => {
-      clearInterval(heartbeatTimer)
-      clearInterval(cleanupTimer)
-      post({ type: "USER_LEAVE", senderId: clientId, username, timestamp: Date.now() })
-      channel?.removeEventListener("message", onChannelMessage)
-      channel?.close()
-      window.removeEventListener("storage", onStorage)
+      clearInterval(hb)
+      clearInterval(prune)
+      channel.removeEventListener("message", onMessage)
+      try {
+        channel.postMessage({ type: "USER_LEAVE", senderId: clientId, timestamp: Date.now() })
+        channel.close()
+      } catch {}
       channelRef.current = null
     }
-  }, [proyectoId, clientId, username, color, post, syncState])
+  }, [proyectoId, clientId, username, color, upsert, syncState])
 
   return {
     collaborators,

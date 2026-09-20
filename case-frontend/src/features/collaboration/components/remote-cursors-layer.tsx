@@ -16,7 +16,7 @@ export function RemoteCursorsLayer({ collaborators }: RemoteCursorsLayerProps) {
       {activeCursors.map((c) => (
         <div
           key={c.id}
-          className="absolute pointer-events-none transition-all duration-75 ease-out"
+          className="absolute pointer-events-none transition-all duration-200 ease-out will-change-[left,top]"
           style={{
             left: `${c.cursor.x}px`,
             top: `${c.cursor.y}px`,

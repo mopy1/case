@@ -47,7 +47,7 @@ case-backend/src/main/java/com/casetool/backend/
     │   └── service/      AuthService, UsuarioDetailsService
     │
     ├── proyecto/                             # 📁 Proyectos, Miembros, Tareas y Notas
-    │   ├── controller/   ProyectoController, MiembroProyectoController, TareaProyectoController, NotaProyectoController
+    │   ├── controller/   ProyectoController, MiembroProyectoController, TareaProyectoController, NotaProyectoController, ColaboracionController
     │   ├── dto/          ProyectoRequest/Response, MiembroProyectoRequest/Response, TareaProyectoRequest/Response, etc.
     │   ├── exception/    AccesoDenegadoProyectoException (403), RolInsuficienteProyectoException (403), MiembroYaExisteException (409)
     │   ├── model/        Proyecto, MiembroProyecto (Rol: ADMIN, COLABORADOR, LECTOR), TareaProyecto, NotaProyecto
@@ -130,6 +130,7 @@ Todos los endpoints están bajo el prefijo `/api/v1` y exigen encabezado `Author
 | **Diagrama** | `POST` | `/api/v1/proyectos/{id}/relaciones` | COLABORADOR | Crea relación con multiplicidad por extremo |
 | **Diagrama** | `PATCH`| `/api/v1/proyectos/{id}/relaciones/{id}/puntos` | COLABORADOR | Guarda puntos de control de la polilínea |
 | **Diagrama** | `DELETE`| `/api/v1/proyectos/{id}/relaciones/{id}` | COLABORADOR | Elimina relación |
+| **Colaboración** | `POST` | `/api/proyectos/{id}/colaboracion/presencia` | Autenticado | Heartbeat y sincronización de cursores/presencia multi-usuario |
 | **XMI** | `GET` | `/api/proyectos/{id}/xmi/exportar` | LECTOR | Descarga XML en formato XMI 1.1 (Enterprise Architect) |
 | **XMI** | `POST` | `/api/proyectos/{id}/xmi/importar` | COLABORADOR | Carga archivo XMI (soporta EA y dialecto XMI 2.1) |
 
