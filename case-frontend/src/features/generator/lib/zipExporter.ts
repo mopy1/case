@@ -13,11 +13,15 @@ export async function descargarProyectoZip(
   const zip = new JSZip()
 
   for (const archivo of archivos) {
-    zip.file(archivo.ruta, archivo.contenido)
+    const isExecutable = archivo.ruta === "mvnw"
+    zip.file(archivo.ruta, archivo.contenido, {
+      unixPermissions: isExecutable ? "755" : undefined,
+    })
   }
 
   const blob = await zip.generateAsync({
     type: "blob",
+    platform: "UNIX",
     compression: "DEFLATE",
     compressionOptions: { level: 6 },
   })
