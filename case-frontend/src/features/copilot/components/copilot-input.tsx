@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowUp, CornerDownLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { VoiceMicButton, useSpeechRecognition } from "@/features/voice"
 import type { CopilotSection } from "../types/copilot.types"
 
 interface CopilotInputProps {
@@ -18,11 +19,45 @@ const SECTION_PLACEHOLDERS: Record<CopilotSection, string> = {
   general: "Escribe tu consulta o pide crear tablas y notas...",
 }
 
+function parseVoiceCommand(text: string) {
+  const trimmed = text.trim()
+  const isSend = /\b(?:enviar|envía|mandar)\s*[.!]?$/i.test(trimmed)
+  const isStop = /\b(?:detener|parar)\s*[.!]?$/i.test(trimmed)
+  const clean = trimmed.replace(/\b(?:enviar|envía|mandar|detener|parar)\s*[.!]?$/i, "").trim()
+  return { isSend, isStop, clean }
+}
+
 export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
   const [text, setText] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const baseTextRef = useRef("")
 
-  // Auto-ajuste de altura al escribir (estilo VS Code / ChatGPT)
+  const { isListening, isSupported, startListening, stopListening, resetTranscript } =
+    useSpeechRecognition({
+      lang: "es-ES",
+      onResult: (spokenText) => {
+        const { isSend, isStop, clean } = parseVoiceCommand(spokenText)
+        const finalMsg = (baseTextRef.current ? `${baseTextRef.current} ${clean}` : clean).trim()
+
+        if (isSend || isStop) {
+          stopListening()
+          resetTranscript()
+          baseTextRef.current = ""
+          if (isSend && finalMsg && !loading) {
+            onSend(finalMsg)
+            setText("")
+            if (textareaRef.current) textareaRef.current.style.height = "auto"
+          } else {
+            setText(finalMsg)
+          }
+          return
+        }
+
+        const combined = (baseTextRef.current ? `${baseTextRef.current} ${spokenText}` : spokenText).trim()
+        setText(combined)
+      },
+    })
+
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
@@ -39,12 +74,23 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
   }
 
   function handleSend() {
+    if (isListening) stopListening()
+    baseTextRef.current = ""
     const trimmed = text.trim()
     if (!trimmed || loading) return
     onSend(trimmed)
     setText("")
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto"
+    if (textareaRef.current) textareaRef.current.style.height = "auto"
+  }
+
+  function handleToggleVoice() {
+    if (isListening) {
+      stopListening()
+      baseTextRef.current = ""
+    } else {
+      baseTextRef.current = text.trim()
+      resetTranscript()
+      startListening()
     }
   }
 
@@ -66,15 +112,23 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
           <span className="hidden sm:inline-flex items-center gap-1 select-none">
             <CornerDownLeft className="size-2.5" /> ↵ Enviar • ⇧↵ Salto de línea
           </span>
-          <Button
-            type="button"
-            size="icon"
-            disabled={!text.trim() || loading}
-            onClick={handleSend}
-            className="size-7 rounded-lg ml-auto cursor-pointer"
-          >
-            {loading ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUp className="size-3.5" />}
-          </Button>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <VoiceMicButton
+              isListening={isListening}
+              isSupported={isSupported}
+              onClick={handleToggleVoice}
+              disabled={loading}
+            />
+            <Button
+              type="button"
+              size="icon"
+              disabled={!text.trim() || loading}
+              onClick={handleSend}
+              className="size-7 rounded-lg cursor-pointer"
+            >
+              {loading ? <Loader2 className="size-3.5 animate-spin" /> : <ArrowUp className="size-3.5" />}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

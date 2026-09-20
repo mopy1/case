@@ -159,6 +159,13 @@ case-frontend/src/
         │   └── copilotSection.ts, copilotQuestions.ts
         ├── types/copilot.types.ts            # Tipos de mensajes, tareas, eliminaciones, sistema
         └── index.ts                          # API pública del feature
+    │
+    └── voice/                                # 🎙️ Reconocimiento de Voz Nativo (Web Speech API)
+        ├── components/voice-mic-button.tsx   # Botón de micrófono accesible con pulso activo y tooltip
+        ├── hooks/useSpeechRecognition.ts     # Hook reusable con soporte español, interim results y error handling
+        ├── lib/speech-recognition.utils.ts   # Helpers de soporte de navegador, mensajes de error y parsing
+        ├── types/speech-recognition.types.ts # Tipos e interfaces de Web Speech API
+        └── index.ts                          # API pública del feature voice
 ```
 
 ---
