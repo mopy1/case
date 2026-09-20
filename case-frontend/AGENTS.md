@@ -120,13 +120,15 @@ case-frontend/src/
     │   ├── hooks/useXmiExchange.ts           # Orquestador de exportar (descarga al navegador) e importar
     │   └── pages/ProjectXmiPage.tsx          # Vista funcional de interoperabilidad
     │
-    └── generator/                            # ⚡ Generador de Backend Spring Boot (Fase 4 Completa)
-        ├── api/generatorApi.ts               # Endpoints /generador/preview y /generador/descargar
+    └── generator/                            # ⚡ Generador de Backend Spring Boot (Fase 4 Client-Side)
         ├── components/                       # Árbol de archivos y visor de código interactivo
         │   ├── generator-file-tree.tsx, generator-code-viewer.tsx
-        ├── hooks/useProjectGenerator.ts      # Hook que orquesta preview y descarga del .zip
+        ├── hooks/useProjectGenerator.ts      # Orquesta preview reactivo y empaquetado ZIP
+        ├── lib/                              # Motor generador TypeScript y empaquetador ZIP
+        │   ├── springBootGenerator.ts        # Transforma DiagramaResponse en proyecto Spring Boot 3.4 / Java 21
+        │   └── zipExporter.ts                # Empaquetado binario cliente y descarga con JSZip + FileSaver
         ├── pages/ProjectGeneratorPage.tsx    # Vista completa con métricas, árbol interactivo y descarga
-        └── types/generator.types.ts
+        └── types/generator.types.ts          # Interfaces de archivos generados y preview
 ```
 
 ---
@@ -186,7 +188,7 @@ case-frontend/src/
 - [x] **Notas:** Bitácora inmutable de decisiones con trazabilidad de autor y fecha.
 - [x] **Diagramador UML:** Lienzo interactivo con arrastre de tablas, CRUD de atributos, aristas inteligentes en ángulo recto, selector de multiplicidad, clases de asociación N:M, puntos de control manuales y salto visual de líneas.
 - [x] **Interoperabilidad XMI:** Descarga e importación funcional compatible con Enterprise Architect.
-- [x] **Generador de Backend (Fase 4 Completa):** Descarga de proyecto en archivo ZIP con Spring Boot 3.4 / Java 21, vista previa interactiva del código fuente y métricas del proyecto generado.
+- [x] **Generador de Backend (Fase 4 Completa):** Motor en cliente (TypeScript + JSZip + FileSaver) que toma el diagrama UML y genera un proyecto Spring Boot 3.4 / Java 21 compilable al 100% (Entity JPA con @ManyToOne/@OneToMany, Repository, Request/Response DTOs, Service transaccional, Controller REST OpenAPI, pom.xml, application.properties).
 
 ---
 

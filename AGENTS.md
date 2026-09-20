@@ -61,7 +61,7 @@ cd case-backend && ./mvnw test -Dspring.datasource.url=jdbc:postgresql://localho
 | **Fase 1** | Fundación & Colaboración | ✅ **Completo** | Auth JWT, CRUD Proyectos, Miembros (`ADMIN`/`COLABORADOR`/`LECTOR`), Tareas Kanban y Notas. |
 | **Fase 2** | Diagramador UML Interactivo | ✅ **Completo** | Canvas `@xyflow/react`, floating edges ortogonales, multiplicidad por lado, N:M con tabla intermedia automática, puntos de control manuales y salto visual de aristas. |
 | **Fase 3** | Interoperabilidad XMI | ✅ **Completo** | Exportación e importación compatible con Enterprise Architect (XMI 1.1 `AssociationClass` y dialecto 2.1). Validado con `erp_bolivia.xmi`. |
-| **Fase 4** | Generador de Backend Spring Boot | ✅ **Completo** | Generación de ZIP descargable con entidades JPA, repositorios, DTOs, servicios, controladores y OpenAPI a partir del diagrama modelado. Compilación verificada con Java 21 / Spring Boot 3.4. |
+| **Fase 4** | Generador de Backend Spring Boot | ✅ **Completo** | Motor cliente en frontend (TypeScript + JSZip + FileSaver) que empaqueta en ZIP un proyecto Spring Boot 3.4 / Java 21 compilable (JPA @ManyToOne/@OneToMany, DTOs, Service, Controller, OpenAPI, pom.xml). |
 | **Fase 5** | Modos Alternativos (Voz / Foto) | ⏳ Pendiente | Control por voz (5.1) y Visión computacional foto a UML (5.2). |
 | **Fase 6** | Edición en Tiempo Real | ⏳ Pendiente | WebSockets / STOMP para cursores y sincronización multi-usuario. |
 | **Fase 7** | Aplicación Móvil (Offline) | ⏳ Pendiente | App móvil en Flutter conectada al backend generado con IA local (Vosk + Qwen2.5). |

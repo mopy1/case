@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
-import { generatorApi } from "../api/generatorApi"
+import { getDiagram } from "@/features/diagram/api/diagramApi"
+import { getProject } from "@/features/projects/api/projectsApi"
+import { generarProyectoSpringBoot } from "../lib/springBootGenerator"
+import { descargarProyectoZip } from "../lib/zipExporter"
 import type { ArchivoGenerado, GeneradorPreviewResponse } from "../types/generator.types"
 
 export function useProjectGenerator(proyectoId: number) {
@@ -10,18 +13,29 @@ export function useProjectGenerator(proyectoId: number) {
   const [error, setError] = useState<string | null>(null)
 
   const cargarPreview = useCallback(async () => {
+    if (!proyectoId) return
     try {
       setLoading(true)
       setError(null)
-      const data = await generatorApi.obtenerPreview(proyectoId)
+
+      // Carga paralela de diagrama y metadatos del proyecto
+      const [diagrama, proyecto] = await Promise.all([
+        getDiagram(proyectoId),
+        getProject(proyectoId).catch(() => ({ nombre: `proyecto-${proyectoId}` })),
+      ])
+
+      const data = generarProyectoSpringBoot(proyecto.nombre, diagrama)
       setPreview(data)
+
       if (data.archivos.length > 0) {
-        // Seleccionar por defecto pom.xml o el primer controller
+        // Seleccionar por defecto pom.xml o el primer archivo del árbol
         const defaultFile = data.archivos.find((a) => a.ruta === "pom.xml") ?? data.archivos[0]
         setSelectedFile(defaultFile)
+      } else {
+        setSelectedFile(null)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado al cargar vista previa")
+      setError(err instanceof Error ? err.message : "Error inesperado al generar el backend")
     } finally {
       setLoading(false)
     }
@@ -32,15 +46,16 @@ export function useProjectGenerator(proyectoId: number) {
   }, [cargarPreview])
 
   const descargar = useCallback(async () => {
+    if (!preview || preview.archivos.length === 0) return
     try {
       setDownloading(true)
-      await generatorApi.descargarZip(proyectoId, preview?.nombreProyecto)
+      await descargarProyectoZip(preview.archivos, proyectoId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al descargar el archivo ZIP")
+      setError(err instanceof Error ? err.message : "Error al generar o descargar el archivo ZIP")
     } finally {
       setDownloading(false)
     }
-  }, [proyectoId, preview?.nombreProyecto])
+  }, [proyectoId, preview])
 
   return {
     preview,

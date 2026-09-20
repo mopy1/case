@@ -62,14 +62,9 @@ case-backend/src/main/java/com/casetool/backend/
     │   ├── repository/   EntidadDiagramaRepository, AtributoEntidadRepository (batch fetch por proyecto), RelacionDiagramaRepository (@EntityGraph)
     │   └── service/      DiagramaService (carga O(1) en memoria sin N+1), EntidadDiagramaService, AtributoEntidadService, RelacionDiagramaService
     │
-    ├── xmi/                                  # 🔄 Interoperabilidad XMI con Enterprise Architect
-    │   ├── controller/   XmiController (/api/proyectos/{id}/xmi/exportar, /importar)
-    │   └── service/      XmiExportService (emite XMI 1.1 EA con AssociationClass), XmiImportService (parser dual EA y XMI 2.1)
-    │
-    └── generator/                            # ⚡ Motor Generador de Backend Spring Boot (Fase 4)
-        ├── controller/   GeneradorController (/api/proyectos/{id}/generador/preview, /descargar)
-        ├── dto/          ArchivoGeneradoDto, GeneradorPreviewResponse
-        └── service/      GeneradorService (traductor de diagrama a Java 21 / Spring Boot 3.4 y empaquetador ZIP)
+    └── xmi/                                  # 🔄 Interoperabilidad XMI con Enterprise Architect
+        ├── controller/   XmiController (/api/proyectos/{id}/xmi/exportar, /importar)
+        └── service/      XmiExportService (emite XMI 1.1 EA con AssociationClass), XmiImportService (parser dual EA y XMI 2.1)
 ```
 
 ---
@@ -137,8 +132,6 @@ Todos los endpoints están bajo el prefijo `/api/v1` y exigen encabezado `Author
 | **Diagrama** | `DELETE`| `/api/v1/proyectos/{id}/relaciones/{id}` | COLABORADOR | Elimina relación |
 | **XMI** | `GET` | `/api/proyectos/{id}/xmi/exportar` | LECTOR | Descarga XML en formato XMI 1.1 (Enterprise Architect) |
 | **XMI** | `POST` | `/api/proyectos/{id}/xmi/importar` | COLABORADOR | Carga archivo XMI (soporta EA y dialecto XMI 2.1) |
-| **Generador** | `GET` | `/api/proyectos/{id}/generador/preview` | LECTOR | Retorna árbol de archivos Java, DTOs y configuración generada |
-| **Generador** | `GET` | `/api/proyectos/{id}/generador/descargar` | LECTOR | Descarga proyecto Spring Boot 3.4 / Java 21 compilable en `.zip` |
 
 ---
 
@@ -147,7 +140,7 @@ Todos los endpoints están bajo el prefijo `/api/v1` y exigen encabezado `Author
 - [x] **Fase 1 (Fundación):** Auth JWT, Monolito Modular, CRUD de Proyectos, Colaboradores con roles, Tareas Kanban y Notas.
 - [x] **Fase 2 (Diagramador UML):** Entidades, Atributos, Relaciones con multiplicidad, Tablas intermedias automáticas para N:M, Puntos de control.
 - [x] **Fase 3 (Interoperabilidad XMI):** Exportador e Importador compatible con Enterprise Architect probado con modelos reales (`erp_bolivia.xmi`).
-- [x] **Fase 4 (Generador Spring Boot):** Generación de proyecto Java backend en ZIP compilable a partir del diagrama modelado (Entity, Repository, DTOs, Service, Controller, OpenAPI Swagger, CorsConfig, pom.xml).
+- [x] **Fase 4 (Generador Spring Boot):** Generador desacoplado en Frontend cliente (TypeScript + JSZip) consumiendo el endpoint estándar del diagrama (`/api/v1/proyectos/{id}/diagrama`).
 - [ ] **Fase 5 (Modos Alternativos):** Control por voz (5.1) y Visión por foto a modelo UML (5.2).
 - [ ] **Fase 6 (Colaboración en Tiempo Real):** WebSocket / STOMP para edición concurrente y cursores compartidos.
 
