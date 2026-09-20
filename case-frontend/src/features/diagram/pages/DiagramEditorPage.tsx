@@ -63,7 +63,7 @@ export function DiagramEditorPage() {
   }
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       <CanvasToolbar onCreate={onCreate} loading={creating} error={createError} />
       {selectedEntidad && (
         <EntityPropertiesPanel

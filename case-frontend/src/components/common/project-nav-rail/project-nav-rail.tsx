@@ -1,4 +1,4 @@
-import { ArrowLeft, Bot } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Link, NavLink } from "react-router-dom"
 import { buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarGroupCount } from "@/components/ui/avatar"
@@ -20,14 +20,10 @@ export function ProjectNavRail({
   projectId,
   miembros,
   miRol,
-  isCopilotOpen,
-  onToggleCopilot,
 }: {
   projectId: string
   miembros: MiembroProyectoResponse[]
   miRol?: RolProyecto
-  isCopilotOpen?: boolean
-  onToggleCopilot?: () => void
 }) {
   const { user } = useAuth()
   const otros = miembros.filter((miembro) => miembro.usuarioId !== user?.id)
@@ -70,32 +66,6 @@ export function ProjectNavRail({
           <>
             <Separator className="w-8" />
             <ProjectMembersDialog proyectoId={Number(projectId)} miRol={miRol} />
-          </>
-        )}
-
-        {onToggleCopilot && (
-          <>
-            <Separator className="w-8" />
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    onClick={onToggleCopilot}
-                    aria-label={isCopilotOpen ? "Cerrar Asistente IA" : "Abrir Asistente IA"}
-                    className={cn(
-                      buttonVariants({ variant: isCopilotOpen ? "secondary" : "ghost", size: "icon" }),
-                      isCopilotOpen && "bg-primary/15 text-primary hover:bg-primary/25"
-                    )}
-                  />
-                }
-              >
-                <Bot className="size-4" />
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {isCopilotOpen ? "Cerrar Asistente IA" : "Asistente IA (Copilot)"}
-              </TooltipContent>
-            </Tooltip>
           </>
         )}
       </div>

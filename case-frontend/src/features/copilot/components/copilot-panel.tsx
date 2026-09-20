@@ -25,13 +25,13 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
   return (
     <aside
       aria-label="Panel Asistente IA y Manual CASE"
-      className={`sticky top-0 h-screen shrink-0 border-border bg-card transition-all duration-300 ease-in-out ${
+      className={`h-full shrink-0 border-border bg-card transition-all duration-300 ease-in-out ${
         isOpen
-          ? "w-96 border-l opacity-100 shadow-xl"
+          ? "w-80 border-l opacity-100 shadow-xl"
           : "w-0 border-l-0 overflow-hidden opacity-0 pointer-events-none"
       }`}
     >
-      <div className="flex h-full w-96 flex-col overflow-hidden">
+      <div className="flex h-full w-80 flex-col overflow-hidden">
         <CopilotHeader
           section={activeSection}
           onClear={clearChat}

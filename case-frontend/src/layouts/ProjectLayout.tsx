@@ -26,15 +26,13 @@ export function ProjectLayout() {
   }, [isCopilotOpen])
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen w-screen overflow-hidden bg-background">
       <ProjectNavRail
         projectId={id!}
         miembros={miembros}
         miRol={proyecto?.miRol}
-        isCopilotOpen={isCopilotOpen}
-        onToggleCopilot={() => setIsCopilotOpen((prev) => !prev)}
       />
-      <main className="flex-1 min-w-0 overflow-x-auto">
+      <main className="relative flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden">
         {error ? (
           <Alert variant="destructive" className="m-6">
             <AlertTitle>No se pudo cargar el proyecto</AlertTitle>
@@ -43,27 +41,26 @@ export function ProjectLayout() {
         ) : (
           <Outlet />
         )}
+
+        {/* Botón arriba a la derecha cuando el panel está cerrado */}
+        {!isCopilotOpen && (
+          <button
+            type="button"
+            onClick={() => setIsCopilotOpen(true)}
+            className="absolute top-4 right-4 z-30 flex items-center gap-2 rounded-xl border border-border bg-card/95 px-3.5 py-2 text-xs font-semibold text-foreground shadow-md backdrop-blur hover:bg-muted hover:border-primary transition-all cursor-pointer"
+            aria-label="Abrir Asistente Copilot IA"
+          >
+            <Bot className="size-4 text-primary" />
+            <span>Copilot IA</span>
+          </button>
+        )}
       </main>
+
       <CopilotPanel
         proyectoId={proyectoId}
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
       />
-
-      {/* Botón flotante accesible cuando el panel esté colapsado */}
-      {!isCopilotOpen && (
-        <button
-          type="button"
-          onClick={() => setIsCopilotOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2.5 text-sm font-medium text-foreground shadow-2xl backdrop-blur hover:bg-muted hover:border-primary transition-all cursor-pointer"
-          aria-label="Abrir Asistente Copilot IA"
-        >
-          <div className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Bot className="size-3.5" />
-          </div>
-          <span>Copilot IA</span>
-        </button>
-      )}
     </div>
   )
 }
