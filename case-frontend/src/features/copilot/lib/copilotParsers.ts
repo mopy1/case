@@ -2,17 +2,25 @@ import type { LadoMultiplicidad } from "@/features/diagram/types/diagram.types"
 import type { AdrSuggestion, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
 import { findMultipleSafeEntityPositions, type EntityPosition } from "@/features/diagram/lib/positionGuide"
 
-export function parseAdrFromText(text: string): AdrSuggestion | undefined {
-  const match = text.match(
-    /(?:ADR_SUGERIDA|Acci[oó]n):\s*\[?([^\n\]]+)\]?\s*\n+(?:[•\-\*\s]*)(?:MOTIVO|Motivo(?: T[eé]cnico)?):\s*\[?([^\n\]]+)\]?/i
-  )
-  if (match) {
-    return {
-      accion: match[1].trim().replace(/^\[|\]$/g, ""),
-      motivo: match[2].trim().replace(/^\[|\]$/g, ""),
+export function parseAdrListFromText(text: string): AdrSuggestion[] {
+  const results: AdrSuggestion[] = []
+  const regex = /(?:ADR_SUGERIDA|Acci[oó]n):\s*\[?([^\]\n]+?)(?:\s+MOTIVO:|\s*\n+[\s•\-\*]*(?:MOTIVO|Motivo(?: T[eé]cnico)?):?)\s*\[?([^\]\n]+)\]?/gi
+  const matches = [...text.matchAll(regex)]
+
+  for (const m of matches) {
+    const accion = m[1].trim().replace(/^\[|\]$/g, "")
+    const motivo = m[2].trim().replace(/^\[|\]$/g, "")
+    if (accion && motivo) {
+      results.push({ accion, motivo, guardada: false })
     }
   }
-  return undefined
+
+  return results
+}
+
+export function parseAdrFromText(text: string): AdrSuggestion | undefined {
+  const list = parseAdrListFromText(text)
+  return list[0]
 }
 
 export function parseLadoMultiplicidad(str: string): LadoMultiplicidad {

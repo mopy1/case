@@ -116,11 +116,13 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
           onCreateRelation={handleCreateRelation}
         />
 
-        <CopilotQuickSuggestions
-          questions={quickQuestions}
-          onSelect={sendMessage}
-          disabled={loading}
-        />
+        {messages.length <= 1 && (
+          <CopilotQuickSuggestions
+            questions={quickQuestions}
+            onSelect={sendMessage}
+            disabled={loading}
+          />
+        )}
 
         <CopilotInput
           section={activeSection}

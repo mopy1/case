@@ -80,14 +80,26 @@ export function CopilotMessageItem({
         {isUser ? <p className="whitespace-pre-wrap">{message.text}</p> : renderFormattedContent(message.text)}
       </div>
 
-      {message.adrSuggestion && !isUser && (
+      {message.adrSuggestions && !isUser && message.adrSuggestions.length > 0 ? (
+        <div className="flex w-full flex-col gap-1.5">
+          {message.adrSuggestions.map((adr, i) => (
+            <CopilotAdrCard
+              key={i}
+              messageId={message.id}
+              adr={adr}
+              isSaving={isSavingAdr}
+              onSave={onSaveAdr}
+            />
+          ))}
+        </div>
+      ) : message.adrSuggestion && !isUser ? (
         <CopilotAdrCard
           messageId={message.id}
           adr={message.adrSuggestion}
           isSaving={isSavingAdr}
           onSave={onSaveAdr}
         />
-      )}
+      ) : null}
 
       {message.entitySuggestions && !isUser && message.entitySuggestions.length > 0 && (
         <div className="flex w-full flex-col gap-1.5">

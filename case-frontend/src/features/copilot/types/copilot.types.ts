@@ -38,6 +38,7 @@ export interface CopilotMessage {
   text: string
   timestamp: string
   adrSuggestion?: AdrSuggestion
+  adrSuggestions?: AdrSuggestion[]
   entitySuggestions?: EntitySuggestion[]
   relationSuggestions?: RelationSuggestion[]
   section?: CopilotSection

@@ -2,11 +2,12 @@ import type { AdrSuggestion, CopilotSection, EntitySuggestion, RelationSuggestio
 import type { EntidadDiagramaResponse, RelacionDiagramaResponse } from "@/features/diagram/types/diagram.types"
 import { findSafeEntityPosition } from "@/features/diagram/lib/positionGuide"
 import { generateLocalResponse, KNOWLEDGE_TOPICS } from "./copilotKnowledge"
-import { cleanResponseText, parseAdrFromText, parseEntitySuggestions, parseRelationSuggestions } from "./copilotParsers"
+import { cleanResponseText, parseAdrListFromText, parseEntitySuggestions, parseRelationSuggestions } from "./copilotParsers"
 
 export interface AskCopilotResult {
   text: string
   adrSuggestion?: AdrSuggestion
+  adrSuggestions?: AdrSuggestion[]
   entitySuggestions?: EntitySuggestion[]
   relationSuggestions?: RelationSuggestion[]
 }
@@ -43,7 +44,9 @@ REGLAS DE RESPUESTA:
 - Para tablas: CREAR_TABLA: [Nombre] (x: ${safePos.posX}, y: ${safePos.posY})
 ATRIBUTOS: [id:BIGINT:PK, campo1:VARCHAR]
 - Para relaciones (1:N, N:M): CREAR_RELACION: [Origen] -> [Destino] (UNO a UNO_O_MAS)
-- Para notas ADR: ADR_SUGERIDA: [Acción] MOTIVO: [Motivo]
+- Para notas ADR: Si el usuario pide crear notas o documentar tablas/relaciones, genera uno o más bloques:
+ADR_SUGERIDA: [Título claro de la acción]
+MOTIVO: [Justificación técnica concisa]
 
 Base de conocimiento:
 ${KNOWLEDGE_TOPICS.map((t) => `- ${t.title}: ${t.summary}`).join("\n")}`
@@ -82,9 +85,11 @@ export async function askCopilot(
         const data = await res.json()
         const rawText = data.choices?.[0]?.message?.content
         if (rawText) {
+          const adrList = parseAdrListFromText(rawText)
           return {
             text: cleanResponseText(rawText) || rawText,
-            adrSuggestion: parseAdrFromText(rawText),
+            adrSuggestion: adrList[0],
+            adrSuggestions: adrList,
             entitySuggestions: parseEntitySuggestions(rawText, existingEntities),
             relationSuggestions: parseRelationSuggestions(rawText),
           }
@@ -113,9 +118,11 @@ export async function askCopilot(
         const data = await res.json()
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
         if (rawText) {
+          const adrList = parseAdrListFromText(rawText)
           return {
             text: cleanResponseText(rawText) || rawText,
-            adrSuggestion: parseAdrFromText(rawText),
+            adrSuggestion: adrList[0],
+            adrSuggestions: adrList,
             entitySuggestions: parseEntitySuggestions(rawText, existingEntities),
             relationSuggestions: parseRelationSuggestions(rawText),
           }

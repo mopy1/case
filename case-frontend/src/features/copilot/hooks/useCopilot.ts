@@ -52,6 +52,7 @@ export function useCopilot(proyectoId: number) {
             text: res.text,
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             adrSuggestion: res.adrSuggestion,
+            adrSuggestions: res.adrSuggestions,
             entitySuggestions: res.entitySuggestions,
             relationSuggestions: res.relationSuggestions,
             section: activeSection,
@@ -71,7 +72,16 @@ export function useCopilot(proyectoId: number) {
       try {
         const nota = await createNote(proyectoId, { accion: adr.accion, motivo: adr.motivo })
         setMessages((prev) =>
-          prev.map((m) => (m.id === messageId && m.adrSuggestion ? { ...m, adrSuggestion: { ...m.adrSuggestion, guardada: true } } : m))
+          prev.map((m) => {
+            if (m.id !== messageId) return m
+            return {
+              ...m,
+              adrSuggestion: m.adrSuggestion?.accion === adr.accion ? { ...m.adrSuggestion, guardada: true } : m.adrSuggestion,
+              adrSuggestions: m.adrSuggestions?.map((item) =>
+                item.accion === adr.accion ? { ...item, guardada: true } : item
+              ),
+            }
+          })
         )
         window.dispatchEvent(new CustomEvent("project:note-created", { detail: { proyectoId, nota } }))
       } catch (err) {
