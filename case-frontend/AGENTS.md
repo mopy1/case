@@ -48,6 +48,7 @@ case-frontend/src/
 ├── lib/
 │   ├── api.ts                                # Cliente apiFetch() con Bearer JWT, manejo de 401, Blob y FormData
 │   ├── avatar.ts                             # Generador determinístico de iniciales y colores de usuario
+│   ├── projectCode.ts                        # Ofuscación bidireccional determinista de IDs (prj-xxxxxx) estilo Stripe
 │   └── utils.ts                              # Helper cn() para mezclar clases con clsx y twMerge
 │
 ├── routes/
