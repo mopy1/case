@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarGroupCount } from "@/components/ui/avatar
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { UserAvatarMenu } from "@/components/common/UserAvatarMenu"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { cn } from "@/lib/utils"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 import { useAuth } from "@/hooks/useAuth"
@@ -98,6 +99,7 @@ export function ProjectNavRail({
         {user && (
           <>
             <Separator className="mt-3 mb-2 w-8" />
+            <ThemeToggle tooltipSide="right" className="mb-2 size-8" />
             <UserAvatarMenu side="right" align="end" />
           </>
         )}

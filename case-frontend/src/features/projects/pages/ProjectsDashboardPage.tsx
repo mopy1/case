@@ -5,6 +5,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { UserAvatarMenu } from "@/components/common/UserAvatarMenu"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { useProjects } from "../hooks/useProjects"
 import { ProjectCard } from "../components/project-card/project-card"
 import { CreateProjectDialog } from "../components/create-project-dialog/create-project-dialog"
@@ -81,6 +82,7 @@ export function ProjectsDashboardPage() {
             onChange={(e) => setBusqueda(e.target.value)}
             className="sm:w-64"
           />
+          <ThemeToggle tooltipSide="bottom" />
           <UserAvatarMenu align="end" />
         </div>
       </header>

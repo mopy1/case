@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom"
 import { Background, ConnectionMode, Controls, MiniMap, ReactFlow, type EdgeTypes, type NodeTypes } from "@xyflow/react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTheme } from "@/contexts/ThemeContext"
 import { useDiagramCanvas } from "../hooks/useDiagramCanvas"
 import { CanvasToolbar } from "../components/toolbar/CanvasToolbar"
 import { EntityNode } from "../components/nodes/EntityNode"
@@ -40,6 +41,8 @@ export function DiagramEditorPage() {
     createError,
   } = useDiagramCanvas(proyectoId)
 
+  const { theme } = useTheme()
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center p-6">
@@ -73,7 +76,7 @@ export function DiagramEditorPage() {
         />
       )}
       <ReactFlow
-        colorMode="dark"
+        colorMode={theme}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -94,7 +97,7 @@ export function DiagramEditorPage() {
         attributionPosition="bottom-right"
         fitView
       >
-        <Background gap={16} color="oklch(1 0 0 / 12%)" />
+        <Background gap={16} color={theme === "dark" ? "oklch(1 0 0 / 12%)" : "oklch(0 0 0 / 10%)"} />
         <Controls
           className="overflow-hidden rounded-xl border border-border bg-card shadow-lg [&_button]:!bg-card [&_button]:!border-border [&_button]:!text-foreground [&_button]:hover:!bg-muted [&_button_svg]:!fill-foreground"
         />
@@ -103,7 +106,7 @@ export function DiagramEditorPage() {
           zoomable
           bgColor="var(--card)"
           nodeColor="var(--primary)"
-          maskColor="rgba(0, 0, 0, 0.65)"
+          maskColor={theme === "dark" ? "rgba(0, 0, 0, 0.65)" : "rgba(255, 255, 255, 0.65)"}
           maskStrokeColor="var(--border)"
           className="overflow-hidden rounded-2xl border border-border !bg-card shadow-lg"
         />

@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react"
+import { LogOut, Moon, Sun } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/useAuth"
+import { useTheme } from "@/contexts/ThemeContext"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 
 interface UserAvatarMenuProps {
@@ -20,6 +21,7 @@ interface UserAvatarMenuProps {
 
 export function UserAvatarMenu({ side = "bottom", align = "end" }: UserAvatarMenuProps) {
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   if (!user) return null
@@ -44,7 +46,21 @@ export function UserAvatarMenu({ side = "bottom", align = "end" }: UserAvatarMen
           <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+        <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+          {theme === "dark" ? (
+            <>
+              <Sun className="size-4 text-amber-400" />
+              <span>Modo claro</span>
+            </>
+          ) : (
+            <>
+              <Moon className="size-4 text-slate-700" />
+              <span>Modo oscuro</span>
+            </>
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={handleLogout} className="cursor-pointer">
           <LogOut className="size-4" />
           Cerrar sesión
         </DropdownMenuItem>
