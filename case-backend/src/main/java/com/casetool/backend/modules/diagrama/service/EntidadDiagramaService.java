@@ -89,6 +89,10 @@ public class EntidadDiagramaService {
         entidadDiagramaRepository.delete(entidad);
     }
 
+    boolean existeNombre(Long proyectoId, String nombre) {
+        return entidadDiagramaRepository.existsByProyectoIdAndNombre(proyectoId, nombre);
+    }
+
     EntidadDiagrama buscarEntidad(Long entidadId) {
         return entidadDiagramaRepository.findById(entidadId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entidad de diagrama no encontrada"));

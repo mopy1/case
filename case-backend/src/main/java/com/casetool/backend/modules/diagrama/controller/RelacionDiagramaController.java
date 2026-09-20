@@ -4,12 +4,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.casetool.backend.modules.diagrama.dto.ActualizarPuntosControlRequest;
 import com.casetool.backend.modules.diagrama.dto.RelacionDiagramaRequest;
 import com.casetool.backend.modules.diagrama.dto.RelacionDiagramaResponse;
 import com.casetool.backend.modules.diagrama.service.RelacionDiagramaService;
@@ -34,6 +37,24 @@ public class RelacionDiagramaController {
             @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(relacionDiagramaService.crear(proyectoId, request, principal.getId()));
+    }
+
+    @PutMapping("/{relacionId}")
+    public ResponseEntity<RelacionDiagramaResponse> actualizar(
+            @PathVariable Long proyectoId,
+            @PathVariable Long relacionId,
+            @Valid @RequestBody RelacionDiagramaRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ResponseEntity.ok(relacionDiagramaService.actualizar(relacionId, request, principal.getId()));
+    }
+
+    @PatchMapping("/{relacionId}/puntos")
+    public ResponseEntity<RelacionDiagramaResponse> actualizarPuntos(
+            @PathVariable Long proyectoId,
+            @PathVariable Long relacionId,
+            @Valid @RequestBody ActualizarPuntosControlRequest request,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ResponseEntity.ok(relacionDiagramaService.actualizarPuntosControl(relacionId, request, principal.getId()));
     }
 
     @DeleteMapping("/{relacionId}")

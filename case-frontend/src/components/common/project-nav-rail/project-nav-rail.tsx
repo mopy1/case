@@ -1,13 +1,23 @@
-import { ArrowLeft } from "lucide-react"
-import { Link, NavLink } from "react-router-dom"
+import { ArrowLeft, LogOut } from "lucide-react"
+import { Link, NavLink, useNavigate } from "react-router-dom"
 import { buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarGroupCount } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 import { useAuth } from "@/hooks/useAuth"
-import type { MiembroProyectoResponse } from "@/features/projects/types/projects.type"
+import { ProjectMembersDialog } from "@/features/projects/components/project-members-dialog"
+import type { MiembroProyectoResponse, RolProyecto } from "@/features/projects/types/projects.type"
 import { projectNavItems } from "./project-nav-rail.data"
 
 const MAX_AVATARES_RAIL = 4
@@ -15,11 +25,14 @@ const MAX_AVATARES_RAIL = 4
 export function ProjectNavRail({
   projectId,
   miembros,
+  miRol,
 }: {
   projectId: string
   miembros: MiembroProyectoResponse[]
+  miRol?: RolProyecto
 }) {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const otros = miembros.filter((miembro) => miembro.usuarioId !== user?.id)
   const visibles = otros.slice(0, MAX_AVATARES_RAIL)
   const restantes = otros.length - visibles.length
@@ -55,6 +68,13 @@ export function ProjectNavRail({
             <TooltipContent side="right">{item.disabled ? `${item.label} (próximamente)` : item.label}</TooltipContent>
           </Tooltip>
         ))}
+
+        {miRol && (
+          <>
+            <Separator className="w-8" />
+            <ProjectMembersDialog proyectoId={Number(projectId)} miRol={miRol} />
+          </>
+        )}
       </div>
 
       <div className="flex flex-col items-center">
@@ -86,14 +106,29 @@ export function ProjectNavRail({
         {user && (
           <>
             <Separator className="mt-3 mb-2 w-8" />
-            <Tooltip>
-              <TooltipTrigger render={<span className="block" />}>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="cursor-pointer rounded-full outline-none">
                 <Avatar size="sm" className="ring-2 ring-primary">
                   <AvatarFallback className={colorAvatar(user.id)}>{iniciales(user.username)}</AvatarFallback>
                 </Avatar>
-              </TooltipTrigger>
-              <TooltipContent side="right">Vos · {user.username}</TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>{user.username}</DropdownMenuLabel>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => {
+                    logout()
+                    navigate("/login")
+                  }}
+                >
+                  <LogOut className="size-4" />
+                  Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         )}
       </div>

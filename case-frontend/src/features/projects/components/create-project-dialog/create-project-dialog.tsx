@@ -27,7 +27,7 @@ export function CreateProjectDialog({ onCreated }: { onCreated: (proyecto: Proye
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const proyecto = await createProject({ nombre, descripcion })
+    const proyecto = await createProject({ nombre: nombre.trim(), descripcion: descripcion.trim() })
     if (proyecto) {
       onCreated(proyecto)
       setNombre("")
@@ -52,7 +52,7 @@ export function CreateProjectDialog({ onCreated }: { onCreated: (proyecto: Proye
         </CardContent>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <DialogHeader>
             <DialogTitle>Nuevo proyecto</DialogTitle>
             <DialogDescription>

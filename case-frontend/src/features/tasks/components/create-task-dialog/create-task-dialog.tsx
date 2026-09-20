@@ -42,8 +42,8 @@ export function CreateTaskDialog({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const tarea = await create({
-      titulo,
-      descripcion,
+      titulo: titulo.trim(),
+      descripcion: descripcion.trim(),
       prioridad,
       usuarioId: usuarioId ? Number(usuarioId) : null,
     })
@@ -61,7 +61,7 @@ export function CreateTaskDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button />}>Nueva tarea</DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <DialogHeader>
             <DialogTitle>Nueva tarea</DialogTitle>
             <DialogDescription>Se crea en estado "Pendiente".</DialogDescription>

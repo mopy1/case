@@ -3,6 +3,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { cn } from "@/lib/utils"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 import { ESTADOS_ORDEN, ESTADO_LABEL } from "./task-card.data"
 import type { TareaResponse } from "../../types/tasks.type"
@@ -20,7 +22,7 @@ export function TaskCard({
 }: {
   tarea: TareaResponse
   onChangeEstado: (estado: (typeof ESTADOS_ORDEN)[number]) => void
-  onDelete: () => void
+  onDelete: () => void | Promise<void>
 }) {
   const index = ESTADOS_ORDEN.indexOf(tarea.estado)
   const puedeRetroceder = index > 0
@@ -31,16 +33,22 @@ export function TaskCard({
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-sm">{tarea.titulo}</CardTitle>
-          <Button variant="ghost" size="icon-xs" onClick={onDelete}>
+          <ConfirmDialog
+            trigger={<Button variant="ghost" size="icon-xs" />}
+            title="¿Eliminar esta tarea?"
+            description={`Se va a borrar "${tarea.titulo}" de forma permanente.`}
+            confirmLabel="Eliminar tarea"
+            onConfirm={onDelete}
+          >
             <Trash2 />
-          </Button>
+          </ConfirmDialog>
         </div>
         {tarea.descripcion && <CardDescription className="line-clamp-2 text-xs">{tarea.descripcion}</CardDescription>}
       </CardHeader>
       <CardContent>
         <Badge variant={PRIORIDAD_VARIANT[tarea.prioridad]}>{tarea.prioridad}</Badge>
       </CardContent>
-      <CardFooter className="items-center justify-between">
+      <CardFooter className={cn("items-center justify-between", tarea.usuarioUsername && "pr-8")}>
         <Button
           variant="outline"
           size="icon-xs"

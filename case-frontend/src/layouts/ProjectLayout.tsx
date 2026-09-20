@@ -7,12 +7,12 @@ import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 export function ProjectLayout() {
   const { id } = useParams<{ id: string }>()
   const proyectoId = Number(id)
-  const { error } = useProject(proyectoId)
+  const { proyecto, error } = useProject(proyectoId)
   const { miembros } = useProjectMembers(proyectoId)
 
   return (
     <div className="flex min-h-screen">
-      <ProjectNavRail projectId={id!} miembros={miembros} />
+      <ProjectNavRail projectId={id!} miembros={miembros} miRol={proyecto?.miRol} />
       <div className="flex-1 overflow-x-auto">
         {error ? (
           <Alert variant="destructive" className="m-6">

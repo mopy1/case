@@ -128,3 +128,48 @@
     @apply font-sans;
     }
 }
+
+/* React Flow trae su atribución y sus controles con fondo blanco por default — no combina con el tema oscuro */
+.react-flow__attribution {
+  background: transparent;
+}
+.react-flow__attribution a {
+  color: var(--muted-foreground);
+}
+.react-flow__controls-button {
+  background: var(--card);
+  border-bottom-color: var(--border);
+  fill: var(--foreground);
+}
+.react-flow__controls-button:hover {
+  background: var(--muted);
+}
+.react-flow__controls-button svg {
+  fill: var(--foreground);
+}
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--primary);
+  border: 2px solid var(--card);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+/* Solo se ven al pasar el mouse por la tabla — siempre visibles en las 4 puntas de cada tabla
+   ensucia mucho el lienzo cuando hay varias, como en cualquier herramienta ER real. */
+.react-flow__node:hover .react-flow__handle,
+.react-flow__handle:hover {
+  opacity: 1;
+}
+.react-flow__handle:hover {
+  background: var(--primary);
+  transform: scale(1.3);
+}
+.react-flow__minimap {
+  background-color: var(--card);
+  border-radius: var(--radius);
+}
+.react-flow__minimap-mask {
+  stroke: var(--border);
+  stroke-width: 1;
+}

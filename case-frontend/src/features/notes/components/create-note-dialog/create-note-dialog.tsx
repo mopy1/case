@@ -30,7 +30,7 @@ export function CreateNoteDialog({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const nota = await create({ accion, motivo })
+    const nota = await create({ accion: accion.trim(), motivo: motivo.trim() })
     if (nota) {
       onCreated(nota)
       setAccion("")
@@ -43,7 +43,7 @@ export function CreateNoteDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button />}>Nueva nota</DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <DialogHeader>
             <DialogTitle>Nueva nota</DialogTitle>
             <DialogDescription>Dejá registrado el por qué de un cambio, para que el equipo lo entienda después.</DialogDescription>

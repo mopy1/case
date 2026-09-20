@@ -10,7 +10,10 @@ public record RelacionDiagramaRequest(
     @NotNull(message = "La entidad de destino es obligatoria")
     Long entidadDestinoId,
 
-    @NotNull(message = "El tipo de relación es obligatorio")
-    RelacionDiagrama.TipoRelacion tipoRelacion
+    @NotNull(message = "Hay que indicar la multiplicidad del lado origen")
+    RelacionDiagrama.Multiplicidad multiplicidadOrigen,
+
+    @NotNull(message = "Hay que indicar la multiplicidad del lado destino")
+    RelacionDiagrama.Multiplicidad multiplicidadDestino
 ) {
 }

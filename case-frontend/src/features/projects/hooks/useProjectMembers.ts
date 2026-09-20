@@ -1,15 +1,23 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { MiembroProyectoResponse } from "../types/projects.type"
-import { miembrosProject } from "../api/projectsApi"
+import { getProjectMembers } from "../api/projectsApi"
 
 export function useProjectMembers(proyectoId: number) {
   const [miembros, setMiembros] = useState<MiembroProyectoResponse[]>([])
   const [loading, setLoading] = useState(true)
 
+  const refetch = useCallback(() => {
+    setLoading(true)
+    return getProjectMembers(proyectoId)
+      .then((data) => setMiembros(data))
+      .catch(() => setMiembros([]))
+      .finally(() => setLoading(false))
+  }, [proyectoId])
+
   useEffect(() => {
     let cancelado = false
     setLoading(true)
-    miembrosProject(proyectoId)
+    getProjectMembers(proyectoId)
       .then((data) => {
         if (!cancelado) setMiembros(data)
       })
@@ -24,5 +32,5 @@ export function useProjectMembers(proyectoId: number) {
     }
   }, [proyectoId])
 
-  return { miembros, loading }
+  return { miembros, loading, refetch }
 }

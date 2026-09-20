@@ -19,7 +19,7 @@ export interface ProyectoResponse {
   id: number;
   nombre: string;
   descripcion: string;
-  rol: RolProyecto;
+  miRol: RolProyecto;
   createdAt: string;
 }
 

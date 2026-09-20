@@ -1,107 +1,55 @@
-import type { MiembroProyectoRequest, MiembroProyectoResponse, ProyectoRequest, ProyectoResponse, listarProyectosResponse } from "../types/projects.type"
-import { API_URL } from "@/lib/api"
+import type { MiembroProyectoRequest, MiembroProyectoResponse, ProyectoRequest, ProyectoResponse, RolProyecto, listarProyectosResponse } from "../types/projects.type"
+import { apiFetch } from "@/lib/api"
 
-const PROJECTS_URL = `${API_URL}/api/proyectos`
+const PROJECTS_URL = "/api/proyectos"
 
-async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
-  const error = await response.json().catch(() => null)
-  return error?.message ?? fallback
+export function getMyProjects(): Promise<listarProyectosResponse[]> {
+  return apiFetch(PROJECTS_URL, { errorFallback: "Error al obtener proyectos" })
 }
 
-export async function getMyProjects(): Promise<listarProyectosResponse[]> {
-  const token = localStorage.getItem("token")
-  const response = await fetch(`${PROJECTS_URL}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Error al obtener proyectos"))
-  }
-
-  return response.json()
+export function getProject(id: number): Promise<ProyectoResponse> {
+  return apiFetch(`${PROJECTS_URL}/${id}`, { errorFallback: "Error al obtener el proyecto" })
 }
 
-export async function getProject(id: number): Promise<ProyectoResponse> {
-  const token = localStorage.getItem("token")
-  const response = await fetch(`${PROJECTS_URL}/${id}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Error al obtener el proyecto"))
-  }
-
-  return response.json()
-}
-
-export async function createProject(project: ProyectoRequest): Promise<ProyectoResponse> {
-  const token = localStorage.getItem("token")
-  const response = await fetch(`${PROJECTS_URL}`, {
+export function createProject(project: ProyectoRequest): Promise<ProyectoResponse> {
+  return apiFetch(PROJECTS_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(project)
+    body: JSON.stringify(project),
+    errorFallback: "Error al crear proyecto",
   })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Error al crear proyecto"))
-  }
-
-  return response.json()
 }
 
-export async function deleteProject(id: number): Promise<void> {
-  const token = localStorage.getItem("token")
-  const response = await fetch(`${PROJECTS_URL}/${id}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Error al eliminar proyecto"))
-  }
+export function deleteProject(id: number): Promise<void> {
+  return apiFetch(`${PROJECTS_URL}/${id}`, { method: "DELETE", errorFallback: "Error al eliminar proyecto" })
 }
 
-export async function miembrosProject(proyectoId: number): Promise<MiembroProyectoResponse[]> {
-  const token = localStorage.getItem("token")
-  const response = await fetch(`${PROJECTS_URL}/${proyectoId}/miembros`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Error al obtener miembros del proyecto"))
-  }
-
-  return response.json()
+export function getProjectMembers(proyectoId: number): Promise<MiembroProyectoResponse[]> {
+  return apiFetch(`${PROJECTS_URL}/${proyectoId}/miembros`, { errorFallback: "Error al obtener miembros del proyecto" })
 }
 
-export async function agregarMiembro(proyectoId: number, miembro: MiembroProyectoRequest): Promise<MiembroProyectoResponse> {
-  const token = localStorage.getItem("token")
-  const response = await fetch(`${PROJECTS_URL}/${proyectoId}/miembros`, {
+export function addMember(proyectoId: number, miembro: MiembroProyectoRequest): Promise<MiembroProyectoResponse> {
+  return apiFetch(`${PROJECTS_URL}/${proyectoId}/miembros`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
     body: JSON.stringify(miembro),
+    errorFallback: "Error al agregar miembro al proyecto",
   })
+}
 
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, "Error al agregar miembro al proyecto"))
-  }
+export function changeMemberRole(
+  proyectoId: number,
+  usuarioObjetivoId: number,
+  rol: RolProyecto
+): Promise<MiembroProyectoResponse> {
+  return apiFetch(`${PROJECTS_URL}/${proyectoId}/miembros/${usuarioObjetivoId}/rol`, {
+    method: "PATCH",
+    body: JSON.stringify({ rol }),
+    errorFallback: "Error al cambiar el rol del colaborador",
+  })
+}
 
-  return response.json()
+export function removeMember(proyectoId: number, usuarioObjetivoId: number): Promise<void> {
+  return apiFetch(`${PROJECTS_URL}/${proyectoId}/miembros/${usuarioObjetivoId}`, {
+    method: "DELETE",
+    errorFallback: "Error al quitar al colaborador",
+  })
 }

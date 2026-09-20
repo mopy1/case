@@ -23,7 +23,7 @@ export function ProjectTasksPage() {
 
   return (
     <div className="p-6">
-      <header className="mb-6 flex items-center justify-between gap-4">
+      <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Tareas</h1>
           <p className="text-muted-foreground">Quién hace qué, y con qué prioridad.</p>
