@@ -69,9 +69,9 @@ case-frontend/src/
     ├── diagram/                              # 📐 Lienzo UML Interactivo (React Flow)
     │   ├── api/diagramApi.ts
     │   ├── components/nodes/EntityNode.tsx   # Nodo de tabla con handles, tipos SQL, PKs y badge N:M
-    │   ├── components/edges/                 # Aristas especializadas en ángulo recto
-    │   │   ├── UmlRelationEdge.tsx, MultiplicidadBadge.tsx, PuntoControlHandle.tsx,
-    │   │   └── AssociationClassOverlay.tsx, RelationCrossingOverlay.tsx (salto visual de aristas)
+    │   ├── components/edges/                 # Aristas UML con marcadores visuales (Asoc, Comp, Agreg, Heren)
+    │   │   ├── UmlRelationEdge.tsx, UmlRelationToolbar.tsx, UmlRelationMarkers.tsx, MultiplicidadBadge.tsx,
+    │   │   └── PuntoControlHandle.tsx, AssociationClassOverlay.tsx, RelationCrossingOverlay.tsx
     │   ├── components/panel/                 # Panel lateral de atributos y propiedades de tabla
     │   │   ├── entity-properties-panel.tsx, attribute-form-dialog.tsx
     │   ├── components/toolbar/CanvasToolbar  # Barra flotante superior (+ Entidad)
