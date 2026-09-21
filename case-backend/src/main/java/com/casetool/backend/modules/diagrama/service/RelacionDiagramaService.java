@@ -81,6 +81,7 @@ public class RelacionDiagramaService {
         relacion.setEntidadDestino(destino);
         relacion.setMultiplicidadOrigen(request.multiplicidadOrigen());
         relacion.setMultiplicidadDestino(request.multiplicidadDestino());
+        relacion.setTipo(request.tipo() != null ? request.tipo() : RelacionDiagrama.TipoRelacionUml.ASOCIACION);
         relacionDiagramaRepository.save(relacion);
         return relacion;
     }
@@ -113,6 +114,9 @@ public class RelacionDiagramaService {
         relacion.setEntidadDestino(destino);
         relacion.setMultiplicidadOrigen(request.multiplicidadOrigen());
         relacion.setMultiplicidadDestino(request.multiplicidadDestino());
+        if (request.tipo() != null) {
+            relacion.setTipo(request.tipo());
+        }
         RelacionDiagrama guardada = relacionDiagramaRepository.save(relacion);
 
         if (guardada.esMuchosAMuchos() && !eraMuchosAMuchos) {

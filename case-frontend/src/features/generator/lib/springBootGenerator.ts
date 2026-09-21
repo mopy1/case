@@ -277,6 +277,19 @@ function resolverRelacionesJPA(
           })
         }
       }
+    } else if (rel.tipo === "HERENCIA" || (esUnoOrigen && esUnoDestino)) {
+      // Caso 1:1 o HERENCIA -> Origen (hija) referencia a Destino (padre)
+      const origRel = mapa.get(origen.id)!
+      const fieldName = toCamelCase(destino.nombre)
+      const colName = `${toSnakeCase(destino.nombre)}_id`
+      if (!origRel.manyToOne.some((m) => m.fieldName === fieldName)) {
+        origRel.manyToOne.push({
+          targetEntityName: toPascalCase(destino.nombre),
+          fieldName,
+          columnName: colName,
+          nullable: rel.tipo === "HERENCIA" ? false : rel.multiplicidadDestino === "CERO_O_UNO",
+        })
+      }
     }
   }
 

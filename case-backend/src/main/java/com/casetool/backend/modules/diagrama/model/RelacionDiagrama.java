@@ -58,6 +58,10 @@ public class RelacionDiagrama {
     @Column(name = "multiplicidad_destino", nullable = false, length = 20)
     private Multiplicidad multiplicidadDestino;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo", length = 20)
+    private TipoRelacionUml tipo = TipoRelacionUml.ASOCIACION;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -91,5 +95,12 @@ public class RelacionDiagrama {
         public boolean esUno() {
             return this == UNO || this == CERO_O_UNO;
         }
+    }
+
+    public enum TipoRelacionUml {
+        ASOCIACION,
+        COMPOSICION,
+        AGREGACION,
+        HERENCIA
     }
 }

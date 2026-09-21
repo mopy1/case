@@ -1,46 +1,29 @@
 import { memo } from "react"
 import { BaseEdge, EdgeLabelRenderer, useInternalNode, useReactFlow, type EdgeProps, type Node } from "@xyflow/react"
-import { Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { construirRutaRelacion } from "../../lib/relationPath"
 import { anchoLineaRelacion, colorLineaRelacion } from "../../lib/relationStyle"
 import { usePuntosControlArrastre } from "../../hooks/usePuntosControlArrastre"
 import { MultiplicidadBadge } from "./MultiplicidadBadge"
 import { PuntoControlHandle } from "./PuntoControlHandle"
-import type { LadoMultiplicidad, PuntoControl, RelacionDiagramaResponse } from "../../types/diagram.types"
+import { UmlRelationToolbar } from "./UmlRelationToolbar"
+import type { LadoMultiplicidad, PuntoControl, RelacionDiagramaResponse, TipoRelacionUml } from "../../types/diagram.types"
 
-/** Solo la línea + la multiplicidad entre paréntesis en cada punta (click para cambiarla). Sin
- * nada fijo en medio de la línea — al seleccionarla (click en el trazo) se resalta en rojo y
- * aparece un botón de borrar arriba del punto medio (con confirmación, mismo patrón que el resto
- * del proyecto); Supr/Backspace también borra directo, sin pasar por el botón. Línea simple, sin
- * flecha ni marcador en las puntas — la multiplicidad entre paréntesis es la única señal.
- *
- * **Puntos de control manuales (2026-09-20, pedido explícito: "quiero manipular las relaciones a
- * libertad... que pasen por otro lado, estorba cuando pasa por encima de otra tabla"):** la línea
- * es una polilínea recta entre floating edges (`lib/relationPath.ts`) que puede pasar por 0 o más
- * puntos intermedios arrastrables (`PuntoControlHandle`) — toda la lógica de arrastre vive en
- * `hooks/usePuntosControlArrastre.ts` (regla "Anti-1k-Lines" del proyecto), acá solo se conecta a
- * la línea/puntos que dibuja.
- */
 export const UmlRelationEdge = memo(function UmlRelationEdge({
   selected,
   data,
 }: EdgeProps & {
-
   data: {
     relacion: RelacionDiagramaResponse
     onEditOrigen: (lado: LadoMultiplicidad) => void
     onEditDestino: (lado: LadoMultiplicidad) => void
+    onEditTipo?: (tipo: TipoRelacionUml) => void
     onDelete: () => void
     onMoverPuntos: (puntos: PuntoControl[]) => void
     offsetParalelo: number
     resaltada?: boolean
   }
 }) {
-  const { relacion, onEditOrigen, onEditDestino, onDelete, onMoverPuntos, offsetParalelo, resaltada } = data
-  const multOrigen = relacion.multiplicidadOrigen
-  const multDestino = relacion.multiplicidadDestino
+  const { relacion, onEditOrigen, onEditDestino, onEditTipo, onDelete, onMoverPuntos, offsetParalelo, resaltada } = data
   const esRecursiva = relacion.entidadOrigenId === relacion.entidadDestinoId
   const nodoOrigen = useInternalNode<Node>(String(relacion.entidadOrigenId))
   const nodoDestino = useInternalNode<Node>(String(relacion.entidadDestinoId))
@@ -66,11 +49,6 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
   let destinoY: number
 
   if (esRecursiva) {
-    // Relación recursiva (una tabla contra sí misma): un "floating edge" no tiene sentido acá
-    // (origen y destino son el mismo rectángulo), así que tampoco tiene sentido la edición manual
-    // de puntos. Lazo rectangular (solo líneas rectas, sin curvas) que sale del borde derecho, pasa
-    // por ARRIBA de la tarjeta y entra por el izquierdo — usa la altura real medida del nodo para
-    // no taparse con tablas más altas.
     const { x, y } = nodoOrigen.internals.positionAbsolute
     const ancho = nodoOrigen.measured?.width ?? 256
     const alto = nodoOrigen.measured?.height ?? 90
@@ -99,16 +77,23 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
     destinoY = ruta.destinoY
   }
 
-  // Mismo helper que usa `RelationCrossingOverlay` para el "salto" al cruzar otra relación — así
-  // el arco pinta con el color/grosor real de esta línea, no uno aproximado.
   const estiloLinea = {
     stroke: colorLineaRelacion(selected, resaltada),
     strokeWidth: anchoLineaRelacion(selected, resaltada),
   }
 
+  const tipo = relacion.tipo || "ASOCIACION"
+  const markerStart =
+    tipo === "COMPOSICION"
+      ? "url(#uml-marker-composition)"
+      : tipo === "AGREGACION"
+      ? "url(#uml-marker-aggregation)"
+      : undefined
+  const markerEnd = tipo === "HERENCIA" ? "url(#uml-marker-inheritance)" : undefined
+
   return (
     <>
-      <BaseEdge path={edgePath} style={estiloLinea} />
+      <BaseEdge path={edgePath} style={estiloLinea} markerStart={markerStart} markerEnd={markerEnd} />
       {!esRecursiva && (
         <path
           d={edgePath}
@@ -120,30 +105,26 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
         />
       )}
       <EdgeLabelRenderer>
-        {selected && (
-          <div
-            className="nodrag nopan pointer-events-auto absolute"
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 26}px)` }}
-          >
-            <ConfirmDialog
-              trigger={
-                <Button
-                  variant="destructive"
-                  size="icon-xs"
-                  className="size-6 rounded-full border border-destructive/30 bg-destructive/10 shadow-sm"
-                />
-              }
-              title="¿Eliminar esta relación?"
-              description={`Se va a borrar la relación entre "${relacion.entidadOrigenNombre}" y "${relacion.entidadDestinoNombre}".`}
-              confirmLabel="Eliminar relación"
-              onConfirm={onDelete}
+        {selected ? (
+          <UmlRelationToolbar
+            relacion={relacion}
+            labelX={labelX}
+            labelY={labelY}
+            onDelete={onDelete}
+            onEditTipo={onEditTipo}
+          />
+        ) : (
+          tipo !== "ASOCIACION" && (
+            <div
+              className="nodrag nopan pointer-events-none absolute select-none rounded-full border border-border/60 bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold text-foreground/80 shadow-xs"
+              style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             >
-              <Trash2 className="size-3" />
-            </ConfirmDialog>
-          </div>
+              {tipo === "COMPOSICION" ? "◆ Comp" : tipo === "AGREGACION" ? "◇ Agreg" : "▷ Herencia"}
+            </div>
+          )
         )}
-        <MultiplicidadBadge valor={multOrigen} x={origenX} y={origenY} onSelect={onEditOrigen} />
-        <MultiplicidadBadge valor={multDestino} x={destinoX} y={destinoY} onSelect={onEditDestino} />
+        <MultiplicidadBadge valor={relacion.multiplicidadOrigen} x={origenX} y={origenY} onSelect={onEditOrigen} />
+        <MultiplicidadBadge valor={relacion.multiplicidadDestino} x={destinoX} y={destinoY} onSelect={onEditDestino} />
         {!esRecursiva &&
           puntosLocal.map((punto, i) => (
             <PuntoControlHandle key={i} x={punto.x} y={punto.y} onPointerDown={(e) => handlePointerDownPunto(i, e)} />
@@ -152,4 +133,3 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
     </>
   )
 })
-

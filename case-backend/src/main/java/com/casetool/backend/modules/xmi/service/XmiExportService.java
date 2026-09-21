@@ -31,7 +31,9 @@ import com.casetool.backend.modules.diagrama.dto.AtributoEntidadResponse;
 import com.casetool.backend.modules.diagrama.dto.DiagramaResponse;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaResponse;
 import com.casetool.backend.modules.diagrama.dto.RelacionDiagramaResponse;
+import com.casetool.backend.modules.diagrama.model.RelacionDiagrama;
 import com.casetool.backend.modules.diagrama.model.RelacionDiagrama.Multiplicidad;
+import com.casetool.backend.modules.diagrama.model.RelacionDiagrama.TipoRelacionUml;
 import com.casetool.backend.modules.diagrama.service.DiagramaService;
 import com.casetool.backend.modules.proyecto.model.Proyecto;
 import com.casetool.backend.modules.proyecto.repository.ProyectoRepository;
@@ -180,7 +182,7 @@ public class XmiExportService {
 
         for (RelacionDiagramaResponse relacion : diagrama.relaciones()) {
             if (idsRelacionesConsumidas.contains(relacion.id())) continue;
-            namespace.appendChild(construirAsociacion(doc, relacion, idPorEntidad));
+            namespace.appendChild(construirRelacion(doc, relacion, idPorEntidad));
         }
 
         return serializar(doc);
@@ -281,8 +283,8 @@ public class XmiExportService {
     private void insertarConexion(
             Document doc, Element contenedor, String claseOrigenId, Multiplicidad multOrigen, String claseDestinoId, Multiplicidad multDestino) {
         Element conexion = doc.createElement("UML:Association.connection");
-        conexion.appendChild(construirExtremo(doc, "extremo_" + contenedor.getAttribute("xmi.id") + "_o", claseOrigenId, multOrigen));
-        conexion.appendChild(construirExtremo(doc, "extremo_" + contenedor.getAttribute("xmi.id") + "_d", claseDestinoId, multDestino));
+        conexion.appendChild(construirExtremo(doc, "extremo_" + contenedor.getAttribute("xmi.id") + "_o", claseOrigenId, multOrigen, "none"));
+        conexion.appendChild(construirExtremo(doc, "extremo_" + contenedor.getAttribute("xmi.id") + "_d", claseDestinoId, multDestino, "none"));
         // El connection va antes que Classifier.feature en el archivo de referencia — si la clase
         // ya tiene atributos cargados, insertar antes de ellos en vez de al final.
         Element feature = primerHijo(contenedor, "UML:Classifier.feature");
@@ -298,7 +300,16 @@ public class XmiExportService {
         return hijos.getLength() == 0 ? null : (Element) hijos.item(0);
     }
 
-    private Element construirAsociacion(Document doc, RelacionDiagramaResponse relacion, Map<Long, String> idPorEntidad) {
+    private Element construirRelacion(Document doc, RelacionDiagramaResponse relacion, Map<Long, String> idPorEntidad) {
+        if (relacion.tipo() == RelacionDiagrama.TipoRelacionUml.HERENCIA) {
+            Element gen = doc.createElement("UML:Generalization");
+            gen.setAttribute("xmi.id", "gen_" + relacion.id());
+            gen.setAttribute("child", idPorEntidad.get(relacion.entidadOrigenId()));
+            gen.setAttribute("parent", idPorEntidad.get(relacion.entidadDestinoId()));
+            gen.setAttribute("visibility", "public");
+            return gen;
+        }
+
         Element assoc = doc.createElement("UML:Association");
         String assocId = "assoc_" + relacion.id();
         assoc.setAttribute("xmi.id", assocId);
@@ -308,23 +319,30 @@ public class XmiExportService {
         assoc.setAttribute("isLeaf", "false");
         assoc.setAttribute("isAbstract", "false");
 
+        String aggOrigen = "none";
+        if (relacion.tipo() == RelacionDiagrama.TipoRelacionUml.COMPOSICION) {
+            aggOrigen = "composite";
+        } else if (relacion.tipo() == RelacionDiagrama.TipoRelacionUml.AGREGACION) {
+            aggOrigen = "shared";
+        }
+
         Element conexion = doc.createElement("UML:Association.connection");
         conexion.appendChild(construirExtremo(
-                doc, assocId + "_o", idPorEntidad.get(relacion.entidadOrigenId()), relacion.multiplicidadOrigen()));
+                doc, assocId + "_o", idPorEntidad.get(relacion.entidadOrigenId()), relacion.multiplicidadOrigen(), aggOrigen));
         conexion.appendChild(construirExtremo(
-                doc, assocId + "_d", idPorEntidad.get(relacion.entidadDestinoId()), relacion.multiplicidadDestino()));
+                doc, assocId + "_d", idPorEntidad.get(relacion.entidadDestinoId()), relacion.multiplicidadDestino(), "none"));
         assoc.appendChild(conexion);
         return assoc;
     }
 
-    private Element construirExtremo(Document doc, String id, String claseId, Multiplicidad multiplicidad) {
+    private Element construirExtremo(Document doc, String id, String claseId, Multiplicidad multiplicidad, String aggregation) {
         Element extremo = doc.createElement("UML:AssociationEnd");
         extremo.setAttribute("xmi.id", id);
         extremo.setAttribute("name", "");
         extremo.setAttribute("visibility", "public");
         extremo.setAttribute("isNavigable", "false");
         extremo.setAttribute("ordering", "unordered");
-        extremo.setAttribute("aggregation", "none");
+        extremo.setAttribute("aggregation", aggregation);
         extremo.setAttribute("targetScope", "instance");
         extremo.setAttribute("changeable", "none");
         extremo.setAttribute("multiplicity", multiplicidadATexto(multiplicidad));

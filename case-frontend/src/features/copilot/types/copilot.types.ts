@@ -1,4 +1,4 @@
-import type { LadoMultiplicidad } from "@/features/diagram/types/diagram.types"
+import type { LadoMultiplicidad, TipoRelacionUml } from "@/features/diagram/types/diagram.types"
 import type { Prioridad } from "@/features/tasks/types/tasks.type"
 
 export type CopilotSection = "diagrama" | "tareas" | "notas" | "xmi" | "generador" | "general"
@@ -30,6 +30,7 @@ export interface RelationSuggestion {
   destino: string
   multiplicidadOrigen: LadoMultiplicidad
   multiplicidadDestino: LadoMultiplicidad
+  tipo?: TipoRelacionUml
   creada?: boolean
 }
 

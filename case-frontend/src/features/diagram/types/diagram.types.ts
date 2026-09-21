@@ -42,6 +42,8 @@ export interface AtributoEntidadRequest {
  */
 export type LadoMultiplicidad = "UNO" | "CERO_O_UNO" | "UNO_O_MAS" | "CERO_O_MAS"
 
+export type TipoRelacionUml = "ASOCIACION" | "COMPOSICION" | "AGREGACION" | "HERENCIA"
+
 /** Un punto de control manual sobre una relación (Ctrl+arrastrar la línea para agregar, arrastrar
  * el punto para moverlo, Ctrl+click para quitarlo — ver `UmlRelationEdge`/`PuntoControlHandle`).
  * Coordenadas en flow-space del lienzo. */
@@ -60,6 +62,7 @@ export interface RelacionDiagramaResponse {
   multiplicidadOrigen: LadoMultiplicidad
   multiplicidadDestino: LadoMultiplicidad
   puntosControl: PuntoControl[]
+  tipo?: TipoRelacionUml
 }
 
 export interface RelacionDiagramaRequest {
@@ -67,6 +70,7 @@ export interface RelacionDiagramaRequest {
   entidadDestinoId: number
   multiplicidadOrigen: LadoMultiplicidad
   multiplicidadDestino: LadoMultiplicidad
+  tipo?: TipoRelacionUml
 }
 
 export interface DiagramaResponse {

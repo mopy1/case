@@ -8,6 +8,7 @@ import { useDiagramCanvas } from "../hooks/useDiagramCanvas"
 import { CanvasToolbar } from "../components/toolbar/CanvasToolbar"
 import { EntityNode } from "../components/nodes/EntityNode"
 import { UmlRelationEdge } from "../components/edges/UmlRelationEdge"
+import { UmlRelationMarkers } from "../components/edges/UmlRelationMarkers"
 import { AssociationClassOverlay } from "../components/edges/AssociationClassOverlay"
 import { RelationCrossingOverlay } from "../components/edges/RelationCrossingOverlay"
 import { EntityPropertiesPanel } from "../components/panel/entity-properties-panel"
@@ -132,6 +133,7 @@ export function DiagramEditorPage() {
         />
         <AssociationClassOverlay asociaciones={asociaciones} onDelete={onDeleteAsociacion} selectedEntidadId={selectedEntidadId} />
         <RelationCrossingOverlay edges={edges} nodes={nodes} />
+        <UmlRelationMarkers />
       </ReactFlow>
       <RemoteCursorsLayer collaborators={collaborators} />
     </div>

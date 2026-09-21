@@ -14,6 +14,15 @@ public record RelacionDiagramaRequest(
     RelacionDiagrama.Multiplicidad multiplicidadOrigen,
 
     @NotNull(message = "Hay que indicar la multiplicidad del lado destino")
-    RelacionDiagrama.Multiplicidad multiplicidadDestino
+    RelacionDiagrama.Multiplicidad multiplicidadDestino,
+
+    RelacionDiagrama.TipoRelacionUml tipo
 ) {
+    public RelacionDiagramaRequest(
+            Long entidadOrigenId,
+            Long entidadDestinoId,
+            RelacionDiagrama.Multiplicidad multiplicidadOrigen,
+            RelacionDiagrama.Multiplicidad multiplicidadDestino) {
+        this(entidadOrigenId, entidadDestinoId, multiplicidadOrigen, multiplicidadDestino, RelacionDiagrama.TipoRelacionUml.ASOCIACION);
+    }
 }

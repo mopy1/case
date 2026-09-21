@@ -24,7 +24,9 @@ import com.casetool.backend.modules.diagrama.dto.DiagramaResponse;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaRequest;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaResponse;
 import com.casetool.backend.modules.diagrama.dto.RelacionDiagramaRequest;
+import com.casetool.backend.modules.diagrama.model.RelacionDiagrama;
 import com.casetool.backend.modules.diagrama.model.RelacionDiagrama.Multiplicidad;
+import com.casetool.backend.modules.diagrama.model.RelacionDiagrama.TipoRelacionUml;
 import com.casetool.backend.modules.diagrama.service.AtributoEntidadService;
 import com.casetool.backend.modules.diagrama.service.DiagramaService;
 import com.casetool.backend.modules.diagrama.service.EntidadDiagramaService;
@@ -295,13 +297,58 @@ public class XmiImportService {
             Long origenId = entidadIdPorXmiId.get(extremos.get(0).getAttribute("type"));
             Long destinoId = entidadIdPorXmiId.get(extremos.get(1).getAttribute("type"));
             if (origenId == null || destinoId == null) continue;
+
+            String agg0 = extremos.get(0).getAttribute("aggregation");
+            String agg1 = extremos.get(1).getAttribute("aggregation");
+            RelacionDiagrama.TipoRelacionUml tipo = RelacionDiagrama.TipoRelacionUml.ASOCIACION;
+            if ("composite".equalsIgnoreCase(agg0) || "composite".equalsIgnoreCase(agg1)) {
+                tipo = RelacionDiagrama.TipoRelacionUml.COMPOSICION;
+            } else if ("shared".equalsIgnoreCase(agg0) || "aggregate".equalsIgnoreCase(agg0)
+                    || "shared".equalsIgnoreCase(agg1) || "aggregate".equalsIgnoreCase(agg1)) {
+                tipo = RelacionDiagrama.TipoRelacionUml.AGREGACION;
+            }
+
             relacionDiagramaService.crearSinTablaIntermedia(
                     proyectoId,
                     new RelacionDiagramaRequest(
                             origenId, destinoId,
                             mapMultiplicidadEA(extremos.get(0).getAttribute("multiplicity")),
-                            mapMultiplicidadEA(extremos.get(1).getAttribute("multiplicity"))),
+                            mapMultiplicidadEA(extremos.get(1).getAttribute("multiplicity")),
+                            tipo),
                     usuarioId);
+        }
+
+        for (Element gen : porEtiqueta(doc, "UML:Generalization")) {
+            String childRef = gen.getAttribute("child");
+            String parentRef = gen.getAttribute("parent");
+            if ((childRef.isEmpty() || parentRef.isEmpty()) && gen.hasAttribute("subtype") && gen.hasAttribute("supertype")) {
+                childRef = gen.getAttribute("subtype");
+                parentRef = gen.getAttribute("supertype");
+            }
+            if (childRef.isEmpty()) {
+                var cList = porEtiqueta(gen, "UML:Generalization.child");
+                if (!cList.isEmpty() && !porEtiqueta(cList.get(0), "UML:Class").isEmpty()) {
+                    childRef = porEtiqueta(cList.get(0), "UML:Class").get(0).getAttribute("xmi.idref");
+                }
+            }
+            if (parentRef.isEmpty()) {
+                var pList = porEtiqueta(gen, "UML:Generalization.parent");
+                if (!pList.isEmpty() && !porEtiqueta(pList.get(0), "UML:Class").isEmpty()) {
+                    parentRef = porEtiqueta(pList.get(0), "UML:Class").get(0).getAttribute("xmi.idref");
+                }
+            }
+            Long hijoId = entidadIdPorXmiId.get(childRef);
+            Long padreId = entidadIdPorXmiId.get(parentRef);
+            if (hijoId != null && padreId != null) {
+                relacionDiagramaService.crearSinTablaIntermedia(
+                        proyectoId,
+                        new RelacionDiagramaRequest(
+                                hijoId, padreId,
+                                Multiplicidad.UNO,
+                                Multiplicidad.UNO,
+                                RelacionDiagrama.TipoRelacionUml.HERENCIA),
+                        usuarioId);
+            }
         }
 
         for (Element assocClase : asociacionesClase) {
