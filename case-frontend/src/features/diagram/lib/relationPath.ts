@@ -1,6 +1,6 @@
 import type { InternalNode, Node } from "@xyflow/react"
 import { calcularParametrosAristaHaciaPunto, centroDe, offsetDesdePosicion } from "./floatingEdge"
-import type { PuntoControl } from "../types/diagram.types"
+import type { PuntoControl, TipoRelacionUml } from "../types/diagram.types"
 
 /**
  * Arma la línea de una relación no recursiva como una polilínea recta: floating edge de `origen`
@@ -55,13 +55,18 @@ function puntoMedioDeRuta(puntos: Punto[]): Punto {
 export function construirRutaRelacion(
   nodoOrigen: InternalNode<Node>,
   nodoDestino: InternalNode<Node>,
-  puntosControl: PuntoControl[]
+  puntosControl: PuntoControl[],
+  tipo: TipoRelacionUml = "ASOCIACION"
 ): RutaRelacion {
   const primerPunto = puntosControl[0] ?? centroDe(nodoDestino)
   const ultimoPunto = puntosControl[puntosControl.length - 1] ?? centroDe(nodoOrigen)
 
-  const salida = calcularParametrosAristaHaciaPunto(nodoOrigen, primerPunto)
-  const entrada = calcularParametrosAristaHaciaPunto(nodoDestino, ultimoPunto)
+  // Separación extra del borde para relaciones con marcadores (evita que la tabla tape rombos/flechas)
+  const gapOrigen = tipo === "COMPOSICION" || tipo === "AGREGACION" ? 3 : 0
+  const gapDestino = tipo === "HERENCIA" ? 3 : 0
+
+  const salida = calcularParametrosAristaHaciaPunto(nodoOrigen, primerPunto, undefined, undefined, gapOrigen)
+  const entrada = calcularParametrosAristaHaciaPunto(nodoDestino, ultimoPunto, undefined, undefined, gapDestino)
 
   const puntosRuta: Punto[] = [
     { x: salida.x, y: salida.y },
@@ -71,8 +76,12 @@ export function construirRutaRelacion(
   const edgePath = puntosRuta.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ")
   const { x: labelX, y: labelY } = puntoMedioDeRuta(puntosRuta)
 
-  const offOrigen = offsetDesdePosicion(salida.pos, 18)
-  const offDestino = offsetDesdePosicion(entrada.pos, 18)
+  // Separación de los badges de multiplicidad para no colisionar con rombos ni flechas
+  const distOrigen = tipo === "COMPOSICION" || tipo === "AGREGACION" ? 44 : 18
+  const distDestino = tipo === "HERENCIA" ? 44 : 18
+
+  const offOrigen = offsetDesdePosicion(salida.pos, distOrigen)
+  const offDestino = offsetDesdePosicion(entrada.pos, distDestino)
 
   return {
     edgePath,

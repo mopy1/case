@@ -36,38 +36,41 @@ export function centroDe(nodo: InternalNode<Node>, anchoDefault = ANCHO_NODO_DEF
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
 }
 
-/** Punto donde el segmento entre el centro de `desde` y `puntoExterior` cruza el borde de
- * `desde` (aproximado sobre la elipse inscripta en su rectángulo — suficiente para que se vea
- * bien y es la fórmula estándar de este patrón). */
-function interseccionConPunto(desde: Rect, puntoExterior: { x: number; y: number }) {
-  const w = desde.width / 2
-  const h = desde.height / 2
-  const x2 = desde.x + w
-  const y2 = desde.y + h
-  const x1 = puntoExterior.x
-  const y1 = puntoExterior.y
+/** Punto donde el segmento entre el centro de `desde` y `puntoExterior` cruza el borde del
+ * rectángulo de `desde` con soporte de margen/gap opcional hacia afuera. */
+function interseccionConPunto(desde: Rect, puntoExterior: { x: number; y: number }, gap = 0) {
+  const cx = desde.x + desde.width / 2
+  const cy = desde.y + desde.height / 2
+  const dx = puntoExterior.x - cx
+  const dy = puntoExterior.y - cy
 
-  const xx1 = (x1 - x2) / (2 * w) - (y1 - y2) / (2 * h)
-  const yy1 = (x1 - x2) / (2 * w) + (y1 - y2) / (2 * h)
-  const a = 1 / (Math.abs(xx1) + Math.abs(yy1) || 1)
-  const xx3 = a * xx1
-  const yy3 = a * yy1
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
+    return { x: cx, y: cy }
+  }
 
-  return { x: w * (xx3 + yy3) + x2, y: h * (-xx3 + yy3) + y2 }
+  const hw = desde.width / 2 + gap
+  const hh = desde.height / 2 + gap
+
+  const scaleX = hw / Math.abs(dx)
+  const scaleY = hh / Math.abs(dy)
+  const scale = Math.min(scaleX, scaleY)
+
+  return { x: cx + dx * scale, y: cy + dy * scale }
 }
 
-/** De qué lado del rectángulo cayó el punto de intersección — para saber si la línea sale hacia
- * arriba/abajo/izquierda/derecha (y así usar el `Position` correcto en `getSmoothStepPath`). */
+/** De qué lado del rectángulo cayó el punto de intersección — comparando el ángulo contra las diagonales. */
 function ladoDe(rect: Rect, punto: { x: number; y: number }): Position {
-  const x = Math.round(punto.x)
-  const y = Math.round(punto.y)
-  const nx = Math.round(rect.x)
-  const ny = Math.round(rect.y)
+  const cx = rect.x + rect.width / 2
+  const cy = rect.y + rect.height / 2
+  const dx = punto.x - cx
+  const dy = punto.y - cy
+  const hw = rect.width / 2
+  const hh = rect.height / 2
 
-  if (x <= nx + 1) return Position.Left
-  if (x >= nx + rect.width - 1) return Position.Right
-  if (y <= ny + 1) return Position.Top
-  return Position.Bottom
+  if (Math.abs(dx) * hh >= Math.abs(dy) * hw) {
+    return dx >= 0 ? Position.Right : Position.Left
+  }
+  return dy >= 0 ? Position.Bottom : Position.Top
 }
 
 export interface ParametrosSalida {
@@ -76,18 +79,16 @@ export interface ParametrosSalida {
   pos: Position
 }
 
-/** Punto de enganche de `origen` apuntando hacia un punto libre (el centro de la otra tabla, para
- * el fallback de toda la tabla) en vez de resolver ambos lados de una — cada lado de
- * `construirRutaRelacion` se resuelve por separado según si encontró o no una fila de atributo
- * a la cual anclarse. */
+/** Punto de enganche de `origen` apuntando hacia un punto libre con soporte de separación (gap). */
 export function calcularParametrosAristaHaciaPunto(
   origen: InternalNode<Node>,
   puntoExterior: { x: number; y: number },
   anchoDefault = ANCHO_NODO_DEFAULT,
-  altoDefault = ALTO_NODO_DEFAULT
+  altoDefault = ALTO_NODO_DEFAULT,
+  gap = 0
 ): ParametrosSalida {
   const rect = rectDe(origen, anchoDefault, altoDefault)
-  const punto = interseccionConPunto(rect, puntoExterior)
+  const punto = interseccionConPunto(rect, puntoExterior, gap)
   return { x: punto.x, y: punto.y, pos: ladoDe(rect, punto) }
 }
 

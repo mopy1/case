@@ -48,6 +48,8 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
   let destinoX: number
   let destinoY: number
 
+  const tipo = relacion.tipo || "ASOCIACION"
+
   if (esRecursiva) {
     const { x, y } = nodoOrigen.internals.positionAbsolute
     const ancho = nodoOrigen.measured?.width ?? 256
@@ -67,7 +69,7 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
     destinoX = targetX - stub
     destinoY = (targetY + loopY) / 2
   } else {
-    const ruta = construirRutaRelacion(nodoOrigen, nodoDestino, puntosLocal)
+    const ruta = construirRutaRelacion(nodoOrigen, nodoDestino, puntosLocal, tipo)
     edgePath = ruta.edgePath
     labelX = ruta.labelX
     labelY = ruta.labelY
@@ -82,7 +84,6 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
     strokeWidth: anchoLineaRelacion(selected, resaltada),
   }
 
-  const tipo = relacion.tipo || "ASOCIACION"
   const markerStart =
     tipo === "COMPOSICION"
       ? "url(#uml-marker-composition)"
@@ -116,10 +117,10 @@ export const UmlRelationEdge = memo(function UmlRelationEdge({
         ) : (
           tipo !== "ASOCIACION" && (
             <div
-              className="nodrag nopan pointer-events-none absolute select-none rounded-full border border-border/60 bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold text-foreground/80 shadow-xs"
+              className="nodrag nopan pointer-events-none absolute select-none rounded-full border border-border/80 bg-card/95 px-2 py-0.5 text-[9px] font-semibold text-foreground shadow-xs"
               style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
             >
-              {tipo === "COMPOSICION" ? "◆ Comp" : tipo === "AGREGACION" ? "◇ Agreg" : "▷ Herencia"}
+              {tipo === "COMPOSICION" ? "◆ Composición" : tipo === "AGREGACION" ? "◇ Agregación" : "▷ Herencia"}
             </div>
           )
         )}

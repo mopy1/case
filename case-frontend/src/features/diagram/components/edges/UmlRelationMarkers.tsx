@@ -2,54 +2,60 @@ export function UmlRelationMarkers() {
   return (
     <svg className="absolute w-0 h-0 pointer-events-none opacity-0" aria-hidden="true">
       <defs>
-        {/* Rombo relleno para Composición (va en el origen) */}
+        {/* Rombo relleno para Composición (va en el origen, se proyecta sobre la línea saliente) */}
         <marker
           id="uml-marker-composition"
-          viewBox="0 0 20 20"
-          refX="10"
-          refY="10"
-          markerWidth="14"
-          markerHeight="14"
-          orient="auto-start-reverse"
+          viewBox="0 0 24 24"
+          refX="0"
+          refY="12"
+          markerWidth="18"
+          markerHeight="18"
+          orient="auto"
+          overflow="visible"
         >
           <polygon
-            points="10,2 18,10 10,18 2,10"
+            points="0,12 10,5 20,12 10,19"
             className="fill-foreground stroke-foreground"
             strokeWidth="1.5"
+            strokeLinejoin="round"
           />
         </marker>
 
-        {/* Rombo hueco para Agregación (va en el origen) */}
+        {/* Rombo hueco para Agregación (va en el origen, con fondo para cubrir la línea subyacente) */}
         <marker
           id="uml-marker-aggregation"
-          viewBox="0 0 20 20"
-          refX="10"
-          refY="10"
-          markerWidth="14"
-          markerHeight="14"
-          orient="auto-start-reverse"
+          viewBox="0 0 24 24"
+          refX="0"
+          refY="12"
+          markerWidth="18"
+          markerHeight="18"
+          orient="auto"
+          overflow="visible"
         >
           <polygon
-            points="10,2 18,10 10,18 2,10"
-            className="fill-background stroke-foreground"
-            strokeWidth="1.5"
+            points="0,12 10,5 20,12 10,19"
+            className="fill-card stroke-foreground"
+            strokeWidth="1.75"
+            strokeLinejoin="round"
           />
         </marker>
 
-        {/* Triángulo hueco para Herencia / Generalización (apunta al destino) */}
+        {/* Triángulo para Herencia (va en el destino, punta en refX=20 tocando la tabla destino) */}
         <marker
           id="uml-marker-inheritance"
-          viewBox="0 0 20 20"
-          refX="17"
-          refY="10"
-          markerWidth="14"
-          markerHeight="14"
+          viewBox="0 0 24 24"
+          refX="20"
+          refY="12"
+          markerWidth="18"
+          markerHeight="18"
           orient="auto"
+          overflow="visible"
         >
           <polygon
-            points="3,3 17,10 3,17"
-            className="fill-background stroke-foreground"
-            strokeWidth="1.5"
+            points="3,4 20,12 3,20"
+            className="fill-card stroke-foreground"
+            strokeWidth="1.75"
+            strokeLinejoin="round"
           />
         </marker>
       </defs>
