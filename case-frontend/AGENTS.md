@@ -101,13 +101,13 @@ case-frontend/src/
     │   ├── lib/zipExporter.ts                # Empaquetado binario cliente y descarga ZIP inmediata
     │   └── pages/ProjectGeneratorPage.tsx    # Explorador de código, visor reactivo y descarga .ZIP
     │
-    ├── copilot/                              # 🤖 Asistente Autónomo Copilot & Control del Lienzo
-    │   ├── components/copilot-panel.tsx      # Panel dual: Drawer flotante en celular / Acoplado en escritorio
-    │   ├── components/copilot-header.tsx, copilot-input.tsx, copilot-message-list.tsx,
-    │   │   copilot-message-item.tsx, copilot-card-list.tsx, copilot-quick-suggestions.tsx
-    │   ├── components/tarjetas/              # Tarjetas de acción: entidad, relación, ADR, tarea, atributo, borrado
+    ├── copilot/                              # 🤖 Asistente Autónomo Copilot & Visión Híbrida IA
+    │   ├── components/copilot-panel.tsx, copilot-header.tsx, copilot-input.tsx, copilot-image-attach.tsx
+    │   ├── components/copilot-message-list.tsx, copilot-message-item.tsx, copilot-card-list.tsx
+    │   ├── components/tarjetas/              # Tarjetas interactivas (entidad, relación, ADR, tarea, atributo)
     │   ├── hooks/useCopilot.ts, usePanelResize.ts, useCopilotActionHandlers.ts
-    │   └── lib/copilotKnowledge.ts, copilotSystemPrompt.ts, geminiService.ts, copilotBatchExecutor.ts
+    │   └── lib/geminiService.ts (Router: DeepSeek texto / Gemini fotos), geminiVisionService.ts,
+    │       copilotImageUtils.ts (compresión canvas), copilotBatchExecutor.ts, copilotKnowledge.ts
     │
     ├── collaboration/                        # 👥 Colaboración en Tiempo Real (Presencia & Cursores)
     │   ├── api/collaborationApi.ts

@@ -3,32 +3,21 @@ import { ArrowUp, CornerDownLeft, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { VoiceMicButton, useSpeechRecognition } from "@/features/voice"
 import type { CopilotSection } from "../types/copilot.types"
+import { parseVoiceCommand } from "../lib/copilotVoiceUtils"
+import { processImageFile, type ProcessedImage } from "../lib/copilotImageUtils"
+import { SECTION_PLACEHOLDERS } from "../lib/copilotPlaceholders"
+import { CopilotImageAttach } from "./copilot-image-attach"
 
 interface CopilotInputProps {
   section: CopilotSection
   loading: boolean
-  onSend: (text: string) => void
-}
-
-const SECTION_PLACEHOLDERS: Record<CopilotSection, string> = {
-  diagrama: "Escribe tablas, relaciones o notas (ej: Cliente 1 a N Mascotas)...",
-  generador: "Pregunta sobre Spring Boot 3.4, dependencias, controladores...",
-  xmi: "Pregunta sobre importar o exportar XMI para EA 16...",
-  notas: "Pide documentar decisiones arquitectónicas o registrar ADRs...",
-  tareas: "Pregunta sobre tareas y colaboradores del proyecto...",
-  general: "Escribe tu consulta o pide crear tablas y notas...",
-}
-
-function parseVoiceCommand(text: string) {
-  const trimmed = text.trim()
-  const isSend = /\b(?:enviar|envía|mandar)\s*[.!]?$/i.test(trimmed)
-  const isStop = /\b(?:detener|parar)\s*[.!]?$/i.test(trimmed)
-  const clean = trimmed.replace(/\b(?:enviar|envía|mandar|detener|parar)\s*[.!]?$/i, "").trim()
-  return { isSend, isStop, clean }
+  onSend: (text: string, image?: ProcessedImage) => void
 }
 
 export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
   const [text, setText] = useState("")
+  const [attachedImage, setAttachedImage] = useState<ProcessedImage | null>(null)
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const baseTextRef = useRef("")
 
@@ -43,18 +32,16 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
           stopListening()
           resetTranscript()
           baseTextRef.current = ""
-          if (isSend && finalMsg && !loading) {
-            onSend(finalMsg)
+          if (isSend && (finalMsg || attachedImage) && !loading) {
+            onSend(finalMsg, attachedImage || undefined)
             setText("")
-            if (textareaRef.current) textareaRef.current.style.height = "auto"
+            setAttachedImage(null)
           } else {
             setText(finalMsg)
           }
           return
         }
-
-        const combined = (baseTextRef.current ? `${baseTextRef.current} ${spokenText}` : spokenText).trim()
-        setText(combined)
+        setText((baseTextRef.current ? `${baseTextRef.current} ${spokenText}` : spokenText).trim())
       },
     })
 
@@ -62,24 +49,17 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
     const textarea = textareaRef.current
     if (!textarea) return
     textarea.style.height = "auto"
-    const newHeight = Math.min(Math.max(textarea.scrollHeight, 44), 160)
-    textarea.style.height = `${newHeight}px`
+    textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 44), 160)}px`
   }, [text])
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
 
   function handleSend() {
     if (isListening) stopListening()
     baseTextRef.current = ""
     const trimmed = text.trim()
-    if (!trimmed || loading) return
-    onSend(trimmed)
+    if ((!trimmed && !attachedImage) || loading) return
+    onSend(trimmed, attachedImage || undefined)
     setText("")
+    setAttachedImage(null)
     if (textareaRef.current) textareaRef.current.style.height = "auto"
   }
 
@@ -94,6 +74,17 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
     }
   }
 
+  async function handleImageSelected(file: File) {
+    setIsProcessingImage(true)
+    try {
+      setAttachedImage(await processImageFile(file))
+    } catch (err) {
+      console.error("Error al procesar imagen:", err)
+    } finally {
+      setIsProcessingImage(false)
+    }
+  }
+
   return (
     <div className="border-t border-border bg-card/95 p-2.5 sm:p-3 backdrop-blur-xs">
       <div className="flex flex-col rounded-xl border border-border/80 bg-background p-2 shadow-xs transition-colors focus-within:border-primary/60 focus-within:ring-1 focus-within:ring-primary/30">
@@ -101,13 +92,13 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            setTimeout(() => {
-              textareaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
-            }, 150)
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              handleSend()
+            }
           }}
-          placeholder={SECTION_PLACEHOLDERS[section] || "Escribe tu consulta o instrucción..."}
+          placeholder={attachedImage ? "Añade instrucciones o presiona Enviar para reconocer..." : (SECTION_PLACEHOLDERS[section] || "Escribe tu consulta o instrucción...")}
           disabled={loading}
           rows={1}
           className="w-full resize-none bg-transparent px-2 py-1 text-base sm:text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50 overflow-y-auto break-words"
@@ -118,6 +109,13 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
             <CornerDownLeft className="size-2.5" /> ↵ Enviar • ⇧↵ Salto de línea
           </span>
           <div className="flex items-center gap-1.5 ml-auto shrink-0">
+            <CopilotImageAttach
+              attachedImage={attachedImage}
+              isProcessing={isProcessingImage}
+              disabled={loading}
+              onImageSelected={handleImageSelected}
+              onRemoveImage={() => setAttachedImage(null)}
+            />
             <VoiceMicButton
               isListening={isListening}
               isSupported={isSupported}
@@ -127,7 +125,7 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
             <Button
               type="button"
               size="icon"
-              disabled={!text.trim() || loading}
+              disabled={(!text.trim() && !attachedImage) || loading || isProcessingImage}
               onClick={handleSend}
               className="size-8 sm:size-7 rounded-lg cursor-pointer shrink-0"
             >

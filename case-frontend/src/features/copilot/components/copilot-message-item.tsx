@@ -26,7 +26,22 @@ export function CopilotMessageItem({
             : "max-w-[98%] sm:max-w-[95%] rounded-tl-xs border border-border/70 bg-card text-card-foreground shadow-xs"
         }`}
       >
-        {isUser ? <p className="whitespace-pre-wrap break-words">{message.text}</p> : renderFormattedContent(message.text)}
+        {isUser ? (
+          <div>
+            {message.imageUrl && (
+              <div className="mb-2 overflow-hidden rounded-lg border border-primary-foreground/20 bg-black/10">
+                <img
+                  src={message.imageUrl}
+                  alt="Diagrama adjunto"
+                  className="max-h-52 w-auto object-contain rounded-md"
+                />
+              </div>
+            )}
+            <p className="whitespace-pre-wrap break-words">{message.text}</p>
+          </div>
+        ) : (
+          renderFormattedContent(message.text)
+        )}
       </div>
 
       {!isUser && (

@@ -83,6 +83,7 @@ export interface CopilotMessage {
   taskSuggestions?: TaskSuggestion[]
   systemActions?: SystemActionSuggestion[]
   section?: CopilotSection
+  imageUrl?: string
 }
 
 export interface KnowledgeTopic {

@@ -75,7 +75,7 @@ cd case-frontend && npm run dev
 | **Diagramador UML** | Lienzo de tablas, atributos (PK, FK, tipos SQL), multiplicidades (1:1, 1:N, N:M con tabla intermedia automática), puntos de control ortogonales y salto visual de líneas. | ✅ **1.0** | `@xyflow/react` v12, Floating Edges AABB. |
 | **Interoperabilidad XMI**| Exportación e importación compatible con Enterprise Architect (dialectos 1.1 y 2.1). | ✅ **1.0** | DOM XML Parser con blindaje anti-XXE. |
 | **Generador Spring Boot** | Generación en cliente de proyectos completos Spring Boot 3.4 (Java 21) empaquetados en ZIP, con JPA, DTOs, Services con inyección foránea, Controllers y Swagger. | ✅ **1.0** | TypeScript, JSZip, FileSaver. |
-| **Copilot IA & Control** | Asistente conversacional contextual con manual integrado, control del lienzo (crear tablas, atributos, relaciones), sugerencias ADR y soporte responsivo móvil (Drawer flotante). | ✅ **1.0** | DeepSeek / Gemini API, Regex Parsers. |
+| **Copilot IA & Visión** | Asistente multimodal híbrido (DeepSeek para texto y Gemini 3.5 Flash Lite para fotos de diagramas y bocetos con cámara), control del lienzo, sugerencias ADR y Drawer responsivo. | ✅ **1.0** | DeepSeek Chat, Gemini Vision, HTML5 Canvas. |
 | **Colaboración Realtime**| Sincronización multi-usuario, cursores remotos con avatares de color, presencia en vivo y auto-polling silencioso de mutaciones del diagrama. | ✅ **1.0** | `BroadcastChannel` + HTTP Presence API. |
 | **Interacción por Voz** | Dictado por voz en español y modo Walkie-Talkie Push-to-Talk con atajo de teclado (`[Espacio]` / `[V]`) y HUD flotante reactivo. | ✅ **1.0** | Web Speech API nativa. |
 

@@ -4,6 +4,7 @@ import { getDiagram } from "@/features/diagram/api/diagramApi"
 import type { CopilotMessage } from "../types/copilot.types"
 import { getQuickQuestionsForSection } from "../lib/copilotQuestions"
 import { askCopilot } from "../lib/geminiService"
+import type { ProcessedImage } from "../lib/copilotImageUtils"
 import { createWelcomeMessage, detectActiveSection } from "../lib/copilotSection"
 import { useCopilotActionHandlers } from "./useCopilotActionHandlers"
 import { executeAllMessageChanges } from "../lib/copilotBatchExecutor"
@@ -31,14 +32,16 @@ export function useCopilot(proyectoId: number) {
   }, [])
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, image?: ProcessedImage) => {
       const trimmed = text.trim()
-      if (!trimmed || loading) return
+      if ((!trimmed && !image) || loading) return
 
+      const displayText = trimmed || (image ? "📷 Diagrama enviado para reconocimiento" : "")
       const userMsg: CopilotMessage = {
         id: `user-${Date.now()}`,
         sender: "user",
-        text: trimmed,
+        text: displayText,
+        imageUrl: image?.previewUrl,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         section: activeSection,
       }
@@ -48,7 +51,7 @@ export function useCopilot(proyectoId: number) {
 
       try {
         const diagram = await getDiagram(proyectoId).catch(() => undefined)
-        const res = await askCopilot(trimmed, activeSection, diagram)
+        const res = await askCopilot(trimmed, activeSection, diagram, image)
         const assistantMsgId = `assistant-${Date.now()}`
         const assistantMsg: CopilotMessage = {
           id: assistantMsgId,
@@ -69,7 +72,6 @@ export function useCopilot(proyectoId: number) {
 
         setMessages((prev) => [...prev, assistantMsg])
 
-        // Si el Modo Autónomo está activo y hay acciones que ejecutar, ejecutarlas de inmediato
         if (autoMode && hasAnyActions(assistantMsg)) {
           try {
             await executeAllMessageChanges(proyectoId, assistantMsg)

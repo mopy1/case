@@ -23,6 +23,8 @@ import {
   parseTaskSuggestions,
 } from "./copilotParsers"
 import { buildSystemContext } from "./copilotSystemPrompt"
+import { askGeminiVision } from "./geminiVisionService"
+import type { ProcessedImage } from "./copilotImageUtils"
 
 export interface AskCopilotResult {
   text: string
@@ -63,22 +65,32 @@ function processAssistantResponse(
 export async function askCopilot(
   query: string,
   section: CopilotSection,
-  diagram?: { entidades: EntidadDiagramaResponse[]; relaciones: RelacionDiagramaResponse[] }
+  diagram?: { entidades: EntidadDiagramaResponse[]; relaciones: RelacionDiagramaResponse[] },
+  image?: ProcessedImage
 ): Promise<AskCopilotResult> {
+  const existingEntities = diagram?.entidades ?? []
+
+  // 1. Si el usuario adjuntó una foto: USAR EXCLUSIVAMENTE GOOGLE GEMINI (Visión)
+  if (image) {
+    try {
+      const visionRawText = await askGeminiVision(query, image, diagram)
+      return processAssistantResponse(visionRawText, existingEntities, query)
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Error al procesar la imagen con Google Gemini."
+      return {
+        text: `⚠️ **Error de Reconocimiento Visual (Gemini):** ${errorMsg}\n\nAsegúrate de que la foto esté bien iluminada y las tablas/relaciones sean legibles.`,
+      }
+    }
+  }
+
+  // 2. Para texto/escritura: USAR EXCLUSIVAMENTE DEEPSEEK (Ahorro de tokens de Google)
   const deepseekKey =
     import.meta.env.VITE_DEEPSEEK_API_KEY ||
     (import.meta.env as unknown as Record<string, string>)["VITE_DEEPSEEk_API_KEY"]
-  const geminiKey = import.meta.env.VITE_GEMINI_API_KEY
-  const existingEntities = diagram?.entidades ?? []
-
-  if (!deepseekKey && !geminiKey) {
-    return generateLocalResponse(query, section, existingEntities)
-  }
-
-  const systemContext = buildSystemContext(section, diagram)
 
   if (deepseekKey && typeof deepseekKey === "string" && deepseekKey.trim()) {
     try {
+      const systemContext = buildSystemContext(section, diagram)
       const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekKey.trim()}` },
@@ -97,35 +109,10 @@ export async function askCopilot(
         }
       }
     } catch {
-      // fallback
+      // Fallback a motor local si no hay conexión
     }
   }
 
-  if (geminiKey && typeof geminiKey === "string" && geminiKey.trim()) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey.trim()}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: query }] }],
-            systemInstruction: { parts: [{ text: systemContext }] },
-          }),
-        }
-      )
-
-      if (res.ok) {
-        const data = await res.json()
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text
-        if (rawText) {
-          return processAssistantResponse(rawText, existingEntities, query)
-        }
-      }
-    } catch {
-      // fallback
-    }
-  }
-
+  // 3. Fallback a conocimiento local si no hay API de DeepSeek disponible
   return generateLocalResponse(query, section, existingEntities)
 }
