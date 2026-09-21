@@ -78,6 +78,25 @@ export function toJavaType(sqlType?: string | null): string {
   return "String"
 }
 
+export function normalizeIdentifier(str?: string | null): string {
+  if (!str) return ""
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/^id/, "")
+    .replace(/id$/, "")
+    .replace(/s$/, "")
+    .replace(/e$/, "")
+}
+
+export function isSameForeignKey(attrName: string, relFieldName: string, relColName: string): boolean {
+  const normAttr = normalizeIdentifier(attrName)
+  const normField = normalizeIdentifier(relFieldName)
+  const normCol = normalizeIdentifier(relColName)
+  if (!normAttr || (!normField && !normCol)) return false
+  return normAttr === normField || normAttr === normCol
+}
+
 // Estructura interna para relaciones JPA
 interface ManyToOneRel {
   targetEntityName: string
@@ -182,6 +201,9 @@ function resolverRelacionesJPA(
         const baseNombre = match && match[1] ? match[1].toLowerCase() : ""
         if (baseNombre) {
           destino = entidadPorNombre.get(baseNombre)
+          if (!destino) {
+            destino = entidades.find((e) => normalizeIdentifier(e.nombre) === normalizeIdentifier(baseNombre))
+          }
         }
       }
 
@@ -195,7 +217,13 @@ function resolverRelacionesJPA(
         }
 
         // Evitar duplicados
-        if (!entidadRel.manyToOne.some((m) => m.fieldName === fieldName)) {
+        const alreadyHas = entidadRel.manyToOne.some(
+          (m) =>
+            m.columnName.toLowerCase() === attr.nombre.toLowerCase() ||
+            isSameForeignKey(m.fieldName, fieldName, attr.nombre)
+        )
+
+        if (!alreadyHas) {
           entidadRel.manyToOne.push({
             targetEntityName,
             fieldName,
@@ -234,14 +262,27 @@ function resolverRelacionesJPA(
     // Caso 1:N -> Destino es el lado "Muchos", Origen es el lado "Uno"
     if (esUnoOrigen && esMuchosDestino) {
       const destRel = mapa.get(destino.id)!
-      const fieldName = toCamelCase(origen.nombre)
-      const colName = `${toSnakeCase(origen.nombre)}_id`
-      if (!destRel.manyToOne.some((m) => m.fieldName === fieldName)) {
+      const existingAttr = destino.atributos.find(
+        (a) => isSameForeignKey(a.nombre, origen.nombre, `${toSnakeCase(origen.nombre)}_id`)
+      )
+      const colName = existingAttr ? existingAttr.nombre.toLowerCase() : `${toSnakeCase(origen.nombre)}_id`
+      const rawFieldName = existingAttr
+        ? existingAttr.nombre.replace(/^id_/i, "").replace(/_id$/i, "")
+        : origen.nombre
+      const fieldName = toCamelCase(rawFieldName) || toCamelCase(origen.nombre)
+
+      const alreadyHas = destRel.manyToOne.some(
+        (m) =>
+          m.columnName.toLowerCase() === colName.toLowerCase() ||
+          isSameForeignKey(m.fieldName, fieldName, colName)
+      )
+
+      if (!alreadyHas) {
         destRel.manyToOne.push({
           targetEntityName: toPascalCase(origen.nombre),
           fieldName,
           columnName: colName,
-          nullable: rel.multiplicidadOrigen === "CERO_O_UNO",
+          nullable: existingAttr ? existingAttr.nullable : rel.multiplicidadOrigen === "CERO_O_UNO",
         })
 
         const origRel = mapa.get(origen.id)!
@@ -257,14 +298,27 @@ function resolverRelacionesJPA(
     } else if (esMuchosOrigen && esUnoDestino) {
       // Caso N:1 -> Origen es el lado "Muchos", Destino es el lado "Uno"
       const origRel = mapa.get(origen.id)!
-      const fieldName = toCamelCase(destino.nombre)
-      const colName = `${toSnakeCase(destino.nombre)}_id`
-      if (!origRel.manyToOne.some((m) => m.fieldName === fieldName)) {
+      const existingAttr = origen.atributos.find(
+        (a) => isSameForeignKey(a.nombre, destino.nombre, `${toSnakeCase(destino.nombre)}_id`)
+      )
+      const colName = existingAttr ? existingAttr.nombre.toLowerCase() : `${toSnakeCase(destino.nombre)}_id`
+      const rawFieldName = existingAttr
+        ? existingAttr.nombre.replace(/^id_/i, "").replace(/_id$/i, "")
+        : destino.nombre
+      const fieldName = toCamelCase(rawFieldName) || toCamelCase(destino.nombre)
+
+      const alreadyHas = origRel.manyToOne.some(
+        (m) =>
+          m.columnName.toLowerCase() === colName.toLowerCase() ||
+          isSameForeignKey(m.fieldName, fieldName, colName)
+      )
+
+      if (!alreadyHas) {
         origRel.manyToOne.push({
           targetEntityName: toPascalCase(destino.nombre),
           fieldName,
           columnName: colName,
-          nullable: rel.multiplicidadDestino === "CERO_O_UNO",
+          nullable: existingAttr ? existingAttr.nullable : rel.multiplicidadDestino === "CERO_O_UNO",
         })
 
         const destRel = mapa.get(destino.id)!
@@ -280,14 +334,27 @@ function resolverRelacionesJPA(
     } else if (rel.tipo === "HERENCIA" || (esUnoOrigen && esUnoDestino)) {
       // Caso 1:1 o HERENCIA -> Origen (hija) referencia a Destino (padre)
       const origRel = mapa.get(origen.id)!
-      const fieldName = toCamelCase(destino.nombre)
-      const colName = `${toSnakeCase(destino.nombre)}_id`
-      if (!origRel.manyToOne.some((m) => m.fieldName === fieldName)) {
+      const existingAttr = origen.atributos.find(
+        (a) => isSameForeignKey(a.nombre, destino.nombre, `${toSnakeCase(destino.nombre)}_id`)
+      )
+      const colName = existingAttr ? existingAttr.nombre.toLowerCase() : `${toSnakeCase(destino.nombre)}_id`
+      const rawFieldName = existingAttr
+        ? existingAttr.nombre.replace(/^id_/i, "").replace(/_id$/i, "")
+        : destino.nombre
+      const fieldName = toCamelCase(rawFieldName) || toCamelCase(destino.nombre)
+
+      const alreadyHas = origRel.manyToOne.some(
+        (m) =>
+          m.columnName.toLowerCase() === colName.toLowerCase() ||
+          isSameForeignKey(m.fieldName, fieldName, colName)
+      )
+
+      if (!alreadyHas) {
         origRel.manyToOne.push({
           targetEntityName: toPascalCase(destino.nombre),
           fieldName,
           columnName: colName,
-          nullable: rel.tipo === "HERENCIA" ? false : rel.multiplicidadDestino === "CERO_O_UNO",
+          nullable: rel.tipo === "HERENCIA" ? false : (existingAttr ? existingAttr.nullable : rel.multiplicidadDestino === "CERO_O_UNO"),
         })
       }
     }
@@ -636,6 +703,18 @@ function generarModelJava(
   const tableName = entidad.nombre.toLowerCase()
   const atributos = asegurarAtributosConPk(entidad)
 
+  const isFkColumn = (attr: AtributoEntidadResponse) => {
+    if (attr.esPk) return false
+    return relaciones.manyToOne.some(
+      (rel) =>
+        attr.nombre.toLowerCase() === rel.columnName.toLowerCase() ||
+        isSameForeignKey(attr.nombre, rel.fieldName, rel.columnName)
+    )
+  }
+
+  // Columnas escalares (excluyendo FKs gestionadas por relaciones JPA)
+  const scalarAttrs = atributos.filter((a) => !isFkColumn(a))
+
   const lines: string[] = []
   lines.push(`package ${BASE_PACKAGE}.model;\n`)
   lines.push(`import jakarta.persistence.*;`)
@@ -650,7 +729,7 @@ function generarModelJava(
   lines.push(`public class ${className} {\n`)
 
   // Columnas escalares
-  for (const attr of atributos) {
+  for (const attr of scalarAttrs) {
     const fieldName = toCamelCase(attr.nombre)
     const javaType = toJavaType(attr.tipoSql)
 
@@ -667,14 +746,8 @@ function generarModelJava(
 
   // Relaciones @ManyToOne
   for (const rel of relaciones.manyToOne) {
-    const alreadyHasColumn = atributos.some((a) => a.nombre.toLowerCase() === rel.columnName.toLowerCase())
     lines.push(`    @ManyToOne(fetch = FetchType.LAZY)`)
-    if (alreadyHasColumn) {
-      // Para evitar choque con la columna escalar en Hibernate, se marca insertable=false, updatable=false
-      lines.push(`    @JoinColumn(name = "${rel.columnName}", insertable = false, updatable = false)`)
-    } else {
-      lines.push(`    @JoinColumn(name = "${rel.columnName}")`)
-    }
+    lines.push(`    @JoinColumn(name = "${rel.columnName}")`)
     lines.push(`    private ${rel.targetEntityName} ${rel.fieldName};\n`)
   }
 
@@ -688,7 +761,7 @@ function generarModelJava(
   lines.push(`    public ${className}() {}\n`)
 
   // Getters y Setters de columnas escalares
-  for (const attr of atributos) {
+  for (const attr of scalarAttrs) {
     const fieldName = toCamelCase(attr.nombre)
     const methodName = toPascalCase(attr.nombre)
     const javaType = toJavaType(attr.tipoSql)
@@ -730,18 +803,43 @@ function generarModelJava(
   return lines.join("\n")
 }
 
-function generarRepositoryJava(entidad: EntidadDiagramaResponse): string {
+function generarRepositoryJava(
+  entidad: EntidadDiagramaResponse,
+  rels?: RelacionesPorEntidad
+): string {
   const className = toPascalCase(entidad.nombre)
   const idType = obtenerTipoId(entidad)
+  const atributos = asegurarAtributosConPk(entidad)
+  const mtoRels = rels?.manyToOne ?? []
+
+  const queryMethods: string[] = []
+
+  for (const rel of mtoRels) {
+    const pascalRel = toPascalCase(rel.fieldName)
+    const camelFk = `${toCamelCase(rel.fieldName)}Id`
+    queryMethods.push(`    List<${className}> findBy${pascalRel}Id(Long ${camelFk});`)
+  }
+
+  const stringAttrs = atributos
+    .filter((a) => toJavaType(a.tipoSql) === "String" && !a.esPk)
+    .slice(0, 3)
+
+  for (const attr of stringAttrs) {
+    const pascalAttr = toPascalCase(attr.nombre)
+    const camelAttr = toCamelCase(attr.nombre)
+    queryMethods.push(`    List<${className}> findBy${pascalAttr}ContainingIgnoreCase(String ${camelAttr});`)
+  }
 
   return `package ${BASE_PACKAGE}.repository;
 
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import ${BASE_PACKAGE}.model.${className};
 
 @Repository
 public interface ${className}Repository extends JpaRepository<${className}, ${idType}> {
+${queryMethods.length > 0 ? queryMethods.join("\n") + "\n" : ""}
 }
 `
 }
@@ -752,7 +850,18 @@ function generarRequestDtoJava(
 ): string {
   const className = toPascalCase(entidad.nombre)
   const atributos = asegurarAtributosConPk(entidad)
-  const noPkAttrs = atributos.filter((a) => !a.esPk)
+  const mtoRels = rels?.manyToOne ?? []
+
+  const isFkColumn = (attr: AtributoEntidadResponse) => {
+    if (attr.esPk) return false
+    return mtoRels.some(
+      (rel) =>
+        attr.nombre.toLowerCase() === rel.columnName.toLowerCase() ||
+        isSameForeignKey(attr.nombre, rel.fieldName, rel.columnName)
+    )
+  }
+
+  const noPkAttrs = atributos.filter((a) => !a.esPk && !isFkColumn(a))
 
   const lines: string[] = []
   lines.push(`package ${BASE_PACKAGE}.dto;\n`)
@@ -780,17 +889,10 @@ function generarRequestDtoJava(
     fields.push(`    ${validation}${javaType} ${fieldName}`)
   }
 
-  if (rels) {
-    for (const rel of rels.manyToOne) {
-      const fkFieldName = `${toCamelCase(rel.fieldName)}Id`
-      const alreadyHas = noPkAttrs.some(
-        (a) => toCamelCase(a.nombre) === fkFieldName || a.nombre.toLowerCase() === rel.columnName.toLowerCase()
-      )
-      if (!alreadyHas) {
-        const validation = !rel.nullable ? `@NotNull(message = "${fkFieldName} es obligatorio") ` : ""
-        fields.push(`    ${validation}Long ${fkFieldName}`)
-      }
-    }
+  for (const rel of mtoRels) {
+    const fkFieldName = `${toCamelCase(rel.fieldName)}Id`
+    const validation = !rel.nullable ? `@NotNull(message = "${fkFieldName} es obligatorio") ` : ""
+    fields.push(`    ${validation}Long ${fkFieldName}`)
   }
 
   lines.push(fields.join(",\n"))
@@ -804,6 +906,18 @@ function generarResponseDtoJava(
 ): string {
   const className = toPascalCase(entidad.nombre)
   const atributos = asegurarAtributosConPk(entidad)
+  const mtoRels = rels?.manyToOne ?? []
+
+  const isFkColumn = (attr: AtributoEntidadResponse) => {
+    if (attr.esPk) return false
+    return mtoRels.some(
+      (rel) =>
+        attr.nombre.toLowerCase() === rel.columnName.toLowerCase() ||
+        isSameForeignKey(attr.nombre, rel.fieldName, rel.columnName)
+    )
+  }
+
+  const scalarAttrs = atributos.filter((a) => !isFkColumn(a))
 
   const lines: string[] = []
   lines.push(`package ${BASE_PACKAGE}.dto;\n`)
@@ -817,24 +931,17 @@ function generarResponseDtoJava(
   const fields: string[] = []
   const fromArgs: string[] = []
 
-  for (const attr of atributos) {
+  for (const attr of scalarAttrs) {
     fields.push(`    ${toJavaType(attr.tipoSql)} ${toCamelCase(attr.nombre)}`)
     fromArgs.push(`            entity.get${toPascalCase(attr.nombre)}()`)
   }
 
-  if (rels) {
-    for (const rel of rels.manyToOne) {
-      const fkFieldName = `${toCamelCase(rel.fieldName)}Id`
-      const alreadyHas = atributos.some(
-        (a) => toCamelCase(a.nombre) === fkFieldName || a.nombre.toLowerCase() === rel.columnName.toLowerCase()
-      )
-      if (!alreadyHas) {
-        fields.push(`    Long ${fkFieldName}`)
-        fromArgs.push(
-          `            entity.get${toPascalCase(rel.fieldName)}() != null ? entity.get${toPascalCase(rel.fieldName)}().getId() : null`
-        )
-      }
-    }
+  for (const rel of mtoRels) {
+    const fkFieldName = `${toCamelCase(rel.fieldName)}Id`
+    fields.push(`    Long ${fkFieldName}`)
+    fromArgs.push(
+      `            entity.get${toPascalCase(rel.fieldName)}() != null ? entity.get${toPascalCase(rel.fieldName)}().getId() : null`
+    )
   }
 
   lines.push(fields.join(",\n"))
@@ -855,16 +962,26 @@ function generarServiceJava(
   const className = toPascalCase(entidad.nombre)
   const idType = obtenerTipoId(entidad)
   const atributos = asegurarAtributosConPk(entidad)
-  const noPkAttrs = atributos.filter((a) => !a.esPk)
+  const mtoRels = rels?.manyToOne ?? []
 
-  const scalarSetters = noPkAttrs
+  const isFkColumn = (attr: AtributoEntidadResponse) => {
+    if (attr.esPk) return false
+    return mtoRels.some(
+      (rel) =>
+        attr.nombre.toLowerCase() === rel.columnName.toLowerCase() ||
+        isSameForeignKey(attr.nombre, rel.fieldName, rel.columnName)
+    )
+  }
+
+  const scalarNonPkAttrs = atributos.filter((a) => !a.esPk && !isFkColumn(a))
+
+  const scalarSetters = scalarNonPkAttrs
     .map(
       (a) =>
         `        entity.set${toPascalCase(a.nombre)}(request.${toCamelCase(a.nombre)}());`
     )
     .join("\n")
 
-  const mtoRels = rels?.manyToOne ?? []
   const uniqueForeignTargets = Array.from(
     new Set(mtoRels.map((r) => r.targetEntityName).filter((t) => t !== className))
   )
@@ -902,6 +1019,37 @@ function generarServiceJava(
 
   const allSetters = [scalarSetters, relSetters].filter(Boolean).join("\n")
 
+  const filterMethods: string[] = []
+
+  for (const rel of mtoRels) {
+    const pascalRel = toPascalCase(rel.fieldName)
+    const camelFk = `${toCamelCase(rel.fieldName)}Id`
+    filterMethods.push(`    @Transactional(readOnly = true)
+    public List<${className}Response> listarPor${pascalRel}(Long ${camelFk}) {
+        return repository.findBy${pascalRel}Id(${camelFk}).stream()
+                .map(${className}Response::from)
+                .toList();
+    }`)
+  }
+
+  const primarySearchAttr = atributos.find((a) => a.nombre.toLowerCase() === "nombre") ||
+    atributos.find((a) => toJavaType(a.tipoSql) === "String" && !a.esPk)
+
+  if (primarySearchAttr) {
+    const pascalAttr = toPascalCase(primarySearchAttr.nombre)
+    filterMethods.push(`    @Transactional(readOnly = true)
+    public List<${className}Response> buscar(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return listarTodos();
+        }
+        return repository.findBy${pascalAttr}ContainingIgnoreCase(texto.trim()).stream()
+                .map(${className}Response::from)
+                .toList();
+    }`)
+  }
+
+  const extraMethods = filterMethods.length > 0 ? "\n" + filterMethods.join("\n\n") : ""
+
   return `package ${BASE_PACKAGE}.service;
 
 import java.util.List;
@@ -929,6 +1077,7 @@ ${ctorAssignments}
                 .map(${className}Response::from)
                 .toList();
     }
+${extraMethods}
 
     @Transactional(readOnly = true)
     public ${className}Response obtenerPorId(${idType} id) {
@@ -960,7 +1109,10 @@ ${allSetters}
 `
 }
 
-function generarControllerJava(entidad: EntidadDiagramaResponse): string {
+function generarControllerJava(
+  entidad: EntidadDiagramaResponse,
+  rels?: RelacionesPorEntidad
+): string {
   const className = toPascalCase(entidad.nombre)
   const idType = obtenerTipoId(entidad)
   const singularPath = entidad.nombre.trim().replace(/[_-\s]+/g, "-").toLowerCase()
@@ -968,6 +1120,46 @@ function generarControllerJava(entidad: EntidadDiagramaResponse): string {
   const pathExpr = singularPath === pluralPath 
     ? `"/api/${pluralPath}"` 
     : `{"/api/${pluralPath}", "/api/${singularPath}"}`
+  const atributos = asegurarAtributosConPk(entidad)
+  const mtoRels = rels?.manyToOne ?? []
+
+  const primarySearchAttr = atributos.find((a) => a.nombre.toLowerCase() === "nombre") ||
+    atributos.find((a) => toJavaType(a.tipoSql) === "String" && !a.esPk)
+
+  const requestParams: string[] = []
+  const filterChecks: string[] = []
+
+  if (primarySearchAttr) {
+    requestParams.push(`            @RequestParam(required = false) String buscar`)
+    filterChecks.push(`        if (buscar != null && !buscar.isBlank()) {
+            return ResponseEntity.ok(service.buscar(buscar));
+        }`)
+  }
+
+  for (const rel of mtoRels) {
+    const camelFk = `${toCamelCase(rel.fieldName)}Id`
+    const pascalRel = toPascalCase(rel.fieldName)
+    const altFk = camelFk.endsWith("sId")
+      ? camelFk.replace(/sId$/, "Id")
+      : `${camelFk.replace(/Id$/, "")}sId`
+
+    if (altFk !== camelFk) {
+      requestParams.push(`            @RequestParam(required = false) Long ${camelFk}`)
+      requestParams.push(`            @RequestParam(required = false) Long ${altFk}`)
+      filterChecks.push(`        Long target_${camelFk} = ${camelFk} != null ? ${camelFk} : ${altFk};
+        if (target_${camelFk} != null) {
+            return ResponseEntity.ok(service.listarPor${pascalRel}(target_${camelFk}));
+        }`)
+    } else {
+      requestParams.push(`            @RequestParam(required = false) Long ${camelFk}`)
+      filterChecks.push(`        if (${camelFk} != null) {
+            return ResponseEntity.ok(service.listarPor${pascalRel}(${camelFk}));
+        }`)
+    }
+  }
+
+  const paramsSignature = requestParams.length > 0 ? `\n${requestParams.join(",\n")}\n    ` : ""
+  const filterBody = filterChecks.length > 0 ? `${filterChecks.join("\n")}\n        ` : ""
 
   return `package ${BASE_PACKAGE}.controller;
 
@@ -994,9 +1186,9 @@ public class ${className}Controller {
     }
 
     @GetMapping
-    @Operation(summary = "Listar todos los registros de ${className}")
-    public ResponseEntity<List<${className}Response>> listarTodos() {
-        return ResponseEntity.ok(service.listarTodos());
+    @Operation(summary = "Listar todos los registros de ${className} con filtros opcionales")
+    public ResponseEntity<List<${className}Response>> listarTodos(${paramsSignature}) {
+        ${filterBody}return ResponseEntity.ok(service.listarTodos());
     }
 
     @GetMapping("/{id}")
@@ -1107,7 +1299,7 @@ export function generarProyectoSpringBoot(
     })
     archivos.push({
       ruta: `${BASE_PATH}repository/${className}Repository.java`,
-      contenido: generarRepositoryJava(entidad),
+      contenido: generarRepositoryJava(entidad, rels),
       tipo: "JAVA",
     })
     archivos.push({
@@ -1127,7 +1319,7 @@ export function generarProyectoSpringBoot(
     })
     archivos.push({
       ruta: `${BASE_PATH}controller/${className}Controller.java`,
-      contenido: generarControllerJava(entidad),
+      contenido: generarControllerJava(entidad, rels),
       tipo: "JAVA",
     })
   }
