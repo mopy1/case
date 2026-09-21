@@ -43,14 +43,18 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
 
       <aside
         aria-label="Panel Asistente IA y Manual CASE"
-        style={isMobile ? undefined : { width: isOpen ? `${width}px` : 0 }}
+        style={
+          isMobile
+            ? { height: "var(--visual-viewport-height, 100dvh)", maxHeight: "var(--visual-viewport-height, 100dvh)" }
+            : { width: isOpen ? `${width}px` : 0 }
+        }
         className={cn(
           "bg-card border-border",
-          // Móvil: Drawer flotante que no empuja el layout
-          "fixed inset-y-0 right-0 z-50 flex h-full flex-col w-full sm:max-w-[380px] shadow-2xl transition-transform duration-200 ease-out",
+          // Móvil: Drawer flotante adaptativo al teclado virtual que no empuja el layout
+          "fixed top-0 right-0 z-50 flex flex-col w-full sm:max-w-[380px] shadow-2xl transition-transform duration-200 ease-out overscroll-contain",
           isOpen ? "translate-x-0 border-l" : "translate-x-full pointer-events-none invisible",
           // Escritorio: Panel acoplado redimensionable
-          "md:relative md:inset-auto md:z-auto md:w-auto md:shadow-xl md:translate-x-0 md:visible md:h-full md:shrink-0",
+          "md:relative md:top-auto md:right-auto md:inset-auto md:z-auto md:w-auto md:shadow-xl md:translate-x-0 md:visible md:h-full md:shrink-0",
           isDragging ? "md:select-none" : "md:transition-[width,opacity] md:duration-200 md:ease-out",
           isOpen
             ? "md:border-l md:opacity-100 md:pointer-events-auto"

@@ -57,7 +57,10 @@ export function ProjectLayout() {
   })
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background">
+    <div
+      className="flex h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-background"
+      style={{ height: "var(--visual-viewport-height, 100dvh)" }}
+    >
       <ProjectNavRail
         projectId={maskedCode || id!}
         miembros={miembros}

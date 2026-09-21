@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>case-frontend</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>Collaborative CASE Tool</title>
     <script>
       (function() {
         try {
@@ -15,6 +15,22 @@
             document.documentElement.classList.add('dark');
           }
         } catch (e) {}
+
+        // Sincronización continua de visualViewport con teclado en móviles
+        function syncVisualViewport() {
+          var vv = window.visualViewport;
+          var h = vv ? vv.height : window.innerHeight;
+          document.documentElement.style.setProperty('--visual-viewport-height', h + 'px');
+          var diff = window.innerHeight - h;
+          document.documentElement.style.setProperty('--keyboard-height', Math.max(0, diff) + 'px');
+        }
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', syncVisualViewport);
+          window.visualViewport.addEventListener('scroll', syncVisualViewport);
+        }
+        window.addEventListener('resize', syncVisualViewport);
+        window.addEventListener('orientationchange', syncVisualViewport);
+        syncVisualViewport();
       })();
     </script>
   </head>

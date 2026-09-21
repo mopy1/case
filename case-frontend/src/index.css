@@ -5,6 +5,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --visual-viewport-height: 100dvh;
+  --keyboard-height: 0px;
+}
+
+html, body, #root {
+  height: 100%;
+  min-height: 100dvh;
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Inter Variable', sans-serif;

@@ -45,7 +45,10 @@ export function EntityPropertiesPanel({
   }
 
   return (
-    <aside className="absolute top-4 right-4 z-10 flex max-h-[calc(100vh-2rem)] w-80 flex-col gap-4 overflow-y-auto rounded-2xl border bg-card p-4 shadow-lg">
+    <aside
+      style={{ maxHeight: "calc(var(--visual-viewport-height, 100dvh) - 1.5rem)" }}
+      className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 flex max-h-[calc(100dvh-1.5rem)] w-[calc(100vw-1.5rem)] sm:w-80 flex-col gap-3.5 sm:gap-4 overflow-y-auto overscroll-contain rounded-2xl border bg-card/95 p-3.5 sm:p-4 shadow-xl backdrop-blur-xs"
+    >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Propiedades de la tabla</h2>
         <Button variant="ghost" size="icon-xs" onClick={onClose}>

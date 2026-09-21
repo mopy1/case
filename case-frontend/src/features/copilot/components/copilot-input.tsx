@@ -102,10 +102,15 @@ export function CopilotInput({ section, loading, onSend }: CopilotInputProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={() => {
+            setTimeout(() => {
+              textareaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+            }, 150)
+          }}
           placeholder={SECTION_PLACEHOLDERS[section] || "Escribe tu consulta o instrucción..."}
           disabled={loading}
           rows={1}
-          className="w-full resize-none bg-transparent px-2 py-1 text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50 overflow-y-auto break-words"
+          className="w-full resize-none bg-transparent px-2 py-1 text-base sm:text-xs leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50 overflow-y-auto break-words"
           style={{ minHeight: "44px", maxHeight: "160px" }}
         />
         <div className="flex items-center justify-between gap-1 pt-1 px-1 text-[10px] text-muted-foreground/60">
