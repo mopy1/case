@@ -41,7 +41,10 @@ Thumbs.db
 # --- Secrets & Local Environments ---
 .env
 .env.local
+.env.production
 .env.*.local
+!.env.example
+!.env.production.example
 
 # --- Docker & DB local volumes ---
 case_pgdata/
