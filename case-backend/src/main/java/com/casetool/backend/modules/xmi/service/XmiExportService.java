@@ -6,7 +6,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -165,16 +164,15 @@ public class XmiExportService {
         Element namespace = doc.createElement("UML:Namespace.ownedElement");
         modelo.appendChild(namespace);
 
-        Map<String, String> idPorTipoSql = agregarTiposPrimitivos(doc, namespace, diagrama);
         Map<Long, String> idPorEntidad = idsDeEntidades(diagrama);
 
         for (EntidadDiagramaResponse entidad : diagrama.entidades()) {
             if (idsJunction.contains(entidad.id())) continue;
-            namespace.appendChild(construirClase(doc, entidad, idPorEntidad.get(entidad.id()), idPorTipoSql, "table"));
+            namespace.appendChild(construirClase(doc, entidad, idPorEntidad.get(entidad.id()), "table"));
         }
 
         for (AsociacionClase a : asociaciones) {
-            Element assocClase = construirClase(doc, a.junction(), idPorEntidad.get(a.junction().id()), idPorTipoSql, "intermedia");
+            Element assocClase = construirClase(doc, a.junction(), idPorEntidad.get(a.junction().id()), "intermedia");
             insertarConexion(doc, assocClase, idPorEntidad.get(a.origen().id()), a.mn().multiplicidadOrigen(),
                     idPorEntidad.get(a.destino().id()), a.mn().multiplicidadDestino());
             namespace.appendChild(assocClase);
@@ -213,30 +211,8 @@ public class XmiExportService {
         return idPorEntidad;
     }
 
-    private Map<String, String> agregarTiposPrimitivos(Document doc, Element namespace, DiagramaResponse diagrama) {
-        Set<String> tipos = diagrama.entidades().stream()
-                .flatMap(e -> e.atributos().stream())
-                .map(AtributoEntidadResponse::tipoSql)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        Map<String, String> idPorTipo = new HashMap<>();
-        for (String tipo : tipos) {
-            String id = "dt_" + sanear(tipo);
-            idPorTipo.put(tipo, id);
-            Element tipoEl = doc.createElement("UML:DataType");
-            tipoEl.setAttribute("xmi.id", id);
-            tipoEl.setAttribute("name", tipo.toLowerCase());
-            tipoEl.setAttribute("visibility", "public");
-            tipoEl.setAttribute("isRoot", "false");
-            tipoEl.setAttribute("isLeaf", "false");
-            tipoEl.setAttribute("isAbstract", "false");
-            namespace.appendChild(tipoEl);
-        }
-        return idPorTipo;
-    }
-
     private Element construirClase(
-            Document doc, EntidadDiagramaResponse entidad, String claseId, Map<String, String> idPorTipoSql, String estereotipo) {
+            Document doc, EntidadDiagramaResponse entidad, String claseId, String estereotipo) {
         Element clase = doc.createElement("intermedia".equals(estereotipo) ? "UML:AssociationClass" : "UML:Class");
         clase.setAttribute("xmi.id", claseId);
         clase.setAttribute("name", entidad.nombre());
@@ -255,14 +231,21 @@ public class XmiExportService {
         if (!entidad.atributos().isEmpty()) {
             Element feature = doc.createElement("UML:Classifier.feature");
             for (AtributoEntidadResponse atributo : entidad.atributos()) {
-                feature.appendChild(construirAtributo(doc, atributo, idPorTipoSql));
+                feature.appendChild(construirAtributo(doc, atributo));
             }
             clase.appendChild(feature);
         }
         return clase;
     }
 
-    private Element construirAtributo(Document doc, AtributoEntidadResponse atributo, Map<String, String> idPorTipoSql) {
+    /** El tipo de cada atributo se declara ANIDADO dentro de su propio
+     * `UML:StructuralFeature.type` (no como `xmi.idref` a un `UML:DataType` compartido colgado
+     * del paquete) a propósito: un `UML:DataType` que cuelga de `UML:Namespace.ownedElement`
+     * aparece como un elemento navegable más en el árbol de Enterprise Architect (ej. «dataType»
+     * bigint, «dataType» varchar), mezclado con las tablas reales — justo lo que no se quiere ver
+     * ahí. Anidado dentro del atributo, EA sigue mostrando el tipo en el detalle del atributo pero
+     * no lo agrega al árbol de proyecto. */
+    private Element construirAtributo(Document doc, AtributoEntidadResponse atributo) {
         Element attrEl = doc.createElement("UML:Attribute");
         attrEl.setAttribute("xmi.id", "attr_" + atributo.id());
         attrEl.setAttribute("name", atributo.nombre());
@@ -271,9 +254,14 @@ public class XmiExportService {
         attrEl.setAttribute("targetScope", "instance");
 
         Element tipoWrapper = doc.createElement("UML:StructuralFeature.type");
-        Element tipoRef = doc.createElement("UML:DataType");
-        tipoRef.setAttribute("xmi.idref", idPorTipoSql.get(atributo.tipoSql()));
-        tipoWrapper.appendChild(tipoRef);
+        Element tipoEl = doc.createElement("UML:DataType");
+        tipoEl.setAttribute("xmi.id", "dt_attr_" + atributo.id());
+        tipoEl.setAttribute("name", atributo.tipoSql().toLowerCase());
+        tipoEl.setAttribute("visibility", "public");
+        tipoEl.setAttribute("isRoot", "false");
+        tipoEl.setAttribute("isLeaf", "false");
+        tipoEl.setAttribute("isAbstract", "false");
+        tipoWrapper.appendChild(tipoEl);
         attrEl.appendChild(tipoWrapper);
         return attrEl;
     }
@@ -319,11 +307,16 @@ public class XmiExportService {
         assoc.setAttribute("isLeaf", "false");
         assoc.setAttribute("isAbstract", "false");
 
+        // Este archivo es XMI 1.1 / UML 1.4 (UML:AssociationEnd, UML:Generalization con
+        // child/parent) — su enumeración AggregationKind es {none, aggregate, composite}, NO la
+        // de UML 2.x ({none, shared, composite}). "shared" no es un valor válido acá: Enterprise
+        // Architect lo ignora silenciosamente y la relación se importa como asociación simple sin
+        // rombo. El valor correcto para agregación en este dialecto es "aggregate".
         String aggOrigen = "none";
         if (relacion.tipo() == RelacionDiagrama.TipoRelacionUml.COMPOSICION) {
             aggOrigen = "composite";
         } else if (relacion.tipo() == RelacionDiagrama.TipoRelacionUml.AGREGACION) {
-            aggOrigen = "shared";
+            aggOrigen = "aggregate";
         }
 
         Element conexion = doc.createElement("UML:Association.connection");
@@ -357,10 +350,6 @@ public class XmiExportService {
             case UNO_O_MAS -> "1..*";
             case CERO_O_MAS -> "0..*";
         };
-    }
-
-    private String sanear(String texto) {
-        return texto.replaceAll("[^A-Za-z0-9_]", "_");
     }
 
     private String serializar(Document doc) throws Exception {

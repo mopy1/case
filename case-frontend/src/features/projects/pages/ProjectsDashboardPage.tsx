@@ -61,7 +61,7 @@ export function ProjectsDashboardPage() {
     content = (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtrados.map((proyecto) => (
-          <ProjectCard key={proyecto.id} proyecto={proyecto} />
+          <ProjectCard key={proyecto.id} proyecto={proyecto} onChanged={() => getMyProjects()} />
         ))}
         <CreateProjectDialog onCreated={() => getMyProjects()} />
       </div>

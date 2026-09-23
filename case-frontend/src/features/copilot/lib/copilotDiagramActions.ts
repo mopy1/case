@@ -68,6 +68,7 @@ export async function executeCreateRelation(
       entidadDestinoId: existingRel.entidadDestinoId,
       multiplicidadOrigen: isSameDir ? relation.multiplicidadOrigen : relation.multiplicidadDestino,
       multiplicidadDestino: isSameDir ? relation.multiplicidadDestino : relation.multiplicidadOrigen,
+      tipo: relation.tipo,
     })
   } else {
     await createRelation(proyectoId, {
@@ -75,6 +76,7 @@ export async function executeCreateRelation(
       entidadDestinoId: destino.id,
       multiplicidadOrigen: relation.multiplicidadOrigen,
       multiplicidadDestino: relation.multiplicidadDestino,
+      tipo: relation.tipo,
     })
   }
 

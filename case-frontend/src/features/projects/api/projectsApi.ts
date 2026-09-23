@@ -19,6 +19,14 @@ export function createProject(project: ProyectoRequest): Promise<ProyectoRespons
   })
 }
 
+export function updateProject(id: number, project: ProyectoRequest): Promise<ProyectoResponse> {
+  return apiFetch(`${PROJECTS_URL}/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(project),
+    errorFallback: "Error al actualizar proyecto",
+  })
+}
+
 export function deleteProject(id: number): Promise<void> {
   return apiFetch(`${PROJECTS_URL}/${id}`, { method: "DELETE", errorFallback: "Error al eliminar proyecto" })
 }

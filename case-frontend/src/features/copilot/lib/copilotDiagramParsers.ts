@@ -1,6 +1,15 @@
-import type { LadoMultiplicidad } from "@/features/diagram/types/diagram.types"
+import type { LadoMultiplicidad, TipoRelacionUml } from "@/features/diagram/types/diagram.types"
 import type { AttributeSuggestion, EntityDeleteSuggestion, EntitySuggestion, RelationSuggestion } from "../types/copilot.types"
 import { findMultipleSafeEntityPositions, type EntityPosition } from "@/features/diagram/lib/positionGuide"
+
+export function parseTipoRelacionUml(str: string | undefined): TipoRelacionUml {
+  if (!str) return "ASOCIACION"
+  const s = str.trim().toUpperCase().replace(/[\(\)\[\]]/g, "")
+  if (s === "COMPOSICION" || s === "COMPOSITION") return "COMPOSICION"
+  if (s === "AGREGACION" || s === "AGGREGATION") return "AGREGACION"
+  if (s === "HERENCIA" || s === "GENERALIZACION" || s === "INHERITANCE" || s === "GENERALIZATION") return "HERENCIA"
+  return "ASOCIACION"
+}
 
 export function parseLadoMultiplicidad(str: string): LadoMultiplicidad {
   if (!str) return "UNO"
@@ -75,7 +84,11 @@ export function parseEntitySuggestions(text: string, existingEntities: EntityPos
 
 export function parseRelationSuggestions(text: string): RelationSuggestion[] {
   const results: RelationSuggestion[] = []
-  const relRegex = /(?:CREAR_RELACION|ACTUALIZAR_RELACION):\s*\[?([a-zA-Z0-9_]+)\]?\s*(?:->|a|-)\s*\[?([a-zA-Z0-9_]+)\]?(?:\s*\(([^)]+)\))?/gi
+  // Grupo 4 (opcional): tipo UML de la relación — ASOCIACION (default si no viene),
+  // COMPOSICION, AGREGACION o HERENCIA. Ver buildSystemContext para la convención de que el
+  // ORIGEN es el "todo"/subclase y el DESTINO es la "parte"/superclase.
+  const relRegex =
+    /(?:CREAR_RELACION|ACTUALIZAR_RELACION):\s*\[?([a-zA-Z0-9_]+)\]?\s*(?:->|a|-)\s*\[?([a-zA-Z0-9_]+)\]?(?:\s*\(([^)]+)\))?(?:\s*\[?(ASOCIACION|COMPOSICION|AGREGACION|HERENCIA|GENERALIZACION)\]?)?/gi
   const matches = [...text.matchAll(relRegex)]
 
   for (const m of matches) {
@@ -93,7 +106,9 @@ export function parseRelationSuggestions(text: string): RelationSuggestion[] {
       }
     }
 
-    results.push({ origen, destino, multiplicidadOrigen, multiplicidadDestino, creada: false })
+    const tipo = parseTipoRelacionUml(m[4])
+
+    results.push({ origen, destino, multiplicidadOrigen, multiplicidadDestino, tipo, creada: false })
   }
 
   return results

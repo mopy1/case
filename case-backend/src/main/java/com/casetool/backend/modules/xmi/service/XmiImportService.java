@@ -375,12 +375,26 @@ public class XmiImportService {
         return diagramaService.obtenerDiagrama(proyectoId, usuarioId);
     }
 
-    /** El tipo de un `UML:Attribute` viene anidado (`StructuralFeature.type > DataType
-     * xmi.idref=...`), no como atributo plano — a diferencia del dialecto propio. */
+    /** El tipo de un `UML:Attribute` viene anidado (`StructuralFeature.type > DataType`), no
+     * como atributo plano — a diferencia del dialecto propio. Dos formas válidas, según quién
+     * generó el archivo:
+     * <ul>
+     *   <li>`xmi.idref` apuntando a un `UML:DataType` compartido colgado del paquete (lo que
+     *       exporta un Enterprise Architect real, o lo que exportaba esta misma herramienta antes
+     *       del 2026-09-23) — se resuelve contra {@code tipoSqlPorId}.</li>
+     *   <li>El propio `UML:DataType` anidado ya trae su `name` (lo que exporta esta herramienta
+     *       desde el 2026-09-23 — ver `XmiExportService#construirAtributo` — a propósito para que
+     *       el tipo no aparezca como un elemento más del árbol de proyecto en EA) — se lee
+     *       directo, sin necesitar el mapa.</li>
+     * </ul> */
     private String resolverTipoSqlEA(Element attrEl, Map<String, String> tipoSqlPorId) {
         List<Element> tipos = porEtiqueta(attrEl, "UML:DataType");
         if (tipos.isEmpty()) return "VARCHAR";
-        return tipoSqlPorId.getOrDefault(tipos.get(0).getAttribute("xmi.idref"), "VARCHAR");
+        Element tipo = tipos.get(0);
+        String porIdref = tipoSqlPorId.get(tipo.getAttribute("xmi.idref"));
+        if (porIdref != null) return porIdref;
+        String nombreInline = tipo.getAttribute("name");
+        return nombreInline.isBlank() ? "VARCHAR" : nombreInline.toUpperCase();
     }
 
     private Multiplicidad mapMultiplicidadEA(String texto) {

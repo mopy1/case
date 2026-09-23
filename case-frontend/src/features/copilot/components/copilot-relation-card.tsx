@@ -20,6 +20,12 @@ function formatMultiplicidad(m: string): string {
   return m
 }
 
+const TIPO_LABEL: Record<string, { label: string; icon: string }> = {
+  COMPOSICION: { label: "Composición", icon: "◆" },
+  AGREGACION: { label: "Agregación", icon: "◇" },
+  HERENCIA: { label: "Herencia", icon: "▷" },
+}
+
 export function CopilotRelationCard({
   messageId,
   relationIndex,
@@ -32,6 +38,12 @@ export function CopilotRelationCard({
       <div className="flex items-center gap-1.5 font-semibold text-foreground">
         <Link2 className="size-3.5 text-primary" />
         <span>Relación UML</span>
+        {relation.tipo && TIPO_LABEL[relation.tipo] && (
+          <Badge variant="outline" className="ml-auto gap-1 px-1.5 py-0 text-[10px] font-normal">
+            <span>{TIPO_LABEL[relation.tipo].icon}</span>
+            {TIPO_LABEL[relation.tipo].label}
+          </Badge>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-xs">

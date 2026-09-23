@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom"
 import { Bot } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { ErrorBoundary } from "@/components/common/ErrorBoundary"
 import { ProjectNavRail } from "@/components/common/project-nav-rail"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
@@ -73,7 +74,9 @@ export function ProjectLayout() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : (
-          <Outlet />
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         )}
 
         {/* Botón arriba a la derecha cuando el panel está cerrado */}
