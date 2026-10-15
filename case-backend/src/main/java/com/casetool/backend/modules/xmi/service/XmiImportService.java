@@ -4,8 +4,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -31,6 +34,10 @@ import com.casetool.backend.modules.diagrama.service.AtributoEntidadService;
 import com.casetool.backend.modules.diagrama.service.DiagramaService;
 import com.casetool.backend.modules.diagrama.service.EntidadDiagramaService;
 import com.casetool.backend.modules.diagrama.service.RelacionDiagramaService;
+import com.casetool.backend.modules.proyecto.model.MiembroProyecto;
+import com.casetool.backend.modules.proyecto.service.ProyectoAccesoService;
+import com.casetool.backend.modules.xmi.dto.ModoImportacionXmi;
+import com.casetool.backend.modules.xmi.dto.XmiPreviewResponse;
 
 /**
  * Lee un `.xmi` y recrea entidades, atributos y relaciones en un proyecto, reusando los services
@@ -57,25 +64,87 @@ public class XmiImportService {
     private final AtributoEntidadService atributoEntidadService;
     private final RelacionDiagramaService relacionDiagramaService;
     private final DiagramaService diagramaService;
+    private final ProyectoAccesoService accesoService;
 
     public XmiImportService(
             EntidadDiagramaService entidadDiagramaService,
             AtributoEntidadService atributoEntidadService,
             RelacionDiagramaService relacionDiagramaService,
-            DiagramaService diagramaService) {
+            DiagramaService diagramaService,
+            ProyectoAccesoService accesoService) {
+        this.accesoService = accesoService;
         this.entidadDiagramaService = entidadDiagramaService;
         this.atributoEntidadService = atributoEntidadService;
         this.relacionDiagramaService = relacionDiagramaService;
         this.diagramaService = diagramaService;
     }
 
-    public DiagramaResponse importar(Long proyectoId, MultipartFile archivo, Long usuarioId) {
+    /**
+     * Importar exige rol ADMIN — pedido explícito del profesor (2026-09-26): si cualquier
+     * `COLABORADOR` pudiera meter un diagrama de Enterprise Architect al lienzo compartido,
+     * varios importando a la vez chocarían nombres de tabla entre sí. Antes alcanzaba con
+     * `COLABORADOR` (mismo nivel que crear una entidad a mano); ahora solo el ADMIN, que es quien
+     * tiene la vista completa del proyecto, decide qué entra.
+     */
+    public DiagramaResponse importar(Long proyectoId, MultipartFile archivo, Long usuarioId, ModoImportacionXmi modo) {
+        MiembroProyecto miembro = accesoService.verificarMiembro(proyectoId, usuarioId);
+        accesoService.verificarRolAdmin(miembro);
+
+        if (modo == ModoImportacionXmi.REEMPLAZAR) {
+            entidadDiagramaService.eliminarTodo(proyectoId);
+        }
+
         Document doc = parsear(archivo);
         boolean esDialectoEA = doc.getElementsByTagName("UML:Class").getLength() > 0
                 || doc.getElementsByTagName("UML:AssociationClass").getLength() > 0;
         return esDialectoEA
                 ? importarDialectoEA(proyectoId, doc, usuarioId)
                 : importarPropio(proyectoId, doc, usuarioId);
+    }
+
+    /**
+     * Previsualización de solo lectura — no crea nada, se llama antes de {@link #importar} para
+     * que el ADMIN vea qué va a pasar (qué tablas trae el archivo, cuáles ya existen en el
+     * proyecto — esas se van a reusar tal cual, ver {@link #importar}, no a duplicarse ni a
+     * fallar — y cuántas relaciones trae) y recién ahí confirme modo y disparo real. También
+     * exige ADMIN — mismo motivo que {@link #importar}, no tiene sentido dejarle previsualizar a
+     * alguien que después no puede confirmar.
+     */
+    public XmiPreviewResponse previsualizar(Long proyectoId, MultipartFile archivo, Long usuarioId) {
+        MiembroProyecto miembro = accesoService.verificarMiembro(proyectoId, usuarioId);
+        accesoService.verificarRolAdmin(miembro);
+
+        Document doc = parsear(archivo);
+        boolean esDialectoEA = doc.getElementsByTagName("UML:Class").getLength() > 0
+                || doc.getElementsByTagName("UML:AssociationClass").getLength() > 0;
+
+        List<String> tablas;
+        int totalRelaciones;
+        if (esDialectoEA) {
+            List<Element> clases = new ArrayList<>(porEtiqueta(doc, "UML:Class"));
+            clases.addAll(porEtiqueta(doc, "UML:AssociationClass"));
+            tablas = clases.stream().map(c -> c.getAttribute("name")).toList();
+            totalRelaciones = porEtiqueta(doc, "UML:Association").size() + porEtiqueta(doc, "UML:Generalization").size();
+        } else {
+            List<Element> clases = elementosPorTipo(doc, "uml:Class");
+            tablas = clases.stream().map(c -> c.getAttribute("name")).toList();
+            totalRelaciones = elementosPorTipo(doc, "uml:Association").size();
+        }
+
+        Map<String, Long> existentesPorNombre = entidadesExistentesPorNombre(proyectoId, usuarioId);
+        List<String> tablasExistentes = tablas.stream().filter(existentesPorNombre::containsKey).toList();
+
+        return new XmiPreviewResponse(
+                esDialectoEA ? "Enterprise Architect (XMI 1.1)" : "CASE Tool (XMI 2.1)",
+                tablas, tablasExistentes, totalRelaciones, existentesPorNombre.size());
+    }
+
+    /** Nombre → id de cada entidad ya presente en el proyecto — usado tanto por la previsualización
+     * como por el import en modo FUSIONAR (ver {@link #importarPropio}/{@link #importarDialectoEA})
+     * para reusar la existente en vez de duplicarla o fallar. */
+    private Map<String, Long> entidadesExistentesPorNombre(Long proyectoId, Long usuarioId) {
+        return diagramaService.obtenerDiagrama(proyectoId, usuarioId).entidades().stream()
+                .collect(Collectors.toMap(EntidadDiagramaResponse::nombre, EntidadDiagramaResponse::id));
     }
 
     // ─────────────────────────────── Dialecto propio (XMI 2.1) ───────────────────────────────
@@ -101,34 +170,59 @@ public class XmiImportService {
         }
 
         List<Element> clases = elementosPorTipo(doc, "uml:Class");
-        Map<String, Long> entidadIdPorXmiId = crearEntidades(proyectoId, clases, usuarioId);
-        crearAtributos(clases, tipoSqlPorId, entidadIdPorXmiId, usuarioId);
+        ResultadoEntidades resultado = crearEntidades(
+                proyectoId, clases, usuarioId, entidadesExistentesPorNombre(proyectoId, usuarioId));
+        crearAtributos(clases, tipoSqlPorId, resultado, usuarioId);
 
         List<Element> asociaciones = elementosPorTipo(doc, "uml:Association");
-        crearRelaciones(proyectoId, asociaciones, entidadIdPorXmiId, usuarioId);
+        crearRelaciones(proyectoId, asociaciones, resultado.idPorXmiId(), usuarioId);
 
         return diagramaService.obtenerDiagrama(proyectoId, usuarioId);
     }
 
-    private Map<String, Long> crearEntidades(Long proyectoId, List<Element> clases, Long usuarioId) {
+    /** Mapa `xmi:id/xmi.id -> entidadId real` junto con qué xmi ids se resolvieron a una entidad
+     * YA existente en el proyecto (mismo nombre) en vez de crearse — ver {@link #crearEntidades}. */
+    private record ResultadoEntidades(Map<String, Long> idPorXmiId, Set<String> xmiIdsReutilizados) {
+    }
+
+    /**
+     * Modo FUSIONAR (pedido explícito 2026-09-26): si el nombre de una clase del archivo ya
+     * existe como entidad en el proyecto, NO se crea una nueva ni se toca la existente — se reusa
+     * su id tal cual, como si fuera la que trae el archivo. Solo las clases con nombre nuevo se
+     * crean de verdad. {@code xmiIdsReutilizados} le dice a {@link #crearAtributos} qué clases
+     * saltear (los atributos de la entidad ya existente quedan como están).
+     */
+    private ResultadoEntidades crearEntidades(
+            Long proyectoId, List<Element> clases, Long usuarioId, Map<String, Long> existentesPorNombre) {
         Map<String, Long> entidadIdPorXmiId = new HashMap<>();
+        Set<String> xmiIdsReutilizados = new HashSet<>();
         int indice = 0;
         for (Element clase : clases) {
             String nombre = clase.getAttribute("name");
+            String xmiId = clase.getAttribute("xmi:id");
+            Long existenteId = existentesPorNombre.get(nombre);
+            if (existenteId != null) {
+                entidadIdPorXmiId.put(xmiId, existenteId);
+                xmiIdsReutilizados.add(xmiId);
+                continue;
+            }
             double posX = numeroODefault(clase.getAttribute("case:posX"), 80 + (indice % 4) * 440);
             double posY = numeroODefault(clase.getAttribute("case:posY"), 80 + (indice / 4) * 300);
             EntidadDiagramaResponse creada = entidadDiagramaService.crear(
                     proyectoId, new EntidadDiagramaRequest(nombre, posX, posY), usuarioId);
-            entidadIdPorXmiId.put(clase.getAttribute("xmi:id"), creada.id());
+            entidadIdPorXmiId.put(xmiId, creada.id());
             indice++;
         }
-        return entidadIdPorXmiId;
+        return new ResultadoEntidades(entidadIdPorXmiId, xmiIdsReutilizados);
     }
 
     private void crearAtributos(
-            List<Element> clases, Map<String, String> tipoSqlPorId, Map<String, Long> entidadIdPorXmiId, Long usuarioId) {
+            List<Element> clases, Map<String, String> tipoSqlPorId, ResultadoEntidades resultado, Long usuarioId) {
+        Map<String, Long> entidadIdPorXmiId = resultado.idPorXmiId();
         for (Element clase : clases) {
-            Long entidadId = entidadIdPorXmiId.get(clase.getAttribute("xmi:id"));
+            String xmiId = clase.getAttribute("xmi:id");
+            if (resultado.xmiIdsReutilizados().contains(xmiId)) continue;
+            Long entidadId = entidadIdPorXmiId.get(xmiId);
             NodeList atributos = clase.getElementsByTagName("ownedAttribute");
             for (int i = 0; i < atributos.getLength(); i++) {
                 Element attrEl = (Element) atributos.item(i);
@@ -265,20 +359,35 @@ public class XmiImportService {
         List<Element> asociacionesClase = porEtiqueta(doc, "UML:AssociationClass");
         clases.addAll(asociacionesClase);
 
+        // Modo FUSIONAR (pedido explícito 2026-09-26): una clase cuyo nombre ya existe como
+        // entidad en el proyecto se reusa tal cual (mismo id, atributos intactos) en vez de
+        // duplicarse o fallar — ver el javadoc de `crearEntidades` (dialecto propio) para el
+        // detalle completo, acá es la misma idea aplicada al formato EA.
+        Map<String, Long> existentesPorNombre = entidadesExistentesPorNombre(proyectoId, usuarioId);
         Map<String, Long> entidadIdPorXmiId = new HashMap<>();
+        Set<String> xmiIdsReutilizados = new HashSet<>();
         int indice = 0;
         for (Element clase : clases) {
             String nombre = clase.getAttribute("name");
+            String xmiId = clase.getAttribute("xmi.id");
+            Long existenteId = existentesPorNombre.get(nombre);
+            if (existenteId != null) {
+                entidadIdPorXmiId.put(xmiId, existenteId);
+                xmiIdsReutilizados.add(xmiId);
+                continue;
+            }
             double posX = 80 + (indice % 4) * 440;
             double posY = 80 + (indice / 4) * 300;
             EntidadDiagramaResponse creada = entidadDiagramaService.crear(
                     proyectoId, new EntidadDiagramaRequest(nombre, posX, posY), usuarioId);
-            entidadIdPorXmiId.put(clase.getAttribute("xmi.id"), creada.id());
+            entidadIdPorXmiId.put(xmiId, creada.id());
             indice++;
         }
 
         for (Element clase : clases) {
-            Long entidadId = entidadIdPorXmiId.get(clase.getAttribute("xmi.id"));
+            String xmiId = clase.getAttribute("xmi.id");
+            if (xmiIdsReutilizados.contains(xmiId)) continue;
+            Long entidadId = entidadIdPorXmiId.get(xmiId);
             List<Element> atributos = porEtiqueta(clase, "UML:Attribute");
             boolean tieneIdPropio = atributos.stream().anyMatch(a -> "id".equalsIgnoreCase(a.getAttribute("name")));
             for (Element attrEl : atributos) {

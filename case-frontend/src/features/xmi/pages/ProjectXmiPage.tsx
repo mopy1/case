@@ -4,16 +4,33 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { decodeProjectId } from "@/lib/projectCode"
+import { useProject } from "@/features/projects/hooks/useProject"
 import { useXmiExchange } from "../hooks/useXmiExchange"
 import { XmiImportDialog } from "../components/xmi-import-dialog"
 
 /** Página delgada — toda la lógica de exportar/importar vive en `useXmiExchange`. Fase 3 del plan
  * (interoperabilidad con Enterprise Architect, ver `case-backend/AGENTS.md` para el detalle del
- * formato `.xmi` que genera/lee el backend). */
+ * formato `.xmi` que genera/lee el backend). Importar exige rol ADMIN (pedido explícito del
+ * profesor 2026-09-26 — un COLABORADOR importando a la vez que otro generaría choques de nombre
+ * en el diagrama compartido): el backend ya lo rechaza, acá directamente no se muestra el botón a
+ * quien no sea ADMIN, para no ofrecer una acción que va a fallar. */
 export function ProjectXmiPage() {
   const { id } = useParams<{ id: string }>()
   const proyectoId = decodeProjectId(id)
-  const { handleExportar, handleImportar, exportando, importando, errorExportar, errorImportar } = useXmiExchange(proyectoId)
+  const { proyecto } = useProject(proyectoId)
+  const esAdmin = proyecto?.miRol === "ADMIN"
+  const {
+    handleExportar,
+    handlePrevisualizar,
+    handleImportar,
+    limpiarPreview,
+    exportando,
+    previsualizando,
+    importando,
+    preview,
+    errorExportar,
+    errorImportar,
+  } = useXmiExchange(proyectoId)
 
   return (
     <div className="p-6">
@@ -26,7 +43,7 @@ export function ProjectXmiPage() {
           <EmptyDescription>
             Exportá este diagrama a formato <code>.xmi</code> (UML) para abrirlo en Enterprise Architect, o importá
             un <code>.xmi</code> hecho ahí (o exportado desde acá antes) para traer sus tablas y relaciones al
-            lienzo.
+            lienzo. {!esAdmin && "Solo el ADMIN del proyecto puede importar."}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -35,17 +52,23 @@ export function ProjectXmiPage() {
               <FileDown />
               {exportando ? "Exportando..." : "Exportar XMI"}
             </Button>
-            <XmiImportDialog
-              trigger={
-                <Button variant="outline">
-                  <FileUp />
-                  Importar XMI
-                </Button>
-              }
-              importando={importando}
-              error={errorImportar}
-              onImportar={handleImportar}
-            />
+            {esAdmin && (
+              <XmiImportDialog
+                trigger={
+                  <Button variant="outline">
+                    <FileUp />
+                    Importar XMI
+                  </Button>
+                }
+                previsualizando={previsualizando}
+                importando={importando}
+                preview={preview}
+                error={errorImportar}
+                onPrevisualizar={handlePrevisualizar}
+                onImportar={handleImportar}
+                onLimpiarPreview={limpiarPreview}
+              />
+            )}
           </div>
           {errorExportar && (
             <Alert variant="destructive" className="mt-4 text-left">

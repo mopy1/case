@@ -15,13 +15,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.casetool.backend.modules.diagrama.dto.DiagramaResponse;
 import com.casetool.backend.modules.seguridad.model.UsuarioPrincipal;
+import com.casetool.backend.modules.xmi.dto.ModoImportacionXmi;
+import com.casetool.backend.modules.xmi.dto.XmiPreviewResponse;
 import com.casetool.backend.modules.xmi.service.XmiExportService;
 import com.casetool.backend.modules.xmi.service.XmiImportService;
 
 /** Fase 3 — interoperabilidad con Enterprise Architect (`.xmi`, ver `XmiExportService`/
  * `XmiImportService` para el detalle del formato). Exportar es `GET` (solo lectura, cualquier
- * miembro hasta LECTOR); importar es `POST` con el mismo permiso de escritura que crear una
- * entidad a mano. */
+ * miembro hasta LECTOR). Importar/previsualizar exigen rol ADMIN (pedido explícito del profesor
+ * 2026-09-26, ver el javadoc de {@link XmiImportService#importar}) — antes alcanzaba con
+ * COLABORADOR. */
 @RestController
 @RequestMapping("/api/proyectos/{proyectoId}/xmi")
 public class XmiController {
@@ -46,11 +49,20 @@ public class XmiController {
                 .body(xmi);
     }
 
+    @PostMapping("/previsualizar")
+    public ResponseEntity<XmiPreviewResponse> previsualizar(
+            @PathVariable Long proyectoId,
+            @RequestParam("archivo") MultipartFile archivo,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ResponseEntity.ok(importService.previsualizar(proyectoId, archivo, principal.getId()));
+    }
+
     @PostMapping("/importar")
     public ResponseEntity<DiagramaResponse> importar(
             @PathVariable Long proyectoId,
             @RequestParam("archivo") MultipartFile archivo,
+            @RequestParam(defaultValue = "FUSIONAR") ModoImportacionXmi modo,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
-        return ResponseEntity.ok(importService.importar(proyectoId, archivo, principal.getId()));
+        return ResponseEntity.ok(importService.importar(proyectoId, archivo, principal.getId(), modo));
     }
 }

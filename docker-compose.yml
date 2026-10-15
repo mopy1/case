@@ -3,7 +3,6 @@ services:
   postgres-db:
     image: postgres:16
     container_name: case_postgres
-    restart: always
     environment:
       POSTGRES_USER: case_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -17,7 +16,6 @@ services:
   backend-app:
     build: ./case-backend
     container_name: case_backend
-    restart: always
     ports:
       - "8081:8081"
     depends_on:
@@ -33,7 +31,6 @@ services:
   frontend-app:
     build: ./case-frontend
     container_name: case_frontend
-    restart: always
     ports:
       - "5173:80"
     depends_on:

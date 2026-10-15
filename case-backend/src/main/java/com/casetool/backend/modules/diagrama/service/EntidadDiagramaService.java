@@ -89,6 +89,17 @@ public class EntidadDiagramaService {
         entidadDiagramaRepository.delete(entidad);
     }
 
+    /**
+     * Vacía el diagrama completo de un proyecto (todas las entidades, y por cascada real de base
+     * de datos sus atributos y relaciones) — usado por el modo "reemplazar" de importación XMI
+     * (ver {@code XmiImportService}). Sin chequeo de rol acá a propósito: quien llama esto ya
+     * exigió rol ADMIN antes de invocarlo, no hace falta repetirlo.
+     */
+    public void eliminarTodo(Long proyectoId) {
+        atributoEntidadRepository.limpiarReferenciasDeProyecto(proyectoId);
+        entidadDiagramaRepository.deleteByProyectoId(proyectoId);
+    }
+
     boolean existeNombre(Long proyectoId, String nombre) {
         return entidadDiagramaRepository.existsByProyectoIdAndNombre(proyectoId, nombre);
     }
