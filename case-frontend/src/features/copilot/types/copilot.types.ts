@@ -1,5 +1,6 @@
 import type { LadoMultiplicidad, TipoRelacionUml } from "@/features/diagram/types/diagram.types"
 import type { Prioridad } from "@/features/tasks/types/tasks.type"
+import type { GuiaPasoId } from "@/features/guia"
 
 export type CopilotSection = "diagrama" | "tareas" | "notas" | "xmi" | "generador" | "general"
 
@@ -88,16 +89,14 @@ export interface CopilotMessage {
   imageUrl?: string
 }
 
-export interface KnowledgeTopic {
+/** Mensaje del modo Guía (historial en memoria, separado del Asistente). */
+export interface GuiaMensaje {
   id: string
-  title: string
-  section: CopilotSection
-  summary: string
-  content: string
-  keywords: string[]
-  sampleQuestions: string[]
-  suggestedAdr?: {
-    accion: string
-    motivo: string
-  }
+  sender: "user" | "assistant"
+  text: string
+  timestamp: string
+  pasos?: GuiaPasoId[]
+  irA?: CopilotSection
+  fuentes?: string[]
+  error?: boolean
 }

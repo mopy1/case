@@ -3,7 +3,7 @@ import { useIsMobile } from "@/hooks/useIsMobile"
 import { cn } from "@/lib/utils"
 import { usePanelResize } from "../hooks/usePanelResize"
 import { usePanelTab } from "../hooks/usePanelTab"
-import { CopilotAssistantView } from "./copilot-assistant-view"
+import { CopilotModes } from "./copilot-modes"
 import { CopilotPanelTabs } from "./copilot-panel-tabs"
 import { PanelResizeHandle } from "./panel-resize-handle"
 
@@ -74,7 +74,7 @@ export function CopilotPanel({
           onTabChange={setTab}
           onClose={onClose}
           teamPanel={teamPanel}
-          copilotPanel={<CopilotAssistantView proyectoId={proyectoId} />}
+          copilotPanel={<CopilotModes proyectoId={proyectoId} />}
           isFullscreen={isFullscreen}
           onToggleFullscreen={onToggleFullscreen}
         />

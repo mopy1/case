@@ -17,12 +17,20 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { useProjectMutations } from "../../hooks/useProjectMutations"
-import type { ProyectoResponse } from "../../types/projects.type"
+import type { ProyectoRequest, ProyectoResponse } from "../../types/projects.type"
 
-export function CreateProjectDialog({ onCreated }: { onCreated: (proyecto: ProyectoResponse) => void }) {
-  const [open, setOpen] = useState(false)
-  const [nombre, setNombre] = useState("")
-  const [descripcion, setDescripcion] = useState("")
+interface CreateProjectDialogProps {
+  onCreated: (proyecto: ProyectoResponse) => void
+  /** Se abre solo al montar (Guía › "Creá un proyecto de práctica"). */
+  defaultOpen?: boolean
+  /** Prellena el formulario (editable). */
+  sugerencia?: ProyectoRequest
+}
+
+export function CreateProjectDialog({ onCreated, defaultOpen = false, sugerencia }: CreateProjectDialogProps) {
+  const [open, setOpen] = useState(defaultOpen)
+  const [nombre, setNombre] = useState(sugerencia?.nombre ?? "")
+  const [descripcion, setDescripcion] = useState(sugerencia?.descripcion ?? "")
   const { createProject, loading, error } = useProjectMutations()
 
   async function handleSubmit(e: React.FormEvent) {

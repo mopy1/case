@@ -3,6 +3,7 @@ import { FileDown, FileUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { GuiaLink } from "@/features/guia"
 import { decodeProjectId } from "@/lib/projectCode"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useXmiExchange } from "../hooks/useXmiExchange"
@@ -48,7 +49,7 @@ export function ProjectXmiPage() {
         </EmptyHeader>
         <EmptyContent>
           <div className="flex gap-2">
-            <Button onClick={handleExportar} disabled={exportando}>
+            <Button onClick={handleExportar} disabled={exportando} data-guia="xmi-exportar">
               <FileDown />
               {exportando ? "Exportando..." : "Exportar XMI"}
             </Button>
@@ -75,6 +76,7 @@ export function ProjectXmiPage() {
               <AlertDescription>{errorExportar}</AlertDescription>
             </Alert>
           )}
+          <GuiaLink seccion="xmi" />
         </EmptyContent>
       </Empty>
     </div>

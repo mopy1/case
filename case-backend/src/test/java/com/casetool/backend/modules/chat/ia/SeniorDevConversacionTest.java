@@ -17,9 +17,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 
+import com.casetool.backend.core.ia.DeepSeekClient;
 import com.casetool.backend.modules.chat.ia.SeniorDevConversacion.RespuestaIa;
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekToolCall;
+import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
+import com.casetool.backend.core.ia.dto.DeepSeekToolCall;
 import com.casetool.backend.modules.chat.ia.tools.SeniorDevHerramientaEjecutor;
 
 @ExtendWith(MockitoExtension.class)

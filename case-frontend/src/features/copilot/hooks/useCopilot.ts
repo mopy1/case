@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom"
 import { getDiagram } from "@/features/diagram/api/diagramApi"
 import type { CopilotMessage } from "../types/copilot.types"
 import { getQuickQuestionsForSection } from "../lib/copilotQuestions"
-import { askCopilot } from "../lib/geminiService"
+import { askCopilot } from "../lib/copilotAsk"
 import type { ProcessedImage } from "../lib/copilotImageUtils"
 import { detectActiveSection } from "../lib/copilotSection"
 import { useCopilotActionHandlers } from "./useCopilotActionHandlers"
@@ -51,7 +51,7 @@ export function useCopilot(proyectoId: number) {
 
       try {
         const diagram = await getDiagram(proyectoId).catch(() => undefined)
-        const res = await askCopilot(trimmed, activeSection, diagram, image)
+        const res = await askCopilot(proyectoId, trimmed, activeSection, diagram, image)
         const assistantMsgId = `assistant-${Date.now()}`
         const assistantMsg: CopilotMessage = {
           id: assistantMsgId,

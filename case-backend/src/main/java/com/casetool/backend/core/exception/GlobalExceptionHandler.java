@@ -7,11 +7,14 @@ import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.casetool.backend.core.ia.IaNoDisponibleException;
+import com.casetool.backend.modules.copilot.exception.CopilotCuotaExcedidaException;
 import com.casetool.backend.modules.diagrama.exception.NombreDuplicadoDiagramaException;
 import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
 import com.casetool.backend.modules.proyecto.exception.MiembroYaExisteException;
@@ -56,6 +59,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
         String message = ex.getName() + ": valor invalido '" + ex.getValue() + "'";
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body(HttpStatus.BAD_REQUEST, message));
+    }
+
+    /** JSON mal formado o enum desconocido en el body: 400 con el cuerpo estandar (sin detalles de Jackson). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleNotReadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body(HttpStatus.BAD_REQUEST, "Cuerpo de la petición inválido"));
+    }
+
+    @ExceptionHandler(CopilotCuotaExcedidaException.class)
+    public ResponseEntity<Map<String, Object>> handleCuota(CopilotCuotaExcedidaException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage()));
+    }
+
+    @ExceptionHandler(IaNoDisponibleException.class)
+    public ResponseEntity<Map<String, Object>> handleIaNoDisponible(IaNoDisponibleException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

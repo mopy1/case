@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getDiagram } from "@/features/diagram/api/diagramApi"
 import { getProject } from "@/features/projects/api/projectsApi"
 import { generarProyectoSpringBoot } from "../lib/springBootGenerator"
+import { notificarExportacion } from "@/features/guia"
 import { descargarProyectoZip } from "../lib/zipExporter"
 import type { ArchivoGenerado, GeneradorPreviewResponse } from "../types/generator.types"
 
@@ -50,6 +51,7 @@ export function useProjectGenerator(proyectoId: number) {
     try {
       setDownloading(true)
       await descargarProyectoZip(preview.archivos, proyectoId)
+      notificarExportacion(proyectoId, "backend")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al generar o descargar el archivo ZIP")
     } finally {

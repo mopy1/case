@@ -2,7 +2,8 @@ import { useMemo } from "react"
 import { useParams } from "react-router-dom"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardHeader } from "@/components/ui/card"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { GuiaLink } from "@/features/guia"
 import { Skeleton } from "@/components/ui/skeleton"
 import { decodeProjectId } from "@/lib/projectCode"
 import { useTasks } from "../hooks/useTasks"
@@ -70,6 +71,9 @@ export function ProjectTasksPage() {
             <EmptyTitle>Todavía no hay tareas</EmptyTitle>
             <EmptyDescription>Creá la primera para repartir el trabajo del proyecto.</EmptyDescription>
           </EmptyHeader>
+          <EmptyContent>
+            <GuiaLink seccion="tareas" />
+          </EmptyContent>
         </Empty>
       ) : (
         !error && (

@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { GuiaLink } from "@/features/guia"
 import { Skeleton } from "@/components/ui/skeleton"
 import { decodeProjectId } from "@/lib/projectCode"
 import { useNotes } from "../hooks/useNotes"
@@ -10,7 +11,7 @@ import { CreateNoteDialog } from "../components/create-note-dialog/create-note-d
 export function ProjectNotesPage() {
   const { id } = useParams<{ id: string }>()
   const proyectoId = decodeProjectId(id)
-  const { notas, loading, error, refetch } = useNotes(proyectoId)
+  const { notas, loading, error } = useNotes(proyectoId)
 
   return (
     <div className="mx-auto max-w-2xl p-6">
@@ -19,7 +20,10 @@ export function ProjectNotesPage() {
           <h1 className="text-2xl font-semibold">Notas</h1>
           <p className="text-muted-foreground">El por qué de cada decisión de diseño.</p>
         </div>
-        <CreateNoteDialog proyectoId={proyectoId} onCreated={refetch} />
+        <CreateNoteDialog
+          proyectoId={proyectoId}
+          onCreated={(nota) => window.dispatchEvent(new CustomEvent("project:note-created", { detail: { proyectoId, nota } }))}
+        />
       </header>
 
       {error && (
@@ -40,6 +44,9 @@ export function ProjectNotesPage() {
             <EmptyTitle>Todavía no hay notas</EmptyTitle>
             <EmptyDescription>Registrá la primera decisión de diseño del proyecto.</EmptyDescription>
           </EmptyHeader>
+          <EmptyContent>
+            <GuiaLink seccion="notas" />
+          </EmptyContent>
         </Empty>
       ) : (
         !error && (

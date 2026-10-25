@@ -9,6 +9,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.casetool.backend.core.ia.DeepSeekClient;
+import com.casetool.backend.core.ia.IaErrores;
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent;
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent.Estado;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
@@ -119,10 +121,6 @@ public class SeniorDevService {
 
     private String desglosarMotivo(Exception ex) {
         if (!deepSeekClient.tieneApiKey()) return "Clave de API no configurada";
-        String msg = ex.getMessage() != null ? ex.getMessage() : "";
-        if (msg.toLowerCase().contains("timeout") || msg.toLowerCase().contains("timed out")) return "Tiempo de espera agotado";
-        if (msg.contains("401") || msg.toLowerCase().contains("unauthorized")) return "Error de autenticación con el proveedor";
-        if (msg.contains("429")) return "Límite de solicitudes excedido";
-        return msg.isBlank() ? "Error del proveedor de IA" : msg;
+        return IaErrores.motivo(ex);
     }
 }

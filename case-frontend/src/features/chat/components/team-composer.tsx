@@ -85,7 +85,7 @@ export function TeamComposer({ enviando, errorEnvio, onEnviar, candidatos, proye
       }
       tools={
         <>
-          <ChatComposerButton icon={Bot} label="Mencionar a Senior Dev" onClick={mencionarSeniorDev} />
+          <ChatComposerButton icon={Bot} label="Mencionar a Senior Dev" onClick={mencionarSeniorDev} guia="equipo-seniordev" />
           <ChatComposerButton
             icon={voice.isSupported ? Mic : MicOff}
             label={!voice.isSupported ? "Tu navegador no soporta dictado por voz" : voice.isListening ? "Detener dictado" : "Dictar mensaje"}

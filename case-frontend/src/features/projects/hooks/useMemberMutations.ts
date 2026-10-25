@@ -6,6 +6,7 @@ import {
   removeMember as removeMemberRequest,
 } from "../api/projectsApi"
 import { mensajeDeError } from "@/lib/api"
+import { notificarMiembros } from "@/features/guia"
 
 export function useMemberMutations(proyectoId: number) {
   const [loading, setLoading] = useState(false)
@@ -15,7 +16,9 @@ export function useMemberMutations(proyectoId: number) {
     setLoading(true)
     setError(null)
     try {
-      return await action()
+      const resultado = await action()
+      notificarMiembros(proyectoId)
+      return resultado
     } catch (err) {
       setError(mensajeDeError(err))
       return null

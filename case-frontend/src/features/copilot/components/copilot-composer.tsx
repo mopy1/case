@@ -12,10 +12,14 @@ interface CopilotComposerProps {
   section: CopilotSection
   loading: boolean
   onSend: (text: string, image?: ProcessedImage) => void
+  /** Modo Guía: sin foto y con su propio placeholder. */
+  sinImagen?: boolean
+  placeholder?: string
+  ariaLabel?: string
 }
 
-/** Composer del Copilot: texto, dictado con comandos "enviar"/"detener" y foto del diagrama. */
-export function CopilotComposer({ section, loading, onSend }: CopilotComposerProps) {
+/** Composer del Copilot (Asistente y Guía): texto, dictado con comandos "enviar"/"detener" y foto del diagrama. */
+export function CopilotComposer({ section, loading, onSend, sinImagen, placeholder, ariaLabel }: CopilotComposerProps) {
   const [text, setText] = useState("")
   const [image, setImage] = useState<ProcessedImage | null>(null)
   const [processing, setProcessing] = useState(false)
@@ -79,12 +83,12 @@ export function CopilotComposer({ section, loading, onSend }: CopilotComposerPro
       }}
       busy={loading}
       canSubmit={(text.trim() !== "" || image !== null) && !processing}
-      ariaLabel="Mensaje para el Copilot"
-      placeholder={image ? "Agregá instrucciones o enviá la foto" : SECTION_PLACEHOLDERS[section]}
+      ariaLabel={ariaLabel ?? "Mensaje para el Copilot"}
+      placeholder={image ? "Agregá instrucciones o enviá la foto" : (placeholder ?? SECTION_PLACEHOLDERS[section])}
       attachment={(image || processing) && <CopilotImagePreview image={image} processing={processing} onRemove={() => setImage(null)} />}
       tools={
         <>
-          <CopilotImageButton disabled={loading || processing} onImageSelected={(f) => void adjuntar(f)} />
+          {!sinImagen && <CopilotImageButton disabled={loading || processing} onImageSelected={(f) => void adjuntar(f)} />}
           <ChatComposerButton
             icon={voz.isSupported ? Mic : MicOff}
             label={!voz.isSupported ? "Tu navegador no soporta dictado por voz" : voz.isListening ? "Detener dictado" : "Dictar (decí \"enviar\" para mandar)"}

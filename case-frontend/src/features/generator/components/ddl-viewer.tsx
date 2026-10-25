@@ -3,6 +3,7 @@ import { Download, FileCode, Workflow } from "lucide-react"
 import { ChatError, CodeBlock } from "@/components/chat"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { GuiaLink } from "@/features/guia"
 import { Skeleton } from "@/components/ui/skeleton"
 import { encodeProjectId } from "@/lib/projectCode"
 import { useDdlEsquema } from "../hooks/useDdlEsquema"
@@ -48,6 +49,7 @@ export function DdlViewer({ proyectoId, onNavigate }: DdlViewerProps) {
           >
             <Workflow data-icon="inline-start" /> Ir al diagrama
           </Button>
+          <GuiaLink seccion="generador" />
         </EmptyContent>
       </Empty>
     )

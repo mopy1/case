@@ -4,6 +4,7 @@ import { exportXmi } from "@/features/xmi/api/xmiApi"
 import { generarProyectoSpringBoot } from "@/features/generator/lib/springBootGenerator"
 import { descargarProyectoZip } from "@/features/generator/lib/zipExporter"
 import { descargarBlob } from "@/lib/descargarArchivo"
+import { notificarExportacion } from "@/features/guia"
 import type { TaskSuggestion } from "../types/copilot.types"
 
 export async function executeCreateTaskAction(
@@ -49,10 +50,12 @@ export async function executeDeleteRelationByName(
 export async function executeExportXmiAction(proyectoId: number): Promise<void> {
   const blob = await exportXmi(proyectoId)
   descargarBlob(blob, `diagrama-${proyectoId}.xmi`)
+  notificarExportacion(proyectoId, "xmi")
 }
 
 export async function executeGenerateBackendAction(proyectoId: number): Promise<void> {
   const diagram = await getDiagram(proyectoId)
   const preview = generarProyectoSpringBoot(`backend-${proyectoId}`, diagram)
   await descargarProyectoZip(preview.archivos, proyectoId)
+  notificarExportacion(proyectoId, "backend")
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { escuchar, EVENTO, type GuiaPanelDetail } from "@/features/guia"
 
 export type PanelTab = "equipo" | "copilot"
 
@@ -12,7 +13,7 @@ function leerTabGuardada(): PanelTab {
   }
 }
 
-/** Pestaña activa del panel lateral, recordada en localStorage. El push-to-talk salta a "copilot". */
+/** Pestaña activa del panel lateral, recordada en localStorage. El push-to-talk salta a "copilot"; `guia:panel` elige la pestaña. */
 export function usePanelTab() {
   const [tab, setTabState] = useState<PanelTab>(leerTabGuardada)
 
@@ -30,6 +31,8 @@ export function usePanelTab() {
     window.addEventListener("copilot:voice-submit", mostrarCopilot)
     return () => window.removeEventListener("copilot:voice-submit", mostrarCopilot)
   }, [setTab])
+
+  useEffect(() => escuchar<GuiaPanelDetail>(EVENTO.panel, (d) => d?.tab && setTab(d.tab)), [setTab])
 
   return { tab, setTab }
 }

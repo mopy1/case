@@ -16,7 +16,8 @@ sw-case/
 ├── docker-compose.yml        # dev local: case_postgres (5434), case_backend (8081), case_frontend (5173→80)
 ├── docker-compose.prod.yml   # prod EC2: red interna case_network, solo case_frontend expone 80/443
 ├── deploy-aws.sh             # en el EC2: instala Docker, crea swap 2 GB, `docker compose -f docker-compose.prod.yml up -d --build`
-├── .env.example              # POSTGRES_PASSWORD, CORS_ALLOWED_ORIGINS, DEEPSEEK_API_KEY (copiar a .env, nunca commitear)
+├── .env.example              # POSTGRES_PASSWORD, CORS_ALLOWED_ORIGINS, DEEPSEEK_API_KEY, GEMINI_API_KEY (copiar a .env, nunca commitear;
+│                             #   las claves de IA solo las lee el backend)
 ├── case-backend/             # API REST — Java 21 + Spring Boot 4.1 (Spring 7, Hibernate 7) + PostgreSQL 16
 └── case-frontend/            # SPA — React 19 + TypeScript 6 + Vite 8 + Tailwind v4 + shadcn (Base UI) + @xyflow/react
 ```
@@ -25,16 +26,18 @@ El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descarta
 
 ## 2. Arquitectura
 
-- **Backend:** monolito modular (`core/` transversal + `modules/{seguridad,proyecto,diagrama,xmi,chat}`,
+- **Backend:** monolito modular (`core/` transversal, incl. `core/ia` = gateway de IA, + `modules/{seguridad,proyecto,diagrama,xmi,chat,copilot}`,
   cada uno con controller/dto/exception/model/repository/service). Autenticación JWT stateless;
   autorización por rol de proyecto (`ADMIN`, `COLABORADOR`, `LECTOR`) en `ProyectoAccesoService`.
   Esquema gestionado por Hibernate `ddl-auto=update` (10 tablas, sin migraciones; el índice GIN full-text `idx_chat_mensajes_fts`
-  lo crea `ChatBusquedaIndiceInitializer` al arrancar). 42 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
+  lo crea `ChatBusquedaIndiceInitializer` al arrancar). 43 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
 - **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,chat,collaboration,voice}`).
   Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
-- **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip), Copilot IA (llamadas
-  directas a DeepSeek / Gemini; migrarlo al backend queda para F5) y voz (Web Speech API). El DDL PostgreSQL
-  **no**: lo genera el backend (`GET /api/proyectos/{id}/ddl`, determinístico, cualquier miembro).
+- **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip) y voz (Web Speech API). **Ninguna llamada de IA sale
+  del navegador** (F5): Senior Dev, Copilot y Guía usan `core/ia` en el backend (`DeepSeekClient`, `GeminiVisionClient` con la clave
+  en el header `x-goog-api-key`). El Copilot llama a `POST /api/proyectos/{id}/copilot/consultas` (modos `ASISTENTE` | `GUIA`, cuota
+  20/min por usuario, sin clave → respuesta del manual `resources/guia/manual.json`). El DDL PostgreSQL también lo genera el backend
+  (`GET /api/proyectos/{id}/ddl`, determinístico, cualquier miembro).
 - **Chat de equipo y Senior Dev IA (Parcial 2 · F1 y F2):** mensajes por REST (`/api/proyectos/{id}/chat/mensajes`,
   tabla `chat_mensajes`) y difusión en vivo por **WebSocket STOMP** (`/ws`, JWT en el CONNECT, membresía en el
   SUBSCRIBE, tópicos `/topic/proyectos/{id}/chat`, `.../chat/presencia` y `.../chat/ia`). Pestaña "Equipo" del panel Copilot.
@@ -74,16 +77,18 @@ se hornean en el bundle.
 | Diagramador | Tablas, atributos (PK/FK/tipo/nullable), relaciones con multiplicidad, herencia/composición/agregación, tabla intermedia N:M automática, puntos de quiebre |
 | XMI | Exporta XMI 1.1 (EA); importa dialecto EA (1.1/2.1) y el propio, modo FUSIONAR o REEMPLAZAR (solo ADMIN) |
 | Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente; visor "Ver DDL PostgreSQL" (backend) con copiar/descargar `esquema-{id}.sql` |
-| Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo. Comparte con Equipo el sistema de chat (`src/components/chat`) |
+| Copilot IA | Chat **individual por usuario** con dos modos: **Asistente** (DeepSeek para texto, Gemini para fotos; propone/aplica acciones sobre el lienzo) y **Guía** de inducción (enseña con el manual vía tool `buscarManual`, nunca modifica el proyecto). Todo pasa por el backend (`/copilot/consultas`); sin IA responde el manual. Comparte con Equipo el sistema de chat (`src/components/chat`) |
 | Colaboración | Presencia, cursores remotos, refresco por polling |
 | Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, menciones con teclado, filtro por mención/miembro, voz y pantalla completa. Senior Dev (@SeniorDev) con contexto largo F3 (memoria acumulada, estado del proyecto, historial con `#id`, herramientas de solo lectura y búsqueda full-text) y acciones F4 (acciones rápidas, Guardar ADR, DDL, Memoria, propuestas aplicables sincronizadas con RBAC) |
 | Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
 
-1. **Claves de IA públicas:** `VITE_DEEPSEEK_API_KEY` / `VITE_GEMINI_API_KEY` quedan en `dist/assets/*.js`
-   (también la imagen Docker dev: el `.dockerignore` deja entrar `.env` a propósito para tener IA real en
-   local). Rotarlas y mover las llamadas IA al backend.
+1. ~~Claves de IA públicas~~ **(repo resuelto 2026-10-25, F5):** las llamadas IA del Copilot se movieron al backend
+   (`core/ia` + `modules/copilot`); las claves viven solo en el `.env` de la raíz y llegan a `case_backend` como
+   `${DEEPSEEK_API_KEY:-}` / `${GEMINI_API_KEY:-}`. **Falta al desplegar:** rotar ambas claves (las viejas estuvieron en el
+   bundle público), cargarlas en el `.env` del EC2, recompilar `dist/` (sin claves) y el jar, y `up --build` (también
+   reconstruye Nginx con `client_max_body_size 3m` y `proxy_read_timeout 120s` en `/api/`; sin eso, fotos > 1 MB dan 413).
 2. ~~JWT falsificable en prod~~ **(repo resuelto 2026-10-24):** `docker-compose.prod.yml` ahora exige
    `JWT_SECRET` (`${JWT_SECRET:?...}`, compose no arranca sin ella). Falta aplicarlo en el EC2: agregar
    `JWT_SECRET=$(openssl rand -base64 48)` al `.env` del servidor y recrear `case_backend` (cierra todas las sesiones una vez).
@@ -109,7 +114,10 @@ mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan 
 - **Rediseño de chats (F3/F4):** Equipo y Copilot comparten `ChatMessage`/`ChatComposer`/`ChatActionCard`; panel redimensionable
   (hasta 70 % del viewport, lienzo ≥ 360 px), columna centrada ≤ 768 px, scrollbars con tokens (sin blancos en oscuro). Spec:
   `F3_F4_Spec_Rediseno_Chats.md`.
-- Siguiente: **F5 (agente de inducción para nuevos miembros + migrar el Copilot personal al backend)**, pendiente.
+- **F5 (Guía de inducción + Copilot personal al backend):** backend completado (2026-10-25) — endpoint
+  `POST /api/proyectos/{id}/copilot/consultas` (Asistente/Guía, 400/403/429/503, respaldo MANUAL), manual de 17 temas,
+  Guía con tool calling `buscarManual` e ids `GUIA_PASO`, aviso `SISTEMA` en la sala al agregar un miembro (AFTER_COMMIT).
+  Spec: `F5_Spec_Guia_Induccion.md`. Frontend (misiones, tarjeta "Primeros pasos", modo Guía, coach marks) en su `AGENTS.md`.
 
 ## 7. Reglas para agentes
 

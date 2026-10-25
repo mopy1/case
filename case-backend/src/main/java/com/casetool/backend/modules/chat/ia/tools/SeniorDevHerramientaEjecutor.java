@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.casetool.backend.modules.chat.ia.SeniorDevLimites;
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekToolCall;
+import com.casetool.backend.core.ia.dto.DeepSeekToolCall;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;

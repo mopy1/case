@@ -16,7 +16,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Limit;
 
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
+import com.casetool.backend.core.ia.DeepSeekClient;
+import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
 import com.casetool.backend.modules.chat.model.ChatMemoria;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMemoriaRepository;

@@ -8,3 +8,12 @@ export function detectActiveSection(pathname: string): CopilotSection {
   if (pathname.includes("/generador")) return "generador"
   return "general"
 }
+
+export const SECTION_LABELS: Record<CopilotSection, string> = {
+  diagrama: "Diagrama",
+  tareas: "Tareas",
+  notas: "Notas",
+  xmi: "XMI",
+  generador: "Generador",
+  general: "General",
+}

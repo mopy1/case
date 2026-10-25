@@ -280,3 +280,9 @@ html, body, #root {
   background: var(--primary);
   transform: scale(1.3);
 }
+/* F5 · Coach mark de la Guía: anillo de 2 px (no depende solo del color) y sin overlay oscuro. */
+[data-guia-activo="true"] {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+}

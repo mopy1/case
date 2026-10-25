@@ -3,7 +3,7 @@ package com.casetool.backend.modules.chat.ia.tools;
 import java.util.List;
 import java.util.Map;
 
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekTool;
+import com.casetool.backend.core.ia.dto.DeepSeekTool;
 
 /**
  * Las 4 herramientas de solo lectura que se le ofrecen a DeepSeek. El {@code proyectoId} NUNCA es

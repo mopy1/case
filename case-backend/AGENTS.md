@@ -3,7 +3,8 @@
 API REST de la CASE Tool: usuarios + JWT, proyectos colaborativos (miembros con rol, tareas Kanban,
 notas de diseño), diagramador de tablas/relaciones, exportación/importación XMI (Enterprise
 Architect), DDL PostgreSQL determinístico del diagrama y chat de equipo en vivo por proyecto (STOMP sobre WebSocket,
-Parcial 2 · F1) con Senior Dev IA (F2) que tiene contexto largo, herramientas de solo lectura y memoria acumulada (F3/F4). Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
+Parcial 2 · F1) con Senior Dev IA (F2) que tiene contexto largo, herramientas de solo lectura y memoria acumulada (F3/F4), y el
+Copilot personal + Guía de inducción (F5): **toda la IA corre en el backend** (`core/ia`), el navegador nunca ve una clave. Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
 actualizá esta guía en el mismo cambio.
 
 ## 1. Stack (versiones reales del `pom.xml`)
@@ -20,7 +21,7 @@ actualizá esta guía en el mismo cambio.
 
 No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
-## 2. Árbol de carpetas (154 archivos `.java`: 133 en main + 21 test)
+## 2. Árbol de carpetas (206 archivos `.java`: 165 en main + 41 test)
 
 ```text
 case-backend/
@@ -28,15 +29,26 @@ case-backend/
 ├── Dockerfile          # dev: compila con Maven dentro de la imagen y corre el jar (puerto 8081)
 ├── Dockerfile.prod     # prod: copia un target/*.jar YA compilado (deploy-aws.sh no lo compila)
 ├── src/main/resources/application.properties   # única configuración (static/ y templates/ vacíos)
+├── src/main/resources/guia/manual.json         # manual de uso de la Guía (17 temas, etiquetas reales de la UI)
 ├── src/test/java/com/casetool/backend/
 │   ├── CaseBackendApplicationTests.java          # contextLoads (necesita BD)
 │   ├── core/websocket/StompAuthInterceptorTest.java          # CONNECT/SUBSCRIBE/SEND (Mockito, sin BD)
+│   ├── core/ia/GeminiVisionClientTest.java                   # fallback de modelos, header x-goog-api-key, sin clave, presupuesto
+│   ├── core/ia/IaErroresTest.java · core/ia/dto/DeepSeekMensajeJsonTest.java   # motivos legibles; NON_NULL y tool_calls (Jackson 3)
+│   ├── modules/copilot/controller/CopilotControllerTest.java # MockMvc standalone: ambos modos, 400 enum/JSON, 429, 503
+│   ├── modules/copilot/service/CopilotServiceTest, CopilotAsistenteTest, CopilotRespaldoManualTest, CopilotPromptsTest,
+│   │                           PosicionLibreTest, CopilotCuotaTest · dto/CopilotConsultaRequestValidationTest · CopilotFixtures
+│   ├── modules/copilot/guia/GuiaServiceTest, GuiaContextBuilderTest, GuiaPromptsTest, GuiaHerramientaManualTest,
+│   │                         ManualRepositorioTest, ManualBuscadorTest
+│   ├── modules/proyecto/service/MiembroProyectoServiceEventoTest.java   # publica MiembroAgregadoEvent tras save; 409 no publica
 │   ├── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío → evento
 │   │                        ChatMensajeServiceMencionIaTest.java,  # evento con mencionaIa true/false
 │   │                        ChatMensajeServiceAplicarTest.java,   # aplicar propuesta, RBAC, idempotencia y evento
 │   │                        ChatMensajeBroadcastListenerTest.java, # AFTER_COMMIT: broadcast siempre, IA solo con mención
 │   │                        ChatMemoriaServiceTest.java,          # memoria vacía/llena, 403, crear/actualizar, CSV herramientas
 │   │                        ChatMensajeRequestValidationTest.java, # Bean Validation del body
+│   │                        ChatMiembroAgregadoListenerTest.java,  # texto del aviso, AFTER_COMMIT, fallo no propaga
+│   │                        ChatAvisoSistemaServiceTest.java,      # SISTEMA sin autor + evento de difusión (REQUIRES_NEW)
 │   │                        ChatFixtures.java                      # entidades en memoria para los tests
 │   ├── modules/chat/ia/ChatMencionIaUtilsTest.java,          # regex @SeniorDev
 │   │                   SeniorDevContextBuilderTest.java,     # #id [autor · ROL], aviso LECTOR, disparador fuera, hilo ↳, memoria
@@ -45,7 +57,6 @@ case-backend/
 │   │                   SeniorDevResumidorTest.java,          # umbral 20, lote/marca, recorte 2000, error conserva resumen
 │   │                   SeniorDevPromptsTest.java,            # cero SQL, comandos, GENERAR_DDL, herramientas, honestidad, permisos DDL, RESUMEN_PROMPT
 │   │                   SeniorDevServiceTest.java,            # PENSANDO con detalle, herramientasUsadas, resumidor, fallback
-│   │                   dto/DeepSeekMensajeJsonTest.java,     # NON_NULL y deserialización de tool_calls (Jackson 3)
 │   │                   tools/SeniorDevHerramientaEjecutorTest, HerramientasProyectoTest, HerramientaBuscarHistorialTest
 │   └── modules/diagrama/service/DdlPostgresServiceTest.java  # DDL: orden, NOT NULL, PK compuesta, FK, snake_case, determinismo
 └── src/main/java/com/casetool/backend/
@@ -53,6 +64,8 @@ case-backend/
     ├── core/
     │   ├── config/      CorsConfig
     │   ├── exception/   GlobalExceptionHandler, ResourceNotFoundException
+    │   ├── ia/          gateway de IA (F5): DeepSeekClient, GeminiVisionClient, IaErrores (motivo legible), IaNoDisponibleException (503),
+    │   │                dto/ (DeepSeekMensaje, DeepSeekToolCall, DeepSeekTool, DeepSeekChatRequest/Response, GeminiRequest/Response)
     │   ├── security/    SecurityConfig, JwtService, JwtAuthenticationFilter, JwtAuthenticationEntryPoint
     │   └── websocket/   WebSocketConfig (/ws + broker /topic), StompAuthInterceptor (JWT y membresía por frame)
     └── modules/
@@ -71,8 +84,8 @@ case-backend/
         │   ├── exception/   AccesoDenegadoProyectoException, RolInsuficienteProyectoException, MiembroYaExisteException
         │   ├── model/       Proyecto, MiembroProyecto (enum Rol), TareaProyecto (enums Estado, Prioridad), NotaProyecto
         │   ├── repository/  ProyectoRepository, MiembroProyectoRepository, TareaProyectoRepository, NotaProyectoRepository
-        │   └── service/     ProyectoService, MiembroProyectoService, TareaProyectoService, NotaProyectoService,
-        │                    ProyectoAccesoService
+        │   └── service/     ProyectoService, MiembroProyectoService (publica MiembroAgregadoEvent), TareaProyectoService,
+        │                    NotaProyectoService, ProyectoAccesoService, MiembroAgregadoEvent (record)
         ├── diagrama/
         │   ├── controller/  DiagramaController, EntidadDiagramaController, AtributoEntidadController,
         │   │                RelacionDiagramaController, DdlController (GET /ddl text/plain)
@@ -94,14 +107,21 @@ case-backend/
         │   ├── repository/  ChatMensajeRepository (+ full-text nativo, conteo/lote para resumen), ChatMemoriaRepository
         │   ├── service/     ChatMensajeService (publica ChatMensajePublicadoEvent), ChatMensajeBroadcastListener (AFTER_COMMIT),
         │   │                ChatMemoriaService, ChatBusquedaIndiceInitializer (índice GIN), ChatPresenciaService,
-        │   │                ChatPresenciaListener, ChatDestinos
+        │   │                ChatPresenciaListener, ChatDestinos, ChatMiembroAgregadoListener (AFTER_COMMIT), ChatAvisoSistemaService
         │   └── ia/          SeniorDevService (@Async orquestador), SeniorDevConversacion (bucle de tools),
         │                    SeniorDevContextBuilder, SeniorDevHistorialFormatter, SeniorDevProyectoFormatter,
-        │                    SeniorDevResumidor, SeniorDevPrompts, SeniorDevLimites (todos los topes), DeepSeekClient,
-        │                    ChatMencionIaUtils (@seniordev regex),
-        │                    dto/ (DeepSeekMensaje, DeepSeekToolCall, DeepSeekTool, DeepSeekChatRequest, DeepSeekChatResponse),
+        │                    SeniorDevResumidor, SeniorDevPrompts, SeniorDevLimites (todos los topes),
+        │                    ChatMencionIaUtils (@seniordev regex) — el cliente DeepSeek y sus DTOs viven en core/ia,
         │                    tools/ (SeniorDevHerramientas, SeniorDevHerramientaEjecutor, HerramientasProyecto,
         │                            HerramientaBuscarHistorial)
+        ├── copilot/         (F5, sin model/repository: usa DiagramaService y MiembroProyectoRepository)
+        │   ├── controller/  CopilotController (POST /copilot/consultas)
+        │   ├── dto/         CopilotConsultaRequest, CopilotTurno, CopilotConsultaResponse, ModoCopilot, OrigenRespuesta, MisionGuia
+        │   ├── exception/   CopilotCuotaExcedidaException (429)
+        │   ├── service/     CopilotService (orquesta), CopilotAsistente (DeepSeek), CopilotVision (Gemini), CopilotRespaldoManual,
+        │   │                CopilotPrompts (port de copilotSystemPrompt.ts), PosicionLibre, CopilotCuota, CopilotLimites
+        │   └── guia/        GuiaService (tool calling buscarManual), GuiaContexto, GuiaContextBuilder, GuiaPrompts,
+        │                    GuiaHerramientaManual, ManualTema, ManualRepositorio, ManualBuscador
         └── xmi/             (sin model/repository propios: usa los services de diagrama)
             ├── controller/  XmiController
             ├── dto/         ModoImportacionXmi (FUSIONAR | REEMPLAZAR), XmiPreviewResponse
@@ -131,6 +151,39 @@ case-backend/
   `SUBSCRIBE` solo a `/topic/proyectos/{id}/chat(/presencia)?` siendo miembro (`"403 Destino no permitido"` /
   `"403 No sos colaborador de este proyecto"`); `SEND` siempre `"403 Los mensajes se envían por REST"`.
   Spring responde frame `ERROR` (header `message`) y cierra la conexión.
+
+**core/ia** (F5, gateway de IA — sin clase fachada: Senior Dev, Copilot y Guía usan este paquete)
+- `DeepSeekClient`: `RestClient`, timeout 45 s, `completar(mensajes, tools, toolChoice, temp, maxTokens)` y `solicitarRespuesta`.
+- `GeminiVisionClient`: `POST {gemini.api.url}/models/{m}:generateContent` con la clave en el header **`x-goog-api-key`** (nunca en la
+  URL); prueba `gemini.models` en orden (no-2xx, excepción o texto vacío → siguiente), 30 s por modelo y presupuesto total 45 s
+  (`PRESUPUESTO_MS`, no arranca otro modelo si ya pasó); sin clave o si ninguno responde → `IaNoDisponibleException` (503).
+- `IaErrores.motivo(ex)`: "Tiempo de espera agotado" / "Error de autenticación con el proveedor" / "Límite de solicitudes excedido" /
+  mensaje recortado a 160. `SeniorDevService` antepone "Clave de API no configurada" si no hay clave.
+
+**copilot** (F5 — Copilot personal: Asistente + Guía; cualquier miembro, incluido LECTOR)
+- `CopilotService.consultar`, en orden: `verificarMiembro` (403) → `texto.strip()`; texto e imagen vacíos → 400 → GUIA con imagen → 400 →
+  `Base64.decode` (400 "La imagen no es válida") → `CopilotCuota.registrar` (429) → `DiagramaService.obtenerDiagrama` → imagen =
+  `CopilotVision` · GUIA = `GuiaService` · si no `CopilotAsistente`. **Sin `@Transactional`** (la IA tarda decenas de segundos).
+  Riesgo conocido: `spring.jpa.open-in-view` sigue en su default (`true`), así que el request retiene su conexión JDBC mientras
+  espera a la IA (pool Hikari de 10); con la cuota y pocos usuarios alcanza, pero no apagarlo sin revisar los lazy loads de los controllers.
+- `CopilotAsistente`: un solo turno `[system(CopilotPrompts.asistente(seccion, diagrama)), user(texto)]`, `temperature 0.3`,
+  `max_tokens 2000` → `origen DEEPSEEK`. Sin clave o cualquier error → `CopilotRespaldoManual` (200 `origen MANUAL`, nunca 5xx).
+- `CopilotPrompts`: port literal del prompt del front (tablas `- Nombre (x:80, y:80) [id:BIGINT:PK]`, relaciones, próxima
+  posición libre de `PosicionLibre` = port de `findSafeEntityPosition`, 9 comandos y reglas de seguridad) y del prompt de visión.
+- `CopilotRespaldoManual`: aviso "_El asistente IA no está disponible ahora (motivo)…_" + `### título` + contenido del mejor tema
+  (+ `ADR_SUGERIDA`/`MOTIVO` si el tema la trae); sin resultado → "Puedo explicarte: " + títulos de la sección.
+- `CopilotCuota`: 20 consultas por usuario en una ventana deslizante de 60 s, en memoria (`ConcurrentHashMap<Long, ArrayDeque>`,
+  `Clock` inyectable en tests). Se pierde al reiniciar.
+- Guía (`guia/`): `GuiaService` arma `[system(GuiaPrompts.SYSTEM), user(GuiaContextBuilder.usuario(ctx))]` (contexto: usuario y rol,
+  sección, conteos del proyecto, misiones pendientes, últimos 6 turnos, pregunta); 1.ª llamada con la tool `buscarManual` (`auto`,
+  `0.3`, `700` tokens), máx. 2 llamadas (las demás reciben `ERROR: límite de herramientas`), cierre con `tool_choice "none"` →
+  `herramientasUsadas ["buscarManual"]`. 400 del proveedor → una llamada sin tools con el manual inyectado (`=== MANUAL ===`).
+  Sin clave / otro error → respaldo MANUAL. `GuiaPrompts.SYSTEM`: voseo, ≤ 120 palabras, prohíbe los comandos que modifican,
+  solo `IR_A` (1) y `GUIA_PASO: [id]` (2) con los 14 ids de `GuiaPrompts.PASOS` (deben existir en `guiaPasos.data.ts` del front).
+- Manual: `ManualRepositorio` carga `resources/guia/manual.json` al arrancar (si falta o es inválido, **el arranque falla**);
+  `ManualBuscador` normaliza (minúsculas, sin tildes), descarta stopwords y plurales simples y puntúa título +3, palabra clave +4,
+  resumen +2, contenido +1, +2 si coincide la sección; empate → orden del archivo. **Cambiar una etiqueta de la UI → actualizar
+  `manual.json`.**
 
 **seguridad**: registro (username/email únicos → 409), login por username **o** email (falla → 401
 "Credenciales incorrectas"), `/me` con el perfil. `UsuarioPrincipal` permite usar
@@ -191,6 +244,11 @@ case-backend/
     cubre solo lo que ya salió de la ventana corta (sin solapamiento).
   - Fallback: sin API key o error de DeepSeek (timeout, 401, 429) → mensaje `tipo=SISTEMA` + estado `ERROR`, sin romper la sala.
   - Todos los topes están en `SeniorDevLimites` (constantes, sin `@Value`).
+- Aviso de nuevo miembro (F5): `MiembroProyectoService.agregar` publica `MiembroAgregadoEvent`; `ChatMiembroAgregadoListener`
+  (`@TransactionalEventListener(AFTER_COMMIT)`, try/catch → `log.warn`) llama a `ChatAvisoSistemaService.publicar`
+  (`@Transactional(REQUIRES_NEW)`: guarda `tipo SISTEMA` sin autor y publica `ChatMensajePublicadoEvent` → lo difunde el
+  `ChatMensajeBroadcastListener`). Texto: "@ana se unió al proyecto como Colaborador. Para arrancar, abrí la Guía del Copilot ›
+  Primeros pasos." Un 409 (duplicado) no publica nada y un fallo del aviso nunca revierte el alta.
 - Memoria (`ChatMemoriaService`): `GET /chat/memoria` para cualquier miembro; sin fila → 200 con `resumen: null`.
 - Presencia (`ChatPresenciaService`, en memoria, igual que `ColaboracionController`): cuenta una
   suscripción a `.../chat/presencia` (decisión D2: "en la sala" = tiene el proyecto abierto). Clave
@@ -244,7 +302,7 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | PUT | `/api/proyectos/{proyectoId}` | ADMIN | 200 | `{nombre, descripcion}` |
 | DELETE | `/api/proyectos/{proyectoId}` | ADMIN | 204 | Cascada en BD |
 | GET | `/api/proyectos/{proyectoId}/miembros` | Miembro | 200 lista | `{id, usuarioId, username, email, rol, createdAt}` |
-| POST | `/api/proyectos/{proyectoId}/miembros` | ADMIN | 201 | `{usernameOrEmail, rol}`; 409 si ya es miembro |
+| POST | `/api/proyectos/{proyectoId}/miembros` | ADMIN | 201 | `{usernameOrEmail, rol}`; 409 si ya es miembro; tras el commit publica un aviso `SISTEMA` en la sala (F5) |
 | PATCH | `/api/proyectos/{proyectoId}/miembros/{usuarioObjetivoId}/rol` | ADMIN | 200 | `{rol}`; protege al último ADMIN |
 | DELETE | `/api/proyectos/{proyectoId}/miembros/{usuarioObjetivoId}` | ADMIN | 204 | Protege al último ADMIN |
 | GET | `/api/proyectos/{proyectoId}/tareas` | Miembro | 200 lista | Orden `createdAt` desc |
@@ -260,6 +318,7 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/chat/mensajes/{mensajeId}/aplicar` | Escritor (ADMIN/COLABORADOR) | 200 `ChatMensajeResponse` | Marca propuesta aplicada, persiste `propuesta_aplicada=true` y `aplicado_por=username`, difunde por WS; LECTOR da 403 |
 | GET | `/api/proyectos/{proyectoId}/chat/presencia` | Miembro | 200 `ChatPresenciaResponse` | `{proyectoId, usuarios:[{usuarioId, username}]}` |
 | GET | `/api/proyectos/{proyectoId}/chat/memoria` | Miembro (incl. LECTOR) | 200 `ChatMemoriaResponse` | `{proyectoId, resumen, ultimoMensajeResumidoId, updatedAt}`; sin memoria → campos null (no 404) |
+| POST | `/api/proyectos/{proyectoId}/copilot/consultas` | Miembro (incl. LECTOR) | 200 `CopilotConsultaResponse` | `{texto?, imagenBase64?, seccion?, modo?: ASISTENTE\|GUIA, historial?[≤6 {rol, texto}], misionesPendientes?[≤7]}` → `{texto, origen: DEEPSEEK\|GEMINI\|MANUAL, herramientasUsadas}`; 400/403/429/503 (ver abajo) |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/presencia` | Auth | 200 lista | Body libre: `clientId` (obligatorio, si falta 400), `username`, `color`, `cursor{x,y}`, `selectedEntityId` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/desconectar` | Auth | 200 vacío | `{clientId}` |
 | GET | `/api/proyectos/{proyectoId}/diagrama` | Miembro | 200 | `{entidades[ {.., atributos[]} ], relaciones[]}` |
@@ -278,7 +337,7 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/xmi/previsualizar` | ADMIN | 200 `XmiPreviewResponse` | multipart, campo `archivo` |
 | POST | `/api/proyectos/{proyectoId}/xmi/importar?modo=FUSIONAR\|REEMPLAZAR` | ADMIN | 200 `DiagramaResponse` | multipart `archivo`; `modo` default FUSIONAR |
 
-Total: **42 endpoints REST** (36 previos + 5 del chat + 1 DDL; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
+Total: **43 endpoints REST** (36 previos + 5 del chat + 1 DDL + 1 Copilot; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
 contenido, respuestaAId, createdAt, propuestaAplicada, aplicadoPor, herramientasUsadas}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
 autor ya no es miembro; `respuestaAId` = mensaje al que responde la IA/sistema; `herramientasUsadas` = lista de
 `obtenerDiagrama|listarTareas|listarNotas|buscarEnHistorial` o null si no es IA o no consultó nada).
@@ -296,7 +355,16 @@ Detalle: en las rutas anidadas (`/tareas/{tareaId}`, `/entidades/{entidadId}/atr
 `/relaciones/{relacionId}`) el permiso se valida contra el proyecto real del recurso; el
 `{proyectoId}`/`{entidadId}` del path no se cruza con el recurso.
 
-Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`) o `IllegalArgumentException`;
+**Copilot** (`/copilot/consultas`): 400 "Escribí una consulta o adjuntá una imagen" · `texto` > 4000 · `imagenBase64` > 2 000 000
+caracteres · "La imagen no es válida" · `seccion` ∉ `diagrama|tareas|notas|xmi|generador|general` · historial > 6 o turno inválido ·
+"La Guía no analiza imágenes; usá el modo Asistente" · JSON mal formado o enum desconocido ("Cuerpo de la petición inválido");
+403 no miembro; 429 "Hiciste muchas consultas seguidas. Esperá un minuto."; 503 imagen sin `GEMINI_API_KEY` ("El reconocimiento
+de imágenes no está configurado en el servidor") o todos los modelos fallaron. Texto sin `DEEPSEEK_API_KEY` o con error del
+proveedor → **200 `origen MANUAL`**. La imagen se manda a Gemini como `image/jpeg`. Peor caso ≈ 90 s → el front usa
+`timeoutMs: 100_000` y Nginx `/api/` tiene `client_max_body_size 3m` y `proxy_read/send_timeout 120s`.
+
+Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`), `IllegalArgumentException` o body ilegible
+(`HttpMessageNotReadableException`, "Cuerpo de la petición inválido"); 429 cuota del Copilot; 503 IA no disponible;
 401 sin token / credenciales malas; 403 no miembro o rol insuficiente; 404 recurso inexistente;
 409 nombre/usuario duplicado o violación de integridad en BD.
 
@@ -331,9 +399,15 @@ existe endpoint para borrar usuarios).
 | `jwt.secret` | `JWT_SECRET` (Base64, ≥ 256 bits) | clave de desarrollo pública — **debe** sobreescribirse en prod |
 | `jwt.expiration-ms` | `JWT_EXPIRATION_MS` | `86400000` (24 h) |
 | `server.port` | `SERVER_PORT` | `8081` |
-| `deepseek.api.key` | `DEEPSEEK_API_KEY` | vacío → Senior Dev responde con mensaje `SISTEMA` "Clave de API no configurada" (fuera de Docker la toma del `.env` raíz) |
+| `deepseek.api.key` | `DEEPSEEK_API_KEY` | vacío → Senior Dev responde con mensaje `SISTEMA` "Clave de API no configurada" y el Copilot/Guía con el manual (`origen MANUAL`) (fuera de Docker la toma del `.env` raíz) |
 | `deepseek.api.url` / `deepseek.model` | `DEEPSEEK_API_URL` / `DEEPSEEK_MODEL` | `https://api.deepseek.com` / `deepseek-chat` |
 | `deepseek.timeout-ms` | `DEEPSEEK_TIMEOUT_MS` | `45000` por llamada (el bucle de herramientas tiene además un deadline de 90 s en `SeniorDevLimites`) |
+| `gemini.api.key` | `GEMINI_API_KEY` | vacío → una foto en el Copilot da 503 (fuera de Docker la toma del `.env` raíz) |
+| `gemini.api.url` / `gemini.models` | `GEMINI_API_URL` / `GEMINI_MODELS` | `https://generativelanguage.googleapis.com/v1beta` / `gemini-3.5-flash-lite,gemini-3.5-flash,gemini-2.0-flash` (en orden) |
+| `gemini.timeout-ms` | `GEMINI_TIMEOUT_MS` | `30000` por modelo (presupuesto total 45 s en `GeminiVisionClient.PRESUPUESTO_MS`) |
+
+Las claves de IA (`DEEPSEEK_API_KEY`, `GEMINI_API_KEY`) **solo las usa el backend**: los dos compose las pasan como
+`${VAR:-}` al contenedor `case_backend`; el frontend ya no tiene variables `VITE_*` de IA.
 
 `docker-compose.yml` / `docker-compose.prod.yml` (raíz del repo) pasan al contenedor
 `case_backend`: `SPRING_DATASOURCE_*` (host `postgres-db:5432`), `SPRING_JPA_HIBERNATE_DDL_AUTO=update`
@@ -347,7 +421,8 @@ arrancar con la clave de desarrollo. Generarla con `openssl rand -base64 48`. De
 cd case-backend
 ./mvnw -q -DskipTests compile        # verificación mínima obligatoria
 ./mvnw -q test                       # contextLoads necesita Postgres accesible; el resto son unitarios
-./mvnw -q test -Dtest='Chat*Test,SeniorDev*Test,Herramienta*Test,DeepSeek*Test,Ddl*Test,Stomp*Test'   # unitarios sin BD (97)
+./mvnw -q test -Dtest='Chat*Test,SeniorDev*Test,Herramienta*Test,DeepSeek*Test,Ddl*Test,Stomp*Test,Copilot*Test,Guia*Test,Manual*Test,Gemini*Test,IaErrores*Test,PosicionLibre*Test,MiembroProyecto*Test'   # unitarios sin BD
+# Suite completa (2026-10-25, F5): 174 tests, 0 fallos (incluye contextLoads contra case_postgres :5434)
 # Sin BD, para validar solo el cableado de beans:
 ./mvnw -q test -Dspring.jpa.hibernate.ddl-auto=none \
   -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \

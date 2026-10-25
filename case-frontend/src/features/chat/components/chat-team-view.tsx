@@ -6,6 +6,7 @@ import { Marker, MarkerContent } from "@/components/ui/marker"
 import { useAuth } from "@/hooks/useAuth"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
+import { GuiaLink } from "@/features/guia"
 import type { MentionItem } from "../types/mention.types"
 import { useChatSala } from "../hooks/useChatSala"
 import { ChatMemoryDialog } from "./chat-memory-dialog"
@@ -52,7 +53,9 @@ export function ChatTeamView({ proyectoId }: { proyectoId: number }) {
           description="Lo que escribas acá lo ve todo el equipo. Mencioná a @SeniorDev para pedirle una revisión."
           primaryAction={{ label: "Preguntar a Senior Dev", onClick: () => void sala.enviar(CONSULTA_IA), loading: sala.enviando }}
           secondaryAction={{ label: "Saludar al equipo", onClick: () => void sala.enviar(SALUDO), loading: sala.enviando }}
-        />
+        >
+          <GuiaLink seccion="general" />
+        </ChatEmpty>
       )
     }
     if (mensajes.length === 0) {

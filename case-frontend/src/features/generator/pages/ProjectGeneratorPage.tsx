@@ -56,7 +56,7 @@ export function ProjectGeneratorPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setDdlAbierto(true)}>
+          <Button variant="outline" size="sm" onClick={() => setDdlAbierto(true)} data-guia="generador-ddl">
             <FileCode className="size-3.5" />
             Ver DDL PostgreSQL
           </Button>
@@ -64,7 +64,7 @@ export function ProjectGeneratorPage() {
             <RefreshCw className="size-3.5" />
             Actualizar
           </Button>
-          <Button size="sm" onClick={descargar} disabled={downloading || !preview || preview.archivos.length === 0}>
+          <Button size="sm" onClick={descargar} disabled={downloading || !preview || preview.archivos.length === 0} data-guia="generador-descargar">
             <Download className="size-3.5" />
             {downloading ? "Generando ZIP..." : "Descargar Proyecto (.ZIP)"}
           </Button>

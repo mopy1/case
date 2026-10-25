@@ -13,10 +13,12 @@ export interface ChatComposerButtonProps {
   disabled?: boolean
   /** Muestra un texto junto al icono (p. ej. "Escuchando"). */
   showLabel?: string
+  /** Id de coach mark (`data-guia`) de la Guía de inducción. */
+  guia?: string
 }
 
 /** Herramienta del composer (voz, adjuntar, mencionar a Senior Dev). */
-export function ChatComposerButton({ icon: Icon, label, onClick, pressed, recording, disabled, showLabel }: ChatComposerButtonProps) {
+export function ChatComposerButton({ icon: Icon, label, onClick, pressed, recording, disabled, showLabel, guia }: ChatComposerButtonProps) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -29,6 +31,7 @@ export function ChatComposerButton({ icon: Icon, label, onClick, pressed, record
             disabled={disabled}
             aria-label={label}
             aria-pressed={pressed}
+            data-guia={guia}
             className={cn("text-muted-foreground", !showLabel && "pointer-coarse:size-9", recording && "bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive")}
           />
         }

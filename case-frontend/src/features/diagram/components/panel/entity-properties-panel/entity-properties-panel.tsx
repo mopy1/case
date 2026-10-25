@@ -75,7 +75,7 @@ export function EntityPropertiesPanel({
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Atributos</h3>
         <AttributeFormDialog
-          trigger={<Button variant="ghost" size="icon-xs" />}
+          trigger={<Button variant="ghost" size="icon-xs" aria-label="Agregar atributo" data-guia="diagrama-atributo" />}
           proyectoId={proyectoId}
           entidad={entidad}
           entidades={entidades}

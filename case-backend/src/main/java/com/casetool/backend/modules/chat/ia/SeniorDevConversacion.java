@@ -13,8 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekToolCall;
+import com.casetool.backend.core.ia.DeepSeekClient;
+import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
+import com.casetool.backend.core.ia.dto.DeepSeekToolCall;
 import com.casetool.backend.modules.chat.ia.tools.SeniorDevHerramientaEjecutor;
 import com.casetool.backend.modules.chat.ia.tools.SeniorDevHerramientas;
 

@@ -35,7 +35,7 @@ export function CopilotPanelTabs({
     >
       <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-2">
         <TabsList variant="line" className="h-full flex-1 justify-start">
-          <TabsTrigger value="equipo" className="flex-none px-3 text-xs">
+          <TabsTrigger value="equipo" className="flex-none px-3 text-xs" data-guia="panel-equipo">
             <Users /> Equipo
           </TabsTrigger>
           <TabsTrigger value="copilot" className="flex-none px-3 text-xs">

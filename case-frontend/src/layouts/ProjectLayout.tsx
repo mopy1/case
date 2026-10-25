@@ -8,6 +8,7 @@ import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import { CopilotPanel } from "@/features/copilot"
 import { ChatTeamView } from "@/features/chat"
+import { GuiaSpotlight, useGuiaInduccion, useGuiaProgreso } from "@/features/guia"
 import { usePushToTalk, VoicePushToTalkHud } from "@/features/voice"
 import { useIsMobile } from "@/hooks/useIsMobile"
 import { decodeProjectId, encodeProjectId } from "@/lib/projectCode"
@@ -39,6 +40,16 @@ export function ProjectLayout() {
     return saved !== null ? saved === "true" : true
   })
   const [isChatFullScreen, setIsChatFullScreen] = useState(false)
+  const cerrarPanel = () => {
+    setIsCopilotOpen(false)
+    setIsChatFullScreen(false)
+  }
+  const { reabrir: reabrirGuia } = useGuiaProgreso()
+  useGuiaInduccion(proyectoId, {
+    abrir: () => setIsCopilotOpen(true),
+    cerrar: cerrarPanel,
+    alMostrarPaso: () => setIsChatFullScreen(false),
+  })
 
   useEffect(() => {
     if (!isMobile) localStorage.setItem(COPILOT_STORAGE_KEY, String(isCopilotOpen))
@@ -64,7 +75,7 @@ export function ProjectLayout() {
       className="flex h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-background"
       style={{ height: "var(--visual-viewport-height, 100dvh)" }}
     >
-      <ProjectNavRail projectId={maskedCode || id!} miembros={miembros} miRol={proyecto?.miRol} />
+      <ProjectNavRail projectId={maskedCode || id!} miembros={miembros} miRol={proyecto?.miRol} onPrimerosPasos={reabrirGuia} />
       <main className={cn("relative flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden", isChatFullScreen && "hidden")}>
         {error ? (
           <Alert variant="destructive" className="m-6">
@@ -93,16 +104,14 @@ export function ProjectLayout() {
       <CopilotPanel
         proyectoId={proyectoId}
         isOpen={isCopilotOpen}
-        onClose={() => {
-          setIsCopilotOpen(false)
-          setIsChatFullScreen(false)
-        }}
+        onClose={cerrarPanel}
         teamPanel={<ChatTeamView key={proyectoId} proyectoId={proyectoId} />}
         isFullscreen={isChatFullScreen}
         onToggleFullscreen={() => setIsChatFullScreen((prev) => !prev)}
       />
 
       <VoicePushToTalkHud isPushing={isPushing} isSending={isSending} liveText={liveText} />
+      <GuiaSpotlight />
     </div>
   )
 }

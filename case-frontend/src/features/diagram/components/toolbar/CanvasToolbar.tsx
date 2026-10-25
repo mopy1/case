@@ -38,7 +38,7 @@ export function CanvasToolbar({
   return (
     <div className="absolute top-4 left-4 z-10">
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger render={<Button />}>
+        <DialogTrigger render={<Button data-guia="diagrama-nueva-entidad" />}>
           <Plus className="size-4" />
           Entidad
         </DialogTrigger>

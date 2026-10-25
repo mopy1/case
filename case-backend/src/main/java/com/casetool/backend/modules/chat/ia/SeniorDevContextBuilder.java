@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
+import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMemoriaRepository;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;

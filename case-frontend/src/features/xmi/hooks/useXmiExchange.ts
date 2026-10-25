@@ -5,6 +5,7 @@ import { exportXmi, importXmi, previewXmi } from "../api/xmiApi"
 import type { ModoImportacionXmi, XmiPreviewResponse } from "../types/xmi.type"
 import { mensajeDeError } from "@/lib/api"
 import { descargarBlob } from "@/lib/descargarArchivo"
+import { notificarExportacion } from "@/features/guia"
 
 /** Exportar dispara la descarga del archivo directo en el navegador (sin pasos intermedios,
  * `URL.createObjectURL` + un `<a download>` sintético). Importar es en dos pasos — primero
@@ -29,6 +30,7 @@ export function useXmiExchange(proyectoId: number) {
     try {
       const blob = await exportXmi(proyectoId)
       descargarBlob(blob, `proyecto-${proyectoId}.xmi`)
+      notificarExportacion(proyectoId, "xmi")
     } catch (err) {
       setErrorExportar(mensajeDeError(err, "No se pudo exportar el XMI"))
     } finally {

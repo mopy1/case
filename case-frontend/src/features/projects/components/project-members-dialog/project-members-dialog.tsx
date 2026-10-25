@@ -53,6 +53,7 @@ export function ProjectMembersDialog({ proyectoId, miRol }: { proyectoId: number
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         aria-label="Colaboradores"
+        data-guia="nav-colaboradores"
         className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
       >
         <Users className="size-4" />

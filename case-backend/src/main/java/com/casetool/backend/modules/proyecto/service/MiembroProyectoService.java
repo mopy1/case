@@ -2,6 +2,7 @@ package com.casetool.backend.modules.proyecto.service;
 
 import java.util.List;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,16 +25,19 @@ public class MiembroProyectoService {
     private final ProyectoRepository proyectoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ProyectoAccesoService accesoService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public MiembroProyectoService(
             MiembroProyectoRepository miembroProyectoRepository,
             ProyectoRepository proyectoRepository,
             UsuarioRepository usuarioRepository,
-            ProyectoAccesoService accesoService) {
+            ProyectoAccesoService accesoService,
+            ApplicationEventPublisher eventPublisher) {
         this.miembroProyectoRepository = miembroProyectoRepository;
         this.proyectoRepository = proyectoRepository;
         this.usuarioRepository = usuarioRepository;
         this.accesoService = accesoService;
+        this.eventPublisher = eventPublisher;
     }
 
     public MiembroProyectoResponse agregar(Long proyectoId, MiembroProyectoRequest request, Long usuarioId) {
@@ -54,6 +58,8 @@ public class MiembroProyectoService {
         miembro.setUsuario(usuarioAAgregar);
         miembro.setRol(request.rol());
         miembroProyectoRepository.save(miembro);
+        // El aviso en la sala lo publica el chat recién después del commit (ChatMiembroAgregadoListener).
+        eventPublisher.publishEvent(new MiembroAgregadoEvent(proyectoId, usuarioAAgregar.getUsername(), miembro.getRol()));
 
         return MiembroProyectoResponse.from(miembro);
     }

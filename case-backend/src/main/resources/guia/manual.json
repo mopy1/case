@@ -1,0 +1,355 @@
+[
+  {
+    "id": "uml-canvas-entidades",
+    "titulo": "Crear y editar tablas en el lienzo",
+    "seccion": "diagrama",
+    "resumen": "Cómo crear una tabla con el botón \"Entidad\", moverla, renombrarla y borrarla.",
+    "contenido": "1. En **Diagrama**, pulsá el botón **\"Entidad\"** (arriba a la izquierda del lienzo).\n2. En el diálogo **\"Nueva tabla\"** escribí el **\"Nombre de la tabla\"** (recomendado en PascalCase, como `Cliente` o `DetallePedido`) y pulsá **\"Crear tabla\"**.\n3. Para moverla, arrastrala desde su cabecera.\n4. Hacé clic sobre la tabla para abrir **\"Propiedades de la tabla\"** a la derecha: ahí cambiás el nombre (botón **\"Guardar\"**) y sus atributos.\n5. Para borrarla, usá el ícono de papelera de su cabecera y confirmá con **\"Eliminar tabla\"**.\n\nTodo cambio se guarda solo en el servidor y lo ven los demás miembros.",
+    "palabrasClave": [
+      "entidad",
+      "tabla",
+      "crear tabla",
+      "nueva tabla",
+      "lienzo",
+      "canvas",
+      "mover",
+      "arrastrar",
+      "renombrar",
+      "propiedades",
+      "eliminar tabla"
+    ]
+  },
+  {
+    "id": "uml-tipos-datos",
+    "titulo": "Tipos de datos SQL y su equivalente en Java",
+    "seccion": "diagrama",
+    "resumen": "Los 6 tipos SQL que acepta un atributo y a qué tipo de Java se generan.",
+    "contenido": "Al crear un atributo elegís su **\"Tipo de dato\"** entre 6 tipos:\n- **BIGINT** → `Long`: ids y claves foráneas.\n- **VARCHAR** → `String`: textos (nombres, correos).\n- **INTEGER** → `Integer`: cantidades, años.\n- **BOOLEAN** → `Boolean`: banderas (activo, verificado).\n- **TIMESTAMP** → `LocalDateTime`: fechas y horas (`created_at`).\n- **DECIMAL** → `BigDecimal`: importes y precios exactos.",
+    "palabrasClave": [
+      "tipo de dato",
+      "tipos",
+      "sql",
+      "bigint",
+      "varchar",
+      "integer",
+      "boolean",
+      "timestamp",
+      "decimal",
+      "java",
+      "long",
+      "string"
+    ],
+    "adrSugerida": {
+      "accion": "Estandarizar todas las claves primarias como BIGINT",
+      "motivo": "Simplifica los JOIN en PostgreSQL, evita desbordes de enteros y se mapea directo a Long en Spring Data JPA."
+    }
+  },
+  {
+    "id": "uml-pks-fks",
+    "titulo": "Atributos: clave primaria, clave foránea y nulos",
+    "seccion": "diagrama",
+    "resumen": "Cómo agregar un atributo y marcarlo como clave primaria, clave foránea o que admite nulos.",
+    "contenido": "1. Seleccioná la tabla en el lienzo para abrir **\"Propiedades de la tabla\"**.\n2. Junto a **\"Atributos\"** pulsá el botón **\"+\"**: se abre **\"Nuevo atributo\"**.\n3. Completá **\"Nombre\"** y **\"Tipo de dato\"**.\n4. Marcá **\"Clave primaria\"** si identifica a la fila (se muestra arriba con una llave).\n5. Marcá **\"Clave foránea\"** si apunta a otra tabla y elegí la tabla en **\"Referencia a\"**.\n6. **\"Admite nulos\"** define si la columna puede quedar vacía (sin marcar = NOT NULL).\n7. Pulsá **\"Agregar atributo\"**. Para editar uno existente usá su botón de edición; para borrarlo, **\"Eliminar atributo\"**.",
+    "palabrasClave": [
+      "atributo",
+      "columna",
+      "agregar atributo",
+      "nuevo atributo",
+      "pk",
+      "fk",
+      "clave primaria",
+      "clave foranea",
+      "primary key",
+      "foreign key",
+      "nullable",
+      "admite nulos",
+      "referencia"
+    ]
+  },
+  {
+    "id": "uml-multiplicidades-nm",
+    "titulo": "Relaciones, multiplicidades y relaciones N:M",
+    "seccion": "diagrama",
+    "resumen": "Cómo relacionar dos tablas, cambiar la multiplicidad y obtener la tabla intermedia de una N:M.",
+    "contenido": "1. **Relacionar:** arrastrá desde uno de los puntos del borde de una tabla hasta otra tabla. La relación nace 1 a 1.\n2. **Cambiar la multiplicidad:** hacé clic en la etiqueta de un extremo de la línea (**\"1\"**, **\"0..1\"**, **\"1..*\"** o **\"0..*\"**) y elegí el valor. No hace falta borrar la relación.\n3. **1:N:** un lado en **\"1\"** y el otro en **\"1..*\"** (ej. `Cliente` 1 a `Pedido` 1..*).\n4. **N:M:** si los dos lados quedan en \"muchos\" (**\"1..*\"** o **\"0..*\"**), el sistema crea solo la **tabla intermedia** con las dos claves foráneas.\n5. **Tipo UML:** al seleccionar la línea aparece una barra con **\"Asoc\"**, **\"Comp\"**, **\"Agreg\"** y **\"Heren\"**; ahí también está **\"Eliminar relación\"**.",
+    "palabrasClave": [
+      "relacion",
+      "relacionar",
+      "conectar",
+      "multiplicidad",
+      "cardinalidad",
+      "1:n",
+      "n:m",
+      "muchos a muchos",
+      "uno a muchos",
+      "tabla intermedia",
+      "composicion",
+      "agregacion",
+      "herencia"
+    ],
+    "adrSugerida": {
+      "accion": "Normalizar la relación N:M con una tabla intermedia",
+      "motivo": "Descomponer la relación muchos a muchos en dos relaciones 1:N hacia una tabla puente permite guardar datos propios del vínculo y respeta la 3FN."
+    }
+  },
+  {
+    "id": "uml-puntos-control",
+    "titulo": "Puntos de quiebre y cruces de líneas",
+    "seccion": "diagrama",
+    "resumen": "Cómo doblar una relación con puntos de quiebre y por qué aparece un salto cuando dos líneas se cruzan.",
+    "contenido": "- Las relaciones se dibujan en ángulo recto y buscan el lado más cercano de cada tabla.\n- Arrastrá las manijas intermedias de la línea para crear **puntos de quiebre** y esquivar otras tablas; quedan guardados.\n- Cuando dos relaciones se cruzan, una dibuja un pequeño **arco de salto** para que se note que no están conectadas.",
+    "palabrasClave": [
+      "puntos de control",
+      "punto de quiebre",
+      "quiebre",
+      "manija",
+      "linea",
+      "ortogonal",
+      "cruce",
+      "salto",
+      "esquivar"
+    ]
+  },
+  {
+    "id": "notas-adrs",
+    "titulo": "Notas de diseño (ADR)",
+    "seccion": "notas",
+    "resumen": "Qué es un ADR, cómo registrar uno en Notas y por qué no se editan.",
+    "contenido": "Un **ADR** (registro de decisión de arquitectura) deja por escrito qué se decidió y por qué.\n1. Andá a **Notas** en el riel izquierdo y pulsá **\"Nueva nota\"**.\n2. Completá **\"Qué se hizo\"** (la decisión, ej. \"Usar BIGINT en todas las PK\") y **\"Por qué\"** (la justificación técnica: normalización, rendimiento, seguridad).\n3. Guardala. Las notas **no se editan ni se borran**: así queda la historia del diseño para el equipo y el docente.\n\nTambién podés guardar como ADR una respuesta de Senior Dev con **\"Guardar como ADR\"** o una sugerencia del Copilot con su tarjeta \"Guardar ADR\". Los lectores no pueden crear notas.",
+    "palabrasClave": [
+      "nota",
+      "notas",
+      "adr",
+      "decision",
+      "arquitectura",
+      "justificar",
+      "nueva nota",
+      "inmutable",
+      "motivo",
+      "por que"
+    ],
+    "adrSugerida": {
+      "accion": "Documentar las decisiones de arquitectura como ADR inmutables",
+      "motivo": "Deja trazabilidad del diseño relacional y permite justificar la normalización y los patrones ante revisiones técnicas y académicas."
+    }
+  },
+  {
+    "id": "tareas-kanban",
+    "titulo": "Tablero de tareas (Kanban)",
+    "seccion": "tareas",
+    "resumen": "Cómo crear tareas, asignarlas y moverlas entre Pendiente, En progreso y Hecho.",
+    "contenido": "1. Andá a **Tareas** en el riel izquierdo y pulsá **\"Nueva tarea\"**.\n2. Completá **\"Título\"**, **\"Descripción\"**, **\"Prioridad\"** (Alta, Media o Baja) y **\"Asignar a\"** (un miembro o \"Sin asignar\"). Nace en **\"Pendiente\"**.\n3. El tablero tiene tres columnas: **\"Pendiente\"**, **\"En progreso\"** y **\"Hecho\"**. Mové una tarjeta con sus flechas izquierda y derecha.\n4. La papelera de la tarjeta la borra.\n\nLos lectores ven el tablero pero no pueden cambiarlo.",
+    "palabrasClave": [
+      "tarea",
+      "tareas",
+      "kanban",
+      "tablero",
+      "pendiente",
+      "en progreso",
+      "hecho",
+      "prioridad",
+      "asignar",
+      "backlog",
+      "nueva tarea"
+    ]
+  },
+  {
+    "id": "xmi-interoperabilidad",
+    "titulo": "Exportar e importar XMI (Enterprise Architect)",
+    "seccion": "xmi",
+    "resumen": "Cómo llevar el diagrama a Enterprise Architect con XMI y cómo importarlo de vuelta.",
+    "contenido": "**Exportar:**\n1. Andá a **XMI** en el riel izquierdo y pulsá **\"Exportar XMI\"**: se descarga `diagrama-{id}.xmi` (XMI 1.1).\n2. En Enterprise Architect: clic derecho en un paquete › Import/Export › Import Package from XMI.\n\n**Importar (solo ADMIN):**\n1. En **XMI** pulsá **\"Importar XMI\"** y elegí el archivo exportado desde Enterprise Architect.\n2. Pulsá **\"Previsualizar\"** para ver qué tablas trae y cuáles ya existen.\n3. Elegí **\"Fusionar (agregar a lo que ya hay)\"** o **\"Reemplazar (vaciar el diagrama actual primero)\"** y pulsá **\"Confirmar importación\"**.",
+    "palabrasClave": [
+      "xmi",
+      "enterprise architect",
+      "exportar",
+      "importar",
+      "exportar xmi",
+      "importar xmi",
+      "xml",
+      "uml",
+      "interoperabilidad",
+      "fusionar",
+      "reemplazar"
+    ]
+  },
+  {
+    "id": "generador-spring-boot",
+    "titulo": "Generador de backend Spring Boot",
+    "seccion": "generador",
+    "resumen": "Qué genera el ZIP del backend y cómo ejecutarlo.",
+    "contenido": "1. Andá a **Generador de backend** en el riel izquierdo.\n2. Pulsá **\"Descargar Proyecto (.ZIP)\"**: se genera un proyecto Maven con Java 21, Spring Boot 3.4 y PostgreSQL.\n3. Por cada tabla trae entidad JPA, DTOs, repositorio, servicio y controlador REST, más un manejador global de errores.\n4. Descomprimí el ZIP y ejecutá `./mvnw spring-boot:run`.\n\nSi cambiás el diagrama, volvé a descargar el ZIP: se genera desde el diagrama actual.",
+    "palabrasClave": [
+      "generador",
+      "generar",
+      "backend",
+      "spring boot",
+      "java",
+      "zip",
+      "descargar",
+      "maven",
+      "pom",
+      "entity",
+      "repository",
+      "service",
+      "controller",
+      "dto"
+    ],
+    "adrSugerida": {
+      "accion": "Separar las entidades JPA de la API REST con DTOs y servicios",
+      "motivo": "Evita exponer el modelo de persistencia, protege contra over-posting y concentra las transacciones en la capa de servicio."
+    }
+  },
+  {
+    "id": "ddl-visor",
+    "titulo": "Ver y descargar el DDL de PostgreSQL",
+    "seccion": "generador",
+    "resumen": "Cómo ver el script SQL del diagrama, copiarlo o descargarlo como .sql.",
+    "contenido": "1. En **Generador de backend** pulsá **\"Ver DDL PostgreSQL\"**.\n2. Se muestra el script `CREATE TABLE` del diagrama actual con sus claves primarias y foráneas. Siempre sale igual para el mismo diagrama.\n3. Podés copiarlo o descargarlo como `esquema-{id}.sql`.\n\nCualquier miembro, incluso un lector, puede verlo. En la sala del equipo también está la acción rápida **\"Ver DDL\"**.",
+    "palabrasClave": [
+      "ddl",
+      "sql",
+      "postgresql",
+      "postgres",
+      "script",
+      "create table",
+      "esquema",
+      "descargar sql",
+      "ver ddl"
+    ]
+  },
+  {
+    "id": "sistema-temas",
+    "titulo": "Modo oscuro y modo claro",
+    "seccion": "general",
+    "resumen": "Dónde se cambia entre el tema oscuro y el claro.",
+    "contenido": "1. Abrí tu menú de usuario (tu avatar, abajo en el riel izquierdo).\n2. Activá o desactivá **\"Modo oscuro\"**.\n\nLa preferencia queda guardada en tu navegador y todo, incluido el lienzo del diagrama, se adapta al tema.",
+    "palabrasClave": [
+      "tema",
+      "oscuro",
+      "claro",
+      "modo oscuro",
+      "dark mode",
+      "colores",
+      "apariencia"
+    ]
+  },
+  {
+    "id": "proyecto-crear-practica",
+    "titulo": "Crear un proyecto de práctica",
+    "seccion": "general",
+    "resumen": "Cómo crear tu primer proyecto para practicar sin tocar el del equipo.",
+    "contenido": "1. En la pantalla **Proyectos** pulsá **\"Crear proyecto nuevo\"**.\n2. En **\"Nuevo proyecto\"** escribí un nombre (sugerido: «Práctica — Biblioteca») y una descripción corta.\n3. Pulsá **\"Crear proyecto\"**: quedás como **ADMIN** y entrás al diagrama vacío.\n\nUn proyecto de práctica es ideal para probar todo (tablas, relaciones, exportar) sin afectar el trabajo del equipo.",
+    "palabrasClave": [
+      "proyecto",
+      "crear proyecto",
+      "nuevo proyecto",
+      "practica",
+      "empezar",
+      "primer proyecto",
+      "dashboard"
+    ]
+  },
+  {
+    "id": "miembros-invitar-roles",
+    "titulo": "Colaboradores y roles",
+    "seccion": "general",
+    "resumen": "Cómo sumar a un compañero al proyecto y qué puede hacer cada rol.",
+    "contenido": "1. En el riel izquierdo pulsá **\"Colaboradores\"**.\n2. Si sos **ADMIN**, en **\"Agregar colaborador\"** escribí su usuario o email, elegí el rol y pulsá **\"Agregar\"**.\n3. Roles:\n- **Administrador:** todo, incluido gestionar colaboradores, importar XMI y borrar el proyecto.\n- **Colaborador:** edita el diagrama, tareas y notas y aplica propuestas.\n- **Lector:** ve todo, chatea, descarga el DDL y exporta el XMI, pero no modifica nada.\n4. El ADMIN también puede cambiar el rol o quitar a alguien (el último ADMIN no se puede quitar).\n\nCuando alguien se une, la sala del equipo lo anuncia.",
+    "palabrasClave": [
+      "colaborador",
+      "colaboradores",
+      "miembro",
+      "miembros",
+      "invitar",
+      "agregar colaborador",
+      "sumar",
+      "companero",
+      "rol",
+      "roles",
+      "admin",
+      "lector",
+      "permisos"
+    ]
+  },
+  {
+    "id": "chat-equipo-seniordev",
+    "titulo": "Sala del equipo y Senior Dev",
+    "seccion": "general",
+    "resumen": "Cómo chatear con el equipo y preguntarle a @SeniorDev, la IA del grupo.",
+    "contenido": "1. Abrí el panel lateral y elegí la pestaña **\"Equipo\"**: es la sala del proyecto, en vivo para todos los miembros.\n2. Para consultar a la IA del equipo, pulsá **\"Mencionar a Senior Dev\"** (o escribí `@SeniorDev`) y tu pregunta sobre el modelo.\n3. Senior Dev responde en el hilo para todos, citando a quien preguntó; puede revisar el diagrama, las tareas, las notas y el historial.\n4. Las acciones rápidas (**\"Revisar normalización\"**, **\"Sugerir índices\"**, **\"Resumir decisiones\"**, etc.) arman la pregunta por vos.\n5. **\"Memoria\"** muestra lo que el equipo ya decidió.",
+    "palabrasClave": [
+      "chat",
+      "sala",
+      "equipo",
+      "senior dev",
+      "seniordev",
+      "mencionar",
+      "mencion",
+      "ia del equipo",
+      "preguntar",
+      "grupo",
+      "memoria"
+    ]
+  },
+  {
+    "id": "propuestas-aplicar-adr",
+    "titulo": "Aplicar propuestas y guardar decisiones",
+    "seccion": "general",
+    "resumen": "Cómo aplicar los cambios que propone Senior Dev y guardar una respuesta como ADR.",
+    "contenido": "1. Cuando Senior Dev propone cambios (tablas, atributos, relaciones), su respuesta muestra una tarjeta con el resumen.\n2. Un **ADMIN** o **Colaborador** pulsa **\"Aplicar N cambios\"** (por ejemplo \"Aplicar 3 cambios\"): los cambios se hacen en el diagrama y la sala muestra quién los aplicó.\n3. Para registrar la decisión, usá **\"Guardar como ADR\"** en el mensaje: se crea una nota en **Notas**.\n4. Los lectores ven las propuestas pero no pueden aplicarlas.",
+    "palabrasClave": [
+      "propuesta",
+      "propuestas",
+      "aplicar",
+      "aplicar todos",
+      "cambios",
+      "guardar como adr",
+      "adr",
+      "decision",
+      "senior dev"
+    ]
+  },
+  {
+    "id": "copilot-asistente-guia",
+    "titulo": "Copilot: modo Asistente y modo Guía",
+    "seccion": "general",
+    "resumen": "Para qué sirve cada modo del Copilot personal, el modo autónomo, las fotos y la voz.",
+    "contenido": "El Copilot es **solo tuyo** (el equipo no ve tu conversación). Arriba tiene el interruptor **\"Asistente · Guía\"**:\n- **Asistente:** construye por vos. Pedile \"Creá una tabla Libro con id y titulo\" y te muestra tarjetas para aplicar los cambios (o **\"Aplicar todos\"**).\n- **Guía:** te enseña a usar la herramienta y te muestra dónde está cada botón; nunca modifica el proyecto.\n\nSolo en Asistente:\n- **\"Autónomo\"**: los cambios se aplican sin pedir confirmación.\n- **\"Adjuntar foto de un diagrama\"**: reconoce un boceto o captura y propone las tablas y relaciones.\n\nEn los dos modos podés dictar por voz con el micrófono del cuadro de texto.",
+    "palabrasClave": [
+      "copilot",
+      "asistente",
+      "guia",
+      "modo",
+      "autonomo",
+      "foto",
+      "imagen",
+      "camara",
+      "voz",
+      "dictado",
+      "microfono",
+      "interruptor"
+    ]
+  },
+  {
+    "id": "guia-primeros-pasos",
+    "titulo": "Primeros pasos: las 7 misiones",
+    "seccion": "general",
+    "resumen": "Las 7 misiones de la inducción, cómo se marcan solas y cómo reabrir la guía.",
+    "contenido": "La tarjeta **\"Primeros pasos\"** del modo Guía tiene 7 misiones que se marcan solas al cumplirlas:\n1. Creá un proyecto de práctica.\n2. Creá 2 tablas con atributos.\n3. Relacioná dos tablas.\n4. Sumá a un compañero.\n5. Preguntale algo a @SeniorDev.\n6. Aplicá una propuesta o guardá un ADR.\n7. Exportá el XMI o generá el backend.\n\n**\"Llevarme ahí\"** te lleva a la pantalla y resalta el botón. **\"Ver más tarde\"** la deja en una fila y **\"Omitir\"** la oculta. Para volver a verla: menú de usuario › **\"Primeros pasos\"**. El progreso se guarda en tu navegador.",
+    "palabrasClave": [
+      "primeros pasos",
+      "mision",
+      "misiones",
+      "induccion",
+      "guia",
+      "progreso",
+      "omitir",
+      "ver mas tarde",
+      "llevarme ahi",
+      "reabrir",
+      "que hago ahora",
+      "empezar"
+    ]
+  }
+]

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekToolCall;
+import com.casetool.backend.core.ia.dto.DeepSeekToolCall;
 import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
 
 import tools.jackson.databind.json.JsonMapper;

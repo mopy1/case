@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import com.casetool.backend.core.ia.DeepSeekClient;
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent;
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent.Estado;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;

@@ -20,10 +20,13 @@ export function ProjectNavRail({
   projectId,
   miembros,
   miRol,
+  onPrimerosPasos,
 }: {
   projectId: string
   miembros: MiembroProyectoResponse[]
   miRol?: RolProyecto
+  /** Menú de usuario › "Primeros pasos" (reabre la Guía de inducción). */
+  onPrimerosPasos?: () => void
 }) {
   const { user } = useAuth()
   const otros = miembros.filter((miembro) => miembro.usuarioId !== user?.id)
@@ -51,6 +54,7 @@ export function ProjectNavRail({
                 ) : (
                   <NavLink
                     to={`/proyectos/${projectId}/${item.path}`}
+                    data-guia={item.guia}
                     className={({ isActive }) => cn(buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "icon" }))}
                   />
                 )
@@ -100,7 +104,7 @@ export function ProjectNavRail({
           <>
             <Separator className="mt-3 mb-2 w-8" />
             <ThemeToggle tooltipSide="right" className="mb-2 size-8" />
-            <UserAvatarMenu side="right" align="end" />
+            <UserAvatarMenu side="right" align="end" onPrimerosPasos={onPrimerosPasos} />
           </>
         )}
       </div>

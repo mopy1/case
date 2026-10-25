@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, type ReactNode } from "react"
 import { Bot } from "lucide-react"
 import { ChatEmpty, ChatQuickActions, ChatShell } from "@/components/chat"
 import type { QuickAction } from "@/components/chat"
@@ -7,8 +7,15 @@ import { CopilotComposer } from "./copilot-composer"
 import { CopilotHeader } from "./copilot-header"
 import { CopilotMessageList } from "./copilot-message-list"
 
-/** Pestaña "Copilot": asistente individual (solo lo ve el usuario) sobre el sistema de chat compartido. */
-export function CopilotAssistantView({ proyectoId }: { proyectoId: number }) {
+interface CopilotAssistantViewProps {
+  proyectoId: number
+  /** Solo la vista activa atiende el push-to-talk. */
+  activo?: boolean
+  modeSwitch?: ReactNode
+}
+
+/** Modo Asistente del Copilot: individual (solo lo ve el usuario), arma tarjetas aplicables sobre el sistema de chat compartido. */
+export function CopilotAssistantView({ proyectoId, activo = true, modeSwitch }: CopilotAssistantViewProps) {
   const copilot = useCopilot(proyectoId)
   const { sendMessage, quickQuestions } = copilot
   const [primera, ...resto] = quickQuestions
@@ -16,13 +23,14 @@ export function CopilotAssistantView({ proyectoId }: { proyectoId: number }) {
 
   // Texto dictado con push-to-talk (ver `ProjectLayout`): depende de `sendMessage` (useCallback).
   useEffect(() => {
+    if (!activo) return
     const onVoiceSubmit = (e: Event) => {
       const texto = (e as CustomEvent<{ text: string }>).detail?.text
       if (texto) void sendMessage(texto)
     }
     window.addEventListener("copilot:voice-submit", onVoiceSubmit)
     return () => window.removeEventListener("copilot:voice-submit", onVoiceSubmit)
-  }, [sendMessage])
+  }, [activo, sendMessage])
 
   return (
     <ChatShell
@@ -33,6 +41,7 @@ export function CopilotAssistantView({ proyectoId }: { proyectoId: number }) {
           onToggleAutoMode={copilot.toggleAutoMode}
           onClear={copilot.clearChat}
           canClear={copilot.messages.length > 0}
+          modeSwitch={modeSwitch}
         />
       }
       composer={<CopilotComposer section={copilot.activeSection} loading={copilot.loading} onSend={sendMessage} />}

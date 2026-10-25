@@ -1,4 +1,4 @@
-import { LogOut, Moon, Sun } from "lucide-react"
+import { ListChecks, LogOut, Moon, Sun } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -17,9 +17,11 @@ import { colorAvatar, iniciales } from "@/lib/avatar"
 interface UserAvatarMenuProps {
   side?: "top" | "right" | "bottom" | "left"
   align?: "start" | "center" | "end"
+  /** Solo dentro de un proyecto: reabre la Guía › "Primeros pasos". */
+  onPrimerosPasos?: () => void
 }
 
-export function UserAvatarMenu({ side = "bottom", align = "end" }: UserAvatarMenuProps) {
+export function UserAvatarMenu({ side = "bottom", align = "end", onPrimerosPasos }: UserAvatarMenuProps) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -59,6 +61,12 @@ export function UserAvatarMenu({ side = "bottom", align = "end" }: UserAvatarMen
             </>
           )}
         </DropdownMenuItem>
+        {onPrimerosPasos && (
+          <DropdownMenuItem onClick={onPrimerosPasos} className="cursor-pointer">
+            <ListChecks className="size-4" />
+            Primeros pasos
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={handleLogout} className="cursor-pointer">
           <LogOut className="size-4" />

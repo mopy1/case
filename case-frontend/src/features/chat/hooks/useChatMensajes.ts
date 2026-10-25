@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { mensajeDeError } from "@/lib/api"
+import { notificarChatEnviado } from "@/features/guia"
 import { enviarMensaje, listarMensajes } from "../api/chatApi"
 import { unirMensajes } from "../lib/chatFormat"
 import { CHAT_LIMITE_PAGINA, type ChatMensaje } from "../types/chat.types"
@@ -81,6 +82,7 @@ export function useChatMensajes(proyectoId: number) {
       setErrorEnvio(null)
       try {
         agregar(await enviarMensaje(proyectoId, contenido))
+        notificarChatEnviado(proyectoId, contenido)
         return true
       } catch (err) {
         setErrorEnvio(mensajeDeError(err, "No se pudo enviar el mensaje"))

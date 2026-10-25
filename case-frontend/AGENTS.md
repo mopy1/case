@@ -1,7 +1,7 @@
 # case-frontend — Guía técnica (estado real del código)
 
-SPA del CASE Tool: modelado UML/ER colaborativo, Kanban, notas ADR, XMI, generador Spring Boot, chat grupal del equipo (STOMP) y
-Copilot IA. Producción: https://casetool-sw.duckdns.org (misma origin que la API, vía Nginx).
+SPA del CASE Tool: modelado UML/ER colaborativo, Kanban, notas ADR, XMI, generador Spring Boot, chat grupal del equipo (STOMP),
+Copilot IA (vía backend, F5) y Guía de inducción "Primeros pasos" (F5). Producción: https://casetool-sw.duckdns.org (misma origin que la API, vía Nginx).
 
 ## 1. Stack (versiones instaladas)
 
@@ -60,8 +60,8 @@ src/
 │       ├── ConfirmDialog.tsx       # Diálogo "¿Eliminar…?" reutilizado por todos los borrados
 │       ├── ErrorBoundary.tsx       # Error de render recuperable; se resetea con `resetKey` (ruta)
 │       ├── ThemeToggle.tsx         # Botón claro/oscuro
-│       ├── UserAvatarMenu.tsx      # Menú de usuario: tema + cerrar sesión
-│       └── project-nav-rail/       # Riel lateral del proyecto (index.ts, project-nav-rail.tsx, .data.ts)
+│       ├── UserAvatarMenu.tsx      # Menú de usuario: tema, "Primeros pasos" (solo si recibe `onPrimerosPasos`) y cerrar sesión
+│       └── project-nav-rail/       # Riel lateral del proyecto (index.ts, project-nav-rail.tsx, .data.ts con `guia` = data-guia por sección)
 ├── contexts/ThemeContext.tsx # Tema "dark"|"light" en localStorage `casetool_theme` (index.html lo aplica antes de montar)
 ├── hooks/
 │   ├── useAuth.ts            # Lee `user` de localStorage; `logout()` borra token+user (no llama al backend)
@@ -76,7 +76,24 @@ src/
 ├── routes/
 │   ├── ProtectedRoute.tsx    # Sin token en localStorage → /login
 │   └── GuestRoute.tsx        # Con token → /proyectos
-└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, chat, collaboration, voice
+└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, guia, chat, collaboration, voice
+    ├── guia/                 # F5 Inducción "Primeros pasos" (no importa features/copilot; copilot sí importa guia)
+    │   ├── index.ts          # abrirGuia, abrirPanel, mostrarPasos, notificar*, escuchar, EVENTO, useGuiaProgreso, useGuiaInduccion,
+    │   │                     #   GuiaSpotlight, GuiaPrimerosPasos(+Bloque), GuiaLink, MISIONES, parseGuiaPasos, tipos
+    │   ├── types/guia.types.ts       # MisionId, GuiaSeccion, MisionDef, GuiaPasoId (14), GuiaPasoDef, GuiaProgreso, detalles de eventos
+    │   ├── api/guiaDatos.ts          # cargarDatosGuia(p, fuentes): Promise.allSettled de proyectos/diagrama/miembros/chat(100)/notas
+    │   ├── lib/
+    │   │   ├── guiaMisiones.data.ts  # 7 misiones (título, descripción, href | ruta | pasos para "Llevarme ahí")
+    │   │   ├── guiaPasos.data.ts     # 14 coach marks (titulo, texto, ruta, zona rail|main|panel, tab, lado, ayudaSiFalta) + esPasoId
+    │   │   ├── guiaStorage.ts        # localStorage `sw_case_guia_v1_{userId}` con try/catch + validación (roto → por defecto)
+    │   │   ├── guiaStore.ts          # store externo (useSyncExternalStore): progreso + detectado + persistente; sumarLogradas (pegajosas)
+    │   │   ├── guiaDeteccion.ts      # PURO: detectarMisiones(datos, yo) + FUENTES_POR_MISION
+    │   │   ├── guiaEventos.ts        # nombres de eventos (EVENTO), dispatchers y `escuchar` tipado
+    │   │   └── guiaPasoParser.ts     # parseGuiaPasos (ids conocidos, máx. 2) y quitarLineasGuiaPaso
+    │   ├── hooks/                    # useGuiaProgreso (snapshot + omitir/verMasTarde/mostrar/cerrar/reabrir), useGuiaDeteccion,
+    │   │                             #   useGuiaOferta, useGuiaInduccion (une las 2 + guia:panel/guia:paso → panel), useGuiaSpotlight, useIrAMision
+    │   └── components/               # guia-primeros-pasos (Card n/7 + barra + 7 ítems), guia-mision-item, guia-primeros-pasos-resumen,
+    │                                 #   guia-primeros-pasos-bloque (regla tarjeta/fila), guia-spotlight (Popover Base UI), guia-link
     └── chat/                 # Chat grupal del equipo con Senior Dev IA y mejoras F2+ (ver §6 chat)
         ├── index.ts          # export { ChatTeamView } + tipos
         ├── types/
@@ -148,6 +165,8 @@ URL al código. Todas las páginas se cargan con `React.lazy` + `Suspense`.
   Escritorio (>= 768px): acoplado y redimensionable (`usePanelResize` + `PanelResizeHandle`, ver §4.2).
   Móvil: inicia cerrado; drawer `fixed` a todo el ancho (`sm:max-w-[420px] md:max-w-none`) con backdrop.
 - **Modo Pantalla Completa del Chat / Copilot (`isChatFullScreen`):** botón en la barra superior de pestañas (`copilot-panel-tabs.tsx`, icono `Maximize2` / `Minimize2`). Al activarse, oculta el `<main>` central (`hidden`) y expande el panel lateral al 100% del ancho disponible, manteniendo visible únicamente el `ProjectNavRail` a la izquierda. Se restaura con el botón de minimizar o presionando la tecla `Escape`.
+- **Guía (F5):** `useGuiaInduccion(proyectoId, {abrir, cerrar, alMostrarPaso})` (detección + oferta única + `guia:panel`) y `<GuiaSpotlight/>`;
+  el riel recibe `onPrimerosPasos={reabrir}` para el menú de usuario. La pestaña Copilot tiene dos modos (Asistente · Guía, ver §6 copilot).
 - `usePushToTalk` + `VoicePushToTalkHud`: el texto dictado se envía al Copilot con el evento de
   ventana `copilot:voice-submit`.
 
@@ -249,36 +268,74 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   `capaModelo|capaRepositorio|capaDto|capaServicio|capaControlador.ts`. Maven Wrapper desde
   `templates/*.template` (`?raw`, `mavenWrapperLoader.ts`).
 
-### copilot
-- `useCopilot(proyectoId)`: historial en memoria (se pierde al recargar; arranca vacío, sin mensaje de bienvenida falso),
-  `timestamp` ISO (se muestra con `horaCorta`, 24 h), sección activa según la URL,
-  "Modo Autónomo" (localStorage `sw_case_copilot_auto_mode`: aplica todas las sugerencias sin clic).
-- UI sobre el sistema compartido (`components/chat`): `copilot-assistant-view` (ChatShell; vacío = `ChatEmpty` con la 1.ª sugerencia de
-  la sección como primaria y el resto en `ChatQuickActions layout="stack"`), `copilot-header` (ChatHeader "Solo vos lo ves · sección",
-  toggle Autónomo `aria-pressed` en tono warning + banner con "Desactivar", reinicio con `ConfirmDialog`), `copilot-message-list`
-  (ChatThread + `ChatAgentStatus` "Leyendo el diagrama…"), `copilot-message-item` (own/agent; imagen adjunta en la burbuja; Copiar),
-  `copilot-composer` (ChatComposer: foto con `CopilotImageButton`/`CopilotImagePreview` (Attachment), voz con comandos "enviar"/"detener"),
-  `copilot-apply-all-button` (barra "N cambios sugeridos · Aplicar todos", primaria con ≥ 2 pendientes), `copilot-card-list`
-  (primeras 3 + "Ver N sugerencias más"; con 1 pendiente esa tarjeta es la primaria) y 8 `copilot-*-card` sobre `ChatActionCard`
-  (`copilot-card.types.ts`: props base + `estadoTarjeta`). Placeholders cortos en `copilotPlaceholders.ts`.
-- Flujo de `sendMessage(texto, imagen?)`: `GET` diagrama → `askCopilot` (`lib/geminiService.ts`):
-  1. Con imagen → Gemini Vision (`geminiVisionService.ts`), modelos en orden `gemini-3.5-flash-lite`,
-     `gemini-3.5-flash`, `gemini-2.0-flash`; clave `VITE_GEMINI_API_KEY` en la query `?key=`.
-  2. Solo texto → DeepSeek `https://api.deepseek.com/chat/completions`, modelo `deepseek-chat`,
-     temperature 0.3, system prompt de `copilotSystemPrompt.ts` (tablas/relaciones actuales + sintaxis
-     de comandos); clave `VITE_DEEPSEEK_API_KEY` (también acepta la variante mal escrita `VITE_DEEPSEEk_API_KEY`).
-  3. Sin clave o si DeepSeek falla → respuesta local por palabras clave (`copilotKnowledge*.ts`).
-- Las llamadas a DeepSeek/Gemini salen **directo del navegador**; las claves `VITE_*` quedan embebidas
-  en el bundle JS (ver §8).
-- La respuesta se parsea a sugerencias (`copilotParsers.ts` → `copilotDiagramParsers.ts`,
-  `copilotUmlParsers.ts`, `copilotSystemParsers.ts`): `CREAR_TABLA`/`ATRIBUTOS`, `CREAR_RELACION`,
-  `AGREGAR_ATRIBUTO`, `ELIMINAR_TABLA` (solo si el usuario pidió borrar), `ELIMINAR_RELACION`,
-  `CREAR_TAREA`, `ADR_SUGERIDA`/`MOTIVO`, `EXPORTAR_XMI`, `GENERAR_BACKEND`, `IR_A`. Cada una se
-  muestra como tarjeta aplicable (`copilot-*-card.tsx`) o en lote ("Aplicar todos", `copilotBatchExecutor.ts`).
-- Las acciones (`copilotDiagramActions.ts`, `copilotSystemActions.ts`) usan las mismas APIs de las
-  features (diagrama, tareas, notas, xmi, generador) y emiten `project:*` para refrescar las vistas.
-- Entrada: texto, dictado (`useSpeechRecognition`, comandos de voz "enviar"/"detener") y foto
-  (`copilotImageUtils.ts`: redimensiona a 1200px, JPEG 0.8, base64).
+### copilot (Asistente · Guía, IA solo vía backend desde F5)
+- **Ninguna llamada a DeepSeek ni Gemini sale del navegador.** Un solo endpoint: `api/copilotApi.ts` `consultarCopilot(p, body)` →
+  `POST /proyectos/{p}/copilot/consultas` (`timeoutMs: 100_000`, la visión puede tardar ~90 s). Contrato espejo en
+  `types/copilotApi.types.ts` (`CopilotModo ASISTENTE|GUIA`, `OrigenRespuesta DEEPSEEK|GEMINI|MANUAL`, `historial ≤ 6`, `misionesPendientes`).
+  El backend arma el prompt con el diagrama, aplica cuota (20/min → 429) y, sin clave o con el proveedor caído, responde con el
+  manual (`origen MANUAL`). Se borraron `geminiService.ts`, `geminiVisionService.ts`, `copilotSystemPrompt.ts`, `copilotKnowledge*.ts`
+  y `KnowledgeTopic`.
+- `useCopilot(proyectoId)`: historial en memoria (se pierde al recargar; arranca vacío), `timestamp` ISO (`horaCorta`, 24 h), sección
+  según la URL, "Modo Autónomo" (localStorage `sw_case_copilot_auto_mode`). `sendMessage(texto, imagen?)`: `GET` diagrama (lo usa el
+  parser) → `askCopilot(p, …)` (`lib/copilotAsk.ts`): `modo ASISTENTE`, **un solo turno** (D3: reenviar turnos duplicaría tarjetas);
+  imagen > 2 000 000 caracteres base64 → error sin llamar; `catch` → `**Error del Copilot:** {mensaje}` (tono error).
+- La respuesta cruda se parsea igual que antes (`copilotParsers.ts` → `copilotDiagramParsers.ts`, `copilotUmlParsers.ts`,
+  `copilotSystemParsers.ts`): `CREAR_TABLA`/`ATRIBUTOS`, `CREAR_RELACION`, `AGREGAR_ATRIBUTO`, `ELIMINAR_TABLA` (solo si el usuario pidió
+  borrar), `ELIMINAR_RELACION`, `CREAR_TAREA`, `ADR_SUGERIDA`/`MOTIVO`, `EXPORTAR_XMI`, `GENERAR_BACKEND`, `IR_A` → 8 tarjetas
+  (`copilot-*-card.tsx`) o lote ("Aplicar todos", `copilotBatchExecutor.ts`). Las acciones (`copilotDiagramActions.ts`,
+  `copilotSystemActions.ts`) usan las APIs de cada feature y emiten `project:*` (exportar XMI/ZIP también `project:artifact-exported`).
+- **Modos** (`copilot-modes.tsx`): interruptor `copilot-mode-switch.tsx` ("Asistente · Guía", `Tabs` h-7, `data-guia="copilot-modo"`,
+  primero en las acciones de ambas cabeceras). Los dos modos quedan **montados** y el inactivo se oculta con `hidden`: dos historiales en
+  memoria separados. Modo en localStorage `sw_case_copilot_modo` (`useCopilotModo`; `guia:panel {modoGuia}` lo pasa a Guía). Solo la vista
+  activa atiende `copilot:voice-submit` (prop `activo`). En la cabecera del Asistente el texto "Autónomo" pasa a `sr-only` bajo 28rem (queda el ícono Zap con tooltip).
+- **Asistente** (`copilot-assistant-view`): ChatShell; vacío = `ChatEmpty` con la 1.ª sugerencia como primaria y el resto en
+  `ChatQuickActions layout="stack"`; `copilot-header` (toggle Autónomo `aria-pressed` + banner "Desactivar", reinicio con `ConfirmDialog`),
+  `copilot-message-list` ("Leyendo el diagrama…"), `copilot-message-item`, `copilot-composer` (foto con `CopilotImageButton`/`CopilotImagePreview`,
+  voz "enviar"/"detener"; props `sinImagen`/`placeholder`/`ariaLabel` para reutilizarlo en la Guía), `copilot-apply-all-button`, `copilot-card-list`.
+- **Guía** (`components/guia/*`, `hooks/useGuiaChat.ts`, `lib/guiaRespuesta.ts`, `lib/guiaSugerencias.data.ts`): enseña a usar la
+  herramienta, **nunca la modifica**. `useGuiaChat` manda `modo GUIA`, `seccion`, `historial` (últimos 6, ≤ 1500 c/u) y `misionesPendientes`.
+  `parsearRespuestaGuia`: solo usa `IR_A` (→ "Ir a {Sección}") y `GUIA_PASO: [id]` (→ "Mostrarme dónde", máx. 2); cualquier otro comando se
+  descarta. `guia-view` = `GuiaHeader` (avatar Guía, "Solo vos lo ves · Sección", interruptor, reiniciar con confirmación sin tocar el
+  progreso) + `GuiaPrimerosPasosBloque` + `GuiaEmpty` (`Compass`, primario "¿Qué hago ahora?" + 3 sugerencias; **compacto** = solo
+  sugerencias cuando la tarjeta "Primeros pasos" ya ocupa el vacío, así queda un solo primario) o `GuiaMessageList` ("Buscando en el
+  manual…"; mensaje agente con "Consultó: Manual" si `herramientasUsadas` incluye `buscarManual`, Copiar, botones outline). Composer =
+  `CopilotComposer sinImagen` (sin cámara ni Autónomo; voz sí).
+
+### guia (inducción "Primeros pasos", F5)
+- **7 misiones** (`guiaMisiones.data.ts`, mismos ids que `MisionGuia` del backend) y su detección (`useGuiaDeteccion`, montado en `ProjectLayout`):
+  | Misión | Se detecta con | "Llevarme ahí" |
+  | --- | --- | --- |
+  | `CREAR_PROYECTO` | `GET /proyectos` → algún `miRol ADMIN` | `/proyectos?nuevo=practica` (diálogo prellenado «Práctica — Biblioteca») |
+  | `CREAR_TABLAS` | diagrama: ≥ 2 tablas con atributos | pasos `diagrama-nueva-entidad`, `diagrama-atributo` |
+  | `RELACIONAR` | diagrama: ≥ 1 relación (D7: cualquiera) | navega a `diagrama` |
+  | `INVITAR` | `GET /miembros` ≥ 2 (D6) | paso `nav-colaboradores` |
+  | `PREGUNTAR_SENIOR_DEV` | evento `project:chat-sent {mencionaIa}` o mensaje propio con `@SeniorDev` en los últimos 100 | paso `equipo-seniordev` |
+  | `APLICAR_O_ADR` | nota propia o propuesta con `aplicadoPor === yo` | paso `panel-equipo` |
+  | `EXPORTAR` | solo evento `project:artifact-exported` | paso `xmi-exportar` |
+  Solo corre con `estado "pendiente"` (omitida/completada = 0 peticiones) y solo pide las fuentes de misiones no logradas
+  (`Promise.allSettled`). Re-evalúa al montar, con `project:diagram-updated`, `project:note-created`, `project:member-changed` y
+  `visibilitychange` (debounce 1500 ms). Las logradas se **suman** y nunca se quitan.
+- **Progreso solo en localStorage** `sw_case_guia_v1_{userId}` = `{v:1, estado: pendiente|omitida|completada, ofrecida, colapsada, logradas}`
+  (sin BD). Lectura validada con try/catch; si localStorage lanza, vive en memoria y no hay oferta automática.
+- **Oferta única** (`useGuiaOferta`): al terminar la primera detección con `pendiente && !ofrecida` → `ofrecida = true`; ≥ 5/7 → nada;
+  escritorio → abre el panel en modo Guía; móvil → toast "Tenés una guía de primeros pasos" con "Ver primeros pasos" (D8).
+- **Tarjeta** (`GuiaPrimerosPasos`): `Card size="sm"` plana, Badge n/7, barra `role="progressbar"`, 7 ítems (hecha `CircleCheck success`,
+  próxima expandida con el **único primario** "Llevarme ahí", otras `ghost icon-xs`), Skeleton hasta la 1.ª detección. Pie: "Ver más tarde"
+  (fila resumen "Primeros pasos · n/7 · Mostrar") y "Omitir" (sin confirmación + toast "Podés retomarla desde tu menú de usuario ›
+  Primeros pasos"). 7/7 → "Completaste los primeros pasos" + "Cerrar" (`completada`). Reabrir: menú de usuario del riel › "Primeros pasos"
+  (`reabrir` = `pendiente`, no colapsada + `abrirGuia()`); en el dashboard no aparece.
+- **Coach marks** (`GuiaSpotlight` + `useGuiaSpotlight`, montado en `ProjectLayout`, D9 sin overlay): `guia:paso {pasos}` → navega a la
+  ruta del paso, abre el panel en su pestaña (zona panel) o cierra el drawer en móvil (zona main/rail), sale de pantalla completa, busca el
+  primer `[data-guia="id"]` **visible** cada 100 ms hasta 2 s (si no: toast con `ayudaSiFalta`), `scrollIntoView` y `data-guia-activo="true"`
+  (anillo `outline 2px var(--primary)` en `index.css`). Popover no modal de `@base-ui/react/popover` (`Positioner anchor`, `collisionPadding 12`,
+  foco inicial en "Siguiente/Entendido", vuelve al elemento al cerrar; `Esc`/clic afuera cierran).
+- **`data-guia` (14 ids, mismo listado que `GuiaPrompts` del backend):** `nav-diagrama|tareas|notas|xmi|generador` (riel, `.data.ts`),
+  `nav-colaboradores` (`project-members-dialog`), `diagrama-nueva-entidad` (`CanvasToolbar`), `diagrama-atributo` (`entity-properties-panel`),
+  `panel-equipo` (`copilot-panel-tabs`), `equipo-seniordev` (`team-composer` vía prop `guia` de `ChatComposerButton`), `xmi-exportar`
+  (`ProjectXmiPage`), `generador-descargar` y `generador-ddl` (`ProjectGeneratorPage`), `copilot-modo` (`copilot-mode-switch`).
+  **Regla:** cambiar la etiqueta de uno de estos botones → actualizar `guiaPasos.data.ts` y el `manual.json` del backend.
+- **"¿Cómo se usa esto?"** (`GuiaLink`, `Button variant="link" size="xs"`): empty states de Tareas, Notas, XMI, DDL vacío y sala vacía del
+  Equipo → `abrirGuia(seccion)` (sugerencias de esa sección).
 
 ### chat (pestaña "Equipo" del panel lateral, con Senior Dev IA en tiempo real)
 - REST (`chatApi.ts`): `GET /proyectos/{p}/chat/mensajes?limite=30[&antesDe={id}]` (orden ascendente;
@@ -349,24 +406,32 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 | `project:diagram-updated` `{proyectoId}` | acciones del Copilot, `useDiagramPolling` | `useDiagram` (refetch) |
 | `project:task-created/updated/deleted` | `useTaskMutations`, Copilot | `useTasks` |
 | `project:note-created` `{proyectoId, nota?}` | Copilot, "Guardar como ADR" del chat | `useNotes` |
-| `copilot:voice-submit` `{text}` | `ProjectLayout` (push-to-talk) | `CopilotAssistantView` (envía) y `usePanelTab` (cambia a la pestaña Copilot) |
+| `copilot:voice-submit` `{text}` | `ProjectLayout` (push-to-talk) | vista activa del Copilot (`CopilotAssistantView` o `GuiaView`) y `usePanelTab` (pestaña Copilot) |
+| `guia:panel` `{tab?, modoGuia?, seccion?, cerrar?}` | `abrirGuia()`, `abrirPanel()`, `cerrarPanel()` (spotlight) | `useGuiaInduccion` (abre/cierra el panel), `usePanelTab`, `useCopilotModo`, `GuiaView` (sección de sugerencias) |
+| `guia:paso` `{pasos}` | "Llevarme ahí", "Mostrarme dónde" | `useGuiaSpotlight`, `useGuiaInduccion` (sale de pantalla completa) |
+| `project:artifact-exported` `{proyectoId, tipo: xmi\|backend}` | `useXmiExchange`, `useProjectGenerator`, `copilotSystemActions` | `useGuiaDeteccion` (misión EXPORTAR) |
+| `project:member-changed` `{proyectoId}` | `useMemberMutations` (agregar, rol, quitar) | `useGuiaDeteccion` |
+| `project:chat-sent` `{proyectoId, mencionaIa}` | `useChatMensajes.enviar` (POST ok) | `useGuiaDeteccion` (misión PREGUNTAR_SENIOR_DEV) |
 
 ## 8. Variables de entorno (Vite, se hornean en el build)
 
 | Variable | Uso | Dev (`.env`) | Prod (`.env.production`) |
 | --- | --- | --- | --- |
 | `VITE_API_URL` | Prefijo de la API y base del WebSocket del chat (`ws://…/ws`; vacío → `wss://<origin>/ws`) | `http://localhost:8081` | vacío (rutas relativas por Nginx) |
-| `VITE_DEEPSEEK_API_KEY` | Copilot texto | clave | clave |
-| `VITE_GEMINI_API_KEY` | Copilot visión | clave | clave |
+Es la **única** variable del front desde F5. Las claves de IA (`DEEPSEEK_API_KEY`, `GEMINI_API_KEY`) viven solo en el `.env` de la raíz
+y las lee el backend; `VITE_DEEPSEEK_API_KEY` / `VITE_GEMINI_API_KEY` ya no se leen en ningún lado (nota histórica: hasta F4 se horneaban
+en el bundle; si siguen en un `.env` local quedan sin uso y conviene borrarlas y rotarlas). Plantillas versionadas: `.env.example`,
+`.env.production.example`. `.env` y `.env.production` están en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.js`.
 
-Plantillas versionadas: `.env.example`, `.env.production.example`. `.env` y `.env.production` están
-en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.js`.
+### localStorage del front
+`token`, `user`, `casetool_theme`, `sw_case_copilot_open`, `sw_case_copilot_width`, `sw_case_panel_tab`, `sw_case_copilot_auto_mode`,
+`sw_case_copilot_modo` (F5), `sw_case_guia_v1_{userId}` (F5) y el respaldo de propuestas del chat.
 
 ## 9. Build y despliegue
 
 - `npm run dev` (Vite :5173) · `npm run build` (`tsc -b && vite build`) · `npm run lint` (oxlint) · `npm run preview`.
-- `.dockerignore`: solo excluye `node_modules` y `.git`. El `.env` entra **a propósito** para que la imagen
-  dev compile con las claves y el Copilot use IA real en local (quedan visibles en el bundle, igual que en prod).
+- `.dockerignore`: solo excluye `node_modules` y `.git`. El `.env` entra a la imagen dev, pero desde F5 solo debería llevar
+  `VITE_API_URL` (la IA la llama el backend con sus propias claves).
 - `Dockerfile` (dev, `docker-compose.yml` → `case_frontend` en :5173→80): build con Node 22 dentro de
   la imagen + `nginx.dev.conf` (HTTP; `/api/` → `http://backend-app:8081/api/`; SPA con `try_files`).
 - `Dockerfile.prod` (`docker-compose.prod.yml`): **copia `dist/` ya compilado** (hay que correr
