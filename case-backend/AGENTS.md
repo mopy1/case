@@ -194,8 +194,9 @@ existe endpoint para borrar usuarios).
 
 | Propiedad | Variable de entorno | Default en el archivo |
 | :--- | :--- | :--- |
-| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5433/case_db` (ojo: el Postgres de docker-compose está en **5434**) |
-| `spring.datasource.username` / `password` | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | valores de desarrollo (no usar en prod) |
+| `spring.config.import` | — | `optional:file:../.env[.properties]`: fuera de Docker lee el `.env` de la raíz del repo (aporta `POSTGRES_PASSWORD`); en Docker no existe y se ignora |
+| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5434/case_db` (el `case_postgres` de `docker-compose.yml`) |
+| `spring.datasource.username` / `password` | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | `case_user` / `${POSTGRES_PASSWORD}` del `.env` (sin contraseña versionada) |
 | `spring.jpa.hibernate.ddl-auto` | `SPRING_JPA_HIBERNATE_DDL_AUTO` | `update` |
 | `spring.jpa.show-sql` | `SPRING_JPA_SHOW_SQL` | `true` |
 | `cors.allowed-origins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` (lista con comas) |
@@ -219,7 +220,7 @@ cd case-backend
 ./mvnw -q test -Dspring.jpa.hibernate.ddl-auto=none \
   -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \
   -Dspring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false
-./mvnw spring-boot:run               # local; exportar SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/case_db y credenciales
+./mvnw spring-boot:run               # local: solo requiere `docker compose up -d postgres-db` (toma la clave del .env raíz)
 ./mvnw -DskipTests package           # genera target/*.jar (lo necesita Dockerfile.prod)
 ```
 
