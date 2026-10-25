@@ -4,6 +4,7 @@ import { ProjectLayout } from "@/layouts/ProjectLayout"
 import { ProtectedRoute } from "@/routes/ProtectedRoute"
 import { GuestRoute } from "@/routes/GuestRoute"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Toaster } from "sonner"
 
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage").then((m) => ({ default: m.RegisterPage })))
@@ -39,6 +40,7 @@ function App() {
 
   return (
     <TooltipProvider>
+      <Toaster richColors position="top-right" />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to={isAuthenticated ? "/proyectos" : "/login"} replace />} />

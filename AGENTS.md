@@ -66,7 +66,7 @@ se hornean en el bundle.
 | Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente |
 | Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo |
 | Colaboración | Presencia, cursores remotos, refresco por polling |
-| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, Senior Dev IA en el hilo (@SeniorDev) y mejoras F2+ (menciones dinámicas, Markdown limpio con copia de código, dictado por voz y pantalla completa) |
+| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, Senior Dev IA en el hilo (@SeniorDev), mejoras F2+ (menciones, markdown con copia de código, voz, pantalla completa) y propuestas colaborativas interactivas con Cero SQL/código y control RBAC |
 | Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
@@ -90,7 +90,7 @@ mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan 
 `U/2-2026/SW/Parcial2/Plan.md`; especificaciones en `F1_Spec_Chat.md` y `F2_Spec_SeniorDev.md`.
 - **F1 (chat grupal STOMP sin IA):** completada.
 - **F2 (Senior Dev IA en el chat grupal con DeepSeek desde el backend):** completada.
-- **F2+ (Mejoras chat grupal):** menciones dinámicas `@usuario` / `@SeniorDev`, Markdown limpio con copia de código, transcripción por voz y modo pantalla completa.
+- **F2+ (Mejoras y Propuestas Colaborativas):** menciones dinámicas `@usuario` / `@SeniorDev`, Markdown limpio con copia de código, transcripción por voz, modo pantalla completa, y **propuestas colaborativas con Cero SQL/código** (Senior Dev explica conceptualmente y emite comandos estructurados limpios que el frontend procesa en tarjetas interactivas ejecutables con control RBAC: ADMIN/COLABORADOR aplican, LECTOR bloqueado).
 - Siguiente: **F3 (Agente de Inducción para nuevos miembros del equipo).**
 
 ## 7. Reglas para agentes

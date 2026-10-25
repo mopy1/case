@@ -1,24 +1,41 @@
+import { useMemo } from "react"
 import { Bot, Info, Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 import { cn } from "@/lib/utils"
+import type { RolProyecto } from "@/features/projects/types/projects.type"
 import { etiquetaRol, horaCorta, nombreAutor } from "../lib/chatFormat"
+import { parseChatProposal } from "../lib/chatProposalParser"
 import type { ChatMensaje } from "../types/chat.types"
 import { ChatMessageContent } from "./chat-message-content"
+import { ChatProposalCard } from "./chat-proposal-card"
 import { ChatQuotedMessage } from "./chat-quoted-message"
 
 interface ChatMessageItemProps {
   mensaje: ChatMensaje
   esPropio: boolean
   mensajes: ChatMensaje[]
+  miRol?: RolProyecto | null
+  proyectoId?: number
 }
 
 /** Renderiza un mensaje individual con variantes para IA, Sistema y miembros del equipo. */
-export function ChatMessageItem({ mensaje, esPropio, mensajes }: ChatMessageItemProps) {
+export function ChatMessageItem({ mensaje, esPropio, mensajes, miRol, proyectoId }: ChatMessageItemProps) {
   const autor = nombreAutor(mensaje)
   const esIa = mensaje.tipo === "IA"
   const esSistema = mensaje.tipo === "SISTEMA"
+
+  const proposal = useMemo(() => {
+    if (!esIa) return null
+    return parseChatProposal(mensaje, {
+      messageId: mensaje.id,
+      proyectoId: proyectoId ?? mensaje.proyectoId,
+      createdAt: mensaje.createdAt,
+    })
+  }, [esIa, mensaje, proyectoId])
+
+  const contenidoVisible = proposal ? proposal.textoLimpio : mensaje.contenido
 
   return (
     <article className="flex gap-2.5">
@@ -48,10 +65,7 @@ export function ChatMessageItem({ mensaje, esPropio, mensajes }: ChatMessageItem
             </Badge>
           )}
           {esSistema && (
-            <Badge
-              variant="outline"
-              className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-700 dark:text-amber-300"
-            >
+            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-700 dark:text-amber-300">
               Sistema
             </Badge>
           )}
@@ -75,7 +89,10 @@ export function ChatMessageItem({ mensaje, esPropio, mensajes }: ChatMessageItem
           )}
         >
           <ChatQuotedMessage respuestaAId={mensaje.respuestaAId} mensajes={mensajes} />
-          <ChatMessageContent contenido={mensaje.contenido} />
+          <ChatMessageContent contenido={contenidoVisible} />
+          {proposal && proposal.totalCambios > 0 && (
+            <ChatProposalCard proposal={proposal} miRol={miRol} proyectoId={proyectoId ?? mensaje.proyectoId} />
+          )}
         </div>
       </div>
     </article>

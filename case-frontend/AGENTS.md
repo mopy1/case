@@ -56,26 +56,33 @@ src/
     └── chat/                 # Chat grupal del equipo con Senior Dev IA y mejoras F2+ (ver §6 chat)
         ├── index.ts          # export { ChatTeamView } + tipos
         ├── types/
-        │   ├── chat.types.ts     # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, ChatIaEstado, ChatIaEstadoEvent
-        │   ├── mention.types.ts  # MentionItem, MentionTriggerState
-        │   └── markdown.types.ts # MarkdownBlock, MarkdownBlockType, MarkdownInlineToken
-        ├── api/chatApi.ts        # listarMensajes, enviarMensaje, obtenerPresencia (apiFetch)
+        │   ├── chat.types.ts          # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, ChatIaEstado, ChatIaEstadoEvent
+        │   ├── chat-proposal.types.ts # ChatProposal, ChatProposalSummary, PermisosPropuesta, evaluarPermisosPropuesta
+        │   ├── mention.types.ts       # MentionItem, MentionTriggerState
+        │   └── markdown.types.ts      # MarkdownBlock, MarkdownBlockType, MarkdownInlineToken
+        ├── api/chatApi.ts             # listarMensajes, enviarMensaje, obtenerPresencia (apiFetch)
         ├── lib/
-        │   ├── chatSocket.ts     # chatWsUrl() y chatTopics(p) (mensajes, presencia, ia)
-        │   ├── chatFormat.ts     # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
+        │   ├── chatSocket.ts          # chatWsUrl() y chatTopics(p) (mensajes, presencia, ia)
+        │   ├── chatFormat.ts          # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
+        │   ├── chatProposalParser.ts  # Parser puro de comandos Senior Dev y extracción de texto conceptual limpio
+        │   ├── chatProposalStorage.ts # Persistencia en localStorage de propuestas aplicadas por proyecto
         │   ├── markdownBlockTokenizer.ts # AST de bloques Markdown (code, heading, blockquote, lists, paragraph)
-        │   └── markdownInline.tsx        # Inline Markdown (bold, italic, inline code, @menciones)
+        │   └── markdownInline.tsx     # Inline Markdown (bold, italic, inline code, @menciones)
         ├── hooks/
-        │   ├── useChatMensajes.ts     # Historial + envío REST
-        │   ├── useChatSocket.ts       # STOMP multicanal
-        │   ├── useChatSala.ts         # Orquesta presencia + IA
-        │   ├── useMentionTrigger.ts   # Detección de @query, filtrado y navegación de teclado (flechas/Enter/Tab/Esc)
-        │   └── useChatVoiceInput.ts   # Integración con Web Speech API sin sobrescribir texto previo
+        │   ├── useChatMensajes.ts          # Historial + envío REST
+        │   ├── useChatSocket.ts            # STOMP multicanal
+        │   ├── useChatSala.ts              # Orquesta presencia + IA
+        │   ├── useChatProposalExecutor.ts  # Ejecución de propuestas en lote, toast feedback y estado reactivo
+        │   ├── useMentionTrigger.ts        # Detección de @query, filtrado y navegación de teclado (flechas/Enter/Tab/Esc)
+        │   └── useChatVoiceInput.ts        # Integración con Web Speech API sin sobrescribir texto previo
         └── components/
-            ├── chat-team-view.tsx            # Contenedor principal con candidatos de mención y layout
+            ├── chat-team-view.tsx            # Contenedor principal con candidatos de mención, miRol y layout
             ├── chat-presence-bar.tsx         # Barra de presencia y estado WS
-            ├── chat-message-list.tsx         # Scroll virtual/automático y carga de anteriores
-            ├── chat-message-item.tsx         # Mensaje con avatar, roles y badge Senior Dev
+            ├── chat-message-list.tsx         # Scroll virtual/automático y propagación de miRol / proyectoId
+            ├── chat-message-item.tsx         # Mensaje con avatar, roles, texto limpio y tarjeta de propuesta
+            ├── chat-proposal-card.tsx        # Tarjeta contenedora interactiva de propuesta de arquitectura
+            ├── chat-proposal-summary.tsx     # Badges/chips de cambios proyectados (tablas, atributos, relaciones, ADRs)
+            ├── chat-proposal-action-button.tsx # Botón de aplicación con RBAC (ADMIN/COLABORADOR vs LECTOR)
             ├── chat-message-content.tsx      # AST tokenizado a ChatMarkdownRenderer
             ├── chat-markdown-renderer.tsx    # Renderizado estructurado de bloques Markdown
             ├── chat-code-block.tsx           # Bloque de código con header de lenguaje y botón "Copiar" (2s feedback)
@@ -242,6 +249,10 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
     Usa la Web Speech API (`webkitSpeechRecognition`/`SpeechRecognition`, `es-ES`) mediante un buffer acumulativo persistente (`baseTextRef`) que permite añadir texto dictado sin sobrescribir lo que el usuario ya había escrito. El botón `ChatVoiceButton` conmuta entre reposo y grabación continua (`animate-pulse` con indicador `animate-ping` y etiqueta "Escuchando…"), deteniéndose automáticamente al enviar el mensaje.
   - **Modo Pantalla Completa:**
     Controlado desde `ProjectLayout.tsx` (`isChatFullScreen`) y conmutado desde `CopilotPanelTabs`, permite expandir el chat grupal para lectura cómoda de código largo o discusiones complejas, ocultando el centro y dejando visible el riel lateral de navegación (`ProjectNavRail`). Se cancela con el botón de restaurar o la tecla `Escape`.
+  - **Tarjetas de Propuestas Interactivas y RBAC (`ChatProposalCard`, `ChatProposalSummary`, `ChatProposalActionButton`, `useChatProposalExecutor`, `chatProposalParser`, `chatProposalStorage`):**
+    Senior Dev responde con análisis conceptual en prosa limpia y emite comandos estructurados al final. El cliente procesa el mensaje con `parseChatProposal`, limpiando el texto del cuerpo visible y generando una tarjeta `ChatProposalCard` si hay cambios detectados (tablas nuevas, atributos, relaciones UML, tareas Kanban o notas ADR).
+    - **Permisos de colaboración (RBAC):** `evaluarPermisosPropuesta(miRol)` valida si el usuario es `ADMIN` o `COLABORADOR` para habilitar el botón "⚡ Aplicar cambios en el proyecto". Si el usuario es `LECTOR`, el botón se deshabilita con cursor bloqueado y leyenda explicativa ("🔒 Solo ADMIN y COLABORADOR pueden aplicar cambios al proyecto.").
+    - **Ejecución y Persistencia:** Al presionar aplicar, `useChatProposalExecutor` ejecuta `executeAllMessageChanges`, emite notificaciones Toast (`sonner`), conmuta el estado visual a "✓ Cambios aplicados en el proyecto" y persiste los IDs aplicados en `localStorage` (`swcase_applied_proposals_<proyectoId>`) para idempotencia y recargas fluidas.
   - `ChatThinkingIndicator`: burbuja animada con icono de bot y tres puntos pulsantes cuando Senior Dev está procesando una consulta.
   - `ChatQuotedMessage`: cita visual del mensaje original al que responde el Senior Dev (`respuestaAId`), mostrando autor y extracto del contenido.
   - `ChatMessageItem`: estilos diferenciados por rol/tipo (`USUARIO`, `IA` con badge "Senior Dev" / fondo tintado sutil, o `SISTEMA` centrado).

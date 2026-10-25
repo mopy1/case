@@ -19,7 +19,7 @@ actualizá esta guía en el mismo cambio.
 
 No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
-## 2. Árbol de carpetas (108 archivos `.java`: 103 en main + 5 test)
+## 2. Árbol de carpetas (122 archivos `.java`: 112 en main + 10 test)
 
 ```text
 case-backend/
@@ -36,6 +36,7 @@ case-backend/
 │   │                        ChatFixtures.java                      # entidades en memoria para los tests
 │   └── modules/chat/ia/ChatMencionIaUtilsTest.java,          # regex @SeniorDev
 │                       SeniorDevContextBuilderTest.java,     # ensamblado de prompt en 4 capas
+│                       SeniorDevPromptsTest.java,            # verificación de reglas cero SQL y comandos
 │                       SeniorDevServiceTest.java             # orquestación async, locks, WS y fallback
 └── src/main/java/com/casetool/backend/
     ├── CaseBackendApplication.java
@@ -139,7 +140,9 @@ case-backend/
   - Lock por proyecto en `ConcurrentHashMap<Long, ReentrantLock>` para garantizar secuencia en la sala.
   - Emite estado `PENSANDO` a `/topic/proyectos/{id}/chat/ia`.
   - Construye el contexto en 4 capas (`SeniorDevContextBuilder` + `SeniorDevProyectoFormatter`):
-    1) System prompt con rol de Senior Dev mentor y directrices rigurosas en español.
+    1) System prompt con rol de Senior Dev mentor (`SeniorDevPrompts.SYSTEM_PROMPT`):
+       - **Regla estricta Cero SQL y Cero Código en el chat:** prohibición absoluta de código ejecutable o DDL/DML; respuestas explicativas, conceptuales y arquitectónicas en español.
+       - **Comandos estructurados al final:** emite sugerencias de cambios limpias al final (`CREAR_TABLA`, `AGREGAR_ATRIBUTO`, `CREAR_RELACION`, `ELIMINAR_RELACION`, `ELIMINAR_TABLA`, `CREAR_TAREA`, `ADR_SUGERIDA`, `EXPORTAR_XMI`, `GENERAR_BACKEND`) para que el frontend las extraiga y presente como tarjetas interactivas de propuesta.
     2) Estado del proyecto compacto (entidades, columnas PK/FK, relaciones con multiplicidades, tareas Kanban, notas ADR).
     3) Historial reciente de la sala (~30 mensajes formateados `[username · ROL]: contenido`).
     4) Consulta actual del disparador.

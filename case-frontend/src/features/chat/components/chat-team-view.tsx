@@ -2,7 +2,9 @@ import { useMemo } from "react"
 import { RotateCcw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
+import type { RolProyecto } from "@/features/projects/types/projects.type"
 import type { MentionItem } from "../types/mention.types"
 import { useChatSala } from "../hooks/useChatSala"
 import { ChatEmptyState } from "./chat-empty-state"
@@ -16,8 +18,14 @@ const CONSULTA_INICIAL_IA = "@SeniorDev ¿cómo estructuramos las entidades prin
 
 type Sala = ReturnType<typeof useChatSala>
 
+interface ChatTeamBodyProps {
+  sala: Sala
+  miRol?: RolProyecto | null
+  proyectoId: number
+}
+
 /** Los 4 estados del historial: loading, error, vacío accionable y lista con eventos en tiempo real. */
-function ChatTeamBody({ sala }: { sala: Sala }) {
+function ChatTeamBody({ sala, miRol, proyectoId }: ChatTeamBodyProps) {
   if (sala.loading) return <ChatSkeleton />
 
   if (sala.error) {
@@ -54,6 +62,8 @@ function ChatTeamBody({ sala }: { sala: Sala }) {
       cargandoAnteriores={sala.cargandoAnteriores}
       onCargarAnteriores={() => void sala.cargarAnteriores()}
       iaEstado={sala.iaEstado}
+      miRol={miRol}
+      proyectoId={proyectoId}
     />
   )
 }
@@ -66,6 +76,8 @@ interface ChatTeamViewProps {
 export function ChatTeamView({ proyectoId }: ChatTeamViewProps) {
   const sala = useChatSala(proyectoId)
   const { miembros } = useProjectMembers(proyectoId)
+  const { proyecto } = useProject(proyectoId)
+  const miRol = proyecto?.miRol ?? null
 
   const candidatos = useMemo<MentionItem[]>(() => {
     const lista: MentionItem[] = [
@@ -87,7 +99,7 @@ export function ChatTeamView({ proyectoId }: ChatTeamViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ChatPresenceBar usuarios={sala.enSala} estado={sala.estado} />
-      <ChatTeamBody sala={sala} />
+      <ChatTeamBody sala={sala} miRol={miRol} proyectoId={proyectoId} />
       {!sala.loading && (
         <ChatInput
           enviando={sala.enviando}
