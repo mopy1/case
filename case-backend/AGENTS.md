@@ -205,7 +205,9 @@ existe endpoint para borrar usuarios).
 
 `docker-compose.yml` / `docker-compose.prod.yml` (raíz del repo) pasan al contenedor
 `case_backend`: `SPRING_DATASOURCE_*` (host `postgres-db:5432`), `SPRING_JPA_HIBERNATE_DDL_AUTO=update`
-y `CORS_ALLOWED_ORIGINS` (`*` en prod). Hoy **no** pasan `JWT_SECRET`.
+y `CORS_ALLOWED_ORIGINS` (`*` en prod). Solo `docker-compose.prod.yml` pasa `JWT_SECRET`, y es
+obligatoria (`${JWT_SECRET:?...}`): sin ella en el `.env` del servidor, compose falla en vez de
+arrancar con la clave de desarrollo. Generarla con `openssl rand -base64 48`. Dev local usa el default.
 
 ## 7. Compilar, probar, correr
 

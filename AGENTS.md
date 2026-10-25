@@ -67,9 +67,9 @@ se hornean en el bundle.
 
 1. **Claves de IA públicas:** `VITE_DEEPSEEK_API_KEY` / `VITE_GEMINI_API_KEY` quedan en `dist/assets/*.js`
    (y la imagen dev las copia porque no hay `.dockerignore`). Rotarlas y mover las llamadas IA al backend.
-2. **JWT falsificable en prod:** ningún compose pasa `JWT_SECRET`, así que producción firma con la clave
-   de desarrollo commiteada en `application.properties`. Definir `JWT_SECRET` en el `.env` del EC2 y en
-   `docker-compose.prod.yml`.
+2. ~~JWT falsificable en prod~~ **(repo resuelto 2026-10-24):** `docker-compose.prod.yml` ahora exige
+   `JWT_SECRET` (`${JWT_SECRET:?...}`, compose no arranca sin ella). Falta aplicarlo en el EC2: agregar
+   `JWT_SECRET=$(openssl rand -base64 48)` al `.env` del servidor y recrear `case_backend` (cierra todas las sesiones una vez).
 3. `docker-compose.prod.yml` tiene una contraseña de Postgres por defecto en texto plano y `CORS_ALLOWED_ORIGINS: "*"`.
 4. Presencia (`ColaboracionController`) no verifica membresía del proyecto.
 5. Import EA con herencia (`UML:Class xmi.idref` anidado) crea entidades sin nombre → 409.
