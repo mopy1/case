@@ -8,7 +8,11 @@ import {
 
 const base = (proyectoId: number) => `/api/proyectos/${proyectoId}/chat`
 
-/** Últimos `limite` mensajes (o los anteriores a `antesDe`), en orden cronológico ascendente. */
+/** Últimos `limite` mensajes (o los anteriores a `antesDe`), en orden cronológico ascendente. 
+ * 
+ *
+ * asdf
+ * */
 export function listarMensajes(proyectoId: number, antesDe?: number, limite = CHAT_LIMITE_PAGINA) {
   const query = new URLSearchParams({ limite: String(limite) })
   if (antesDe) query.set("antesDe", String(antesDe))
@@ -29,5 +33,15 @@ export function enviarMensaje(proyectoId: number, contenido: string) {
 export function obtenerPresencia(proyectoId: number) {
   return apiFetch<ChatPresencia>(`${base(proyectoId)}/presencia`, {
     errorFallback: "No se pudo obtener quién está en la sala",
+  })
+}
+
+export async function marcarPropuestaAplicada(
+  proyectoId: number,
+  mensajeId: number
+): Promise<ChatMensaje> {
+  return apiFetch<ChatMensaje>(`${base(proyectoId)}/mensajes/${mensajeId}/aplicar`, {
+    method: "POST",
+    errorFallback: "No se pudo sincronizar el estado de la propuesta",
   })
 }

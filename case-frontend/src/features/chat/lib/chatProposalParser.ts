@@ -90,5 +90,15 @@ export function parseChatProposal(
     systemActions,
   }
 
-  return { messageId, proyectoId, textoLimpio, summary, totalCambios: total, detalles, copilotMessage }
+  return {
+    messageId,
+    proyectoId,
+    textoLimpio,
+    summary,
+    totalCambios: total,
+    detalles,
+    copilotMessage,
+    propuestaAplicada: isMsg ? Boolean(input.propuestaAplicada) : false,
+    aplicadoPor: isMsg ? input.aplicadoPor : null,
+  }
 }

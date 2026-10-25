@@ -28,7 +28,7 @@ El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descarta
 - **Backend:** monolito modular (`core/` transversal + `modules/{seguridad,proyecto,diagrama,xmi,chat}`,
   cada uno con controller/dto/exception/model/repository/service). Autenticación JWT stateless;
   autorización por rol de proyecto (`ADMIN`, `COLABORADOR`, `LECTOR`) en `ProyectoAccesoService`.
-  Esquema gestionado por Hibernate `ddl-auto=update` (9 tablas, sin migraciones). 39 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
+  Esquema gestionado por Hibernate `ddl-auto=update` (9 tablas, sin migraciones). 40 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
 - **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,chat,collaboration,voice}`).
   Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
 - **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip), Copilot IA (llamadas
@@ -66,7 +66,7 @@ se hornean en el bundle.
 | Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente |
 | Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo |
 | Colaboración | Presencia, cursores remotos, refresco por polling |
-| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, Senior Dev IA en el hilo (@SeniorDev), mejoras F2+ (menciones interactivas, navegación por flechas corregida, filtro por mención y miembro, badge "@ Te mencionaron", markdown normalizado y unificado con Copilot, modo oscuro calibrado, voz y pantalla completa) y propuestas colaborativas interactivas con Cero SQL/código y control RBAC |
+| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, Senior Dev IA en el hilo (@SeniorDev), mejoras F2+ (menciones interactivas, navegación por flechas corregida, filtro por mención y miembro, badge "@ Te mencionaron", markdown normalizado y unificado con Copilot, modo oscuro calibrado, voz y pantalla completa) y propuestas colaborativas interactivas sincronizadas en tiempo real (persistencia en BD, difusión STOMP, autoría y control RBAC) |
 | Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
@@ -90,7 +90,7 @@ mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan 
 `U/2-2026/SW/Parcial2/Plan.md`; especificaciones en `F1_Spec_Chat.md` y `F2_Spec_SeniorDev.md`.
 - **F1 (chat grupal STOMP sin IA):** completada.
 - **F2 (Senior Dev IA en el chat grupal con DeepSeek desde el backend):** completada.
-- **F2+ (Mejoras y Propuestas Colaborativas):** menciones dinámicas `@usuario` / `@SeniorDev` con corrección de navegación por flechas, barra de filtrado por menciones y miembro, resaltado de mención propia con badge `@ Te mencionaron`, normalización de espaciado Markdown y unificación de componentes con Copilot, calibración de contraste en modo oscuro (OKLCH), transcripción por voz, modo pantalla completa, y **propuestas colaborativas con Cero SQL/código** (Senior Dev explica conceptualmente y emite comandos estructurados limpios que el frontend procesa en tarjetas interactivas ejecutables con control RBAC: ADMIN/COLABORADOR aplican, LECTOR bloqueado).
+- **F2+ (Mejoras y Propuestas Colaborativas Sincronizadas):** menciones dinámicas `@usuario` / `@SeniorDev` con corrección de navegación por flechas, barra de filtrado por menciones y miembro, resaltado de mención propia con badge `@ Te mencionaron`, normalización de espaciado Markdown y unificación de componentes con Copilot, calibración de contraste en modo oscuro (OKLCH), transcripción por voz, modo pantalla completa, y **propuestas colaborativas con sincronización y persistencia en tiempo real** (Senior Dev emite comandos estructurados limpios que el frontend procesa en tarjetas interactivas ejecutables con control RBAC; al aplicar, se persiste en BD, se difunde por WebSocket a toda la sala y se refleja "✓ Cambios aplicados en el proyecto por @username").
 - Siguiente: **F3 (Agente de Inducción para nuevos miembros del equipo).**
 
 ## 7. Reglas para agentes

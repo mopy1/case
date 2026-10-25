@@ -10,6 +10,8 @@ interface ChatProposalActionButtonProps {
   isApplied: boolean
   isApplying: boolean
   onApply: () => void
+  aplicadoPor?: string | null
+  esPropio?: boolean
 }
 
 export function ChatProposalActionButton({
@@ -18,15 +20,21 @@ export function ChatProposalActionButton({
   isApplied,
   isApplying,
   onApply,
+  aplicadoPor,
+  esPropio,
 }: ChatProposalActionButtonProps) {
   if (isApplied) {
+    const textoAplicado = esPropio
+      ? "✓ Cambios aplicados en el proyecto por vos"
+      : `✓ Cambios aplicados en el proyecto${aplicadoPor ? ` por @${aplicadoPor}` : ""}`
+
     return (
       <Badge
         variant="outline"
-        className="w-full justify-center gap-1 border-emerald-500/40 bg-emerald-500/10 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+        className="w-full justify-center gap-1.5 border-emerald-500/40 bg-emerald-500/10 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
       >
-        <CheckCheck className="size-3.5" />
-        <span>✓ Cambios aplicados en el proyecto</span>
+        <CheckCheck className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+        <span>{textoAplicado}</span>
       </Badge>
     )
   }

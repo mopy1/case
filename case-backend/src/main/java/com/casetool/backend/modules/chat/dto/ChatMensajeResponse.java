@@ -16,7 +16,9 @@ public record ChatMensajeResponse(
     ChatMensaje.Tipo tipo,
     String contenido,
     Long respuestaAId,
-    Instant createdAt
+    Instant createdAt,
+    Boolean propuestaAplicada,
+    String aplicadoPor
 ) {
     /** {@code rol} es el rol ACTUAL del autor (null si es IA/SISTEMA o ya no es miembro). */
     public static ChatMensajeResponse from(ChatMensaje m, MiembroProyecto.Rol rol) {
@@ -30,7 +32,9 @@ public record ChatMensajeResponse(
             m.getTipo(),
             m.getContenido(),
             m.getRespuestaA() != null ? m.getRespuestaA().getId() : null,
-            m.getCreatedAt()
+            m.getCreatedAt(),
+            m.isPropuestaAplicada(),
+            m.getAplicadoPor()
         );
     }
 }

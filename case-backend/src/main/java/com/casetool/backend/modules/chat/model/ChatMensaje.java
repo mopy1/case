@@ -48,6 +48,12 @@ public class ChatMensaje {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
+  @Column(name = "propuesta_aplicada", nullable = false, columnDefinition = "boolean default false")
+  private boolean propuestaAplicada = false;
+
+  @Column(name = "aplicado_por", length = 100)
+  private String aplicadoPor;
+
   @PrePersist
   void onCreate() {
     this.createdAt = Instant.now();

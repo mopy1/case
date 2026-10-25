@@ -1,5 +1,6 @@
 import { Sparkles } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { useAuth } from "@/hooks/useAuth"
 import type { RolProyecto } from "@/features/projects/types/projects.type"
 import type { ChatProposal } from "../types/chat-proposal.types"
 import { useChatProposalExecutor } from "../hooks/useChatProposalExecutor"
@@ -14,6 +15,7 @@ export interface ChatProposalCardProps {
   isApplied?: boolean
   isApplying?: boolean
   onApply?: () => void
+  aplicadoPor?: string | null
 }
 
 export function ChatProposalCard({
@@ -24,16 +26,20 @@ export function ChatProposalCard({
   isApplied: isAppliedProp,
   isApplying: isApplyingProp,
   onApply: onApplyProp,
+  aplicadoPor: aplicadoPorProp,
 }: ChatProposalCardProps) {
+  const { user } = useAuth()
   const p = proposal ?? propuesta
   const pid = proyectoId ?? p?.proyectoId ?? 0
   const executor = useChatProposalExecutor(pid)
 
   if (!p) return null
 
-  const isApplied = isAppliedProp ?? executor.isApplied(p.messageId)
+  const isApplied = isAppliedProp ?? p.propuestaAplicada ?? executor.isApplied(p.messageId, p.propuestaAplicada)
   const isApplying = isApplyingProp ?? executor.applyingId === p.messageId
   const handleApply = onApplyProp ?? (() => void executor.aplicarPropuesta(p))
+  const aplicadoPor = aplicadoPorProp ?? p.aplicadoPor
+  const esPropio = Boolean(user?.username && aplicadoPor && user.username.toLowerCase() === aplicadoPor.toLowerCase())
 
   return (
     <Card className="mt-2.5 overflow-hidden border-primary/30 bg-background/80 shadow-xs backdrop-blur-xs">
@@ -53,6 +59,8 @@ export function ChatProposalCard({
           isApplied={isApplied}
           isApplying={isApplying}
           onApply={handleApply}
+          aplicadoPor={aplicadoPor}
+          esPropio={esPropio}
         />
       </div>
     </Card>

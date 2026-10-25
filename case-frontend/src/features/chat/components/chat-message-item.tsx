@@ -36,9 +36,7 @@ export function ChatMessageItem({ mensaje, esPropio, mensajes, miRol, proyectoId
   const proposal = useMemo(() => {
     if (!esIa) return null
     return parseChatProposal(mensaje, {
-      messageId: mensaje.id,
-      proyectoId: proyectoId ?? mensaje.proyectoId,
-      createdAt: mensaje.createdAt,
+      messageId: mensaje.id, proyectoId: proyectoId ?? mensaje.proyectoId, createdAt: mensaje.createdAt,
     })
   }, [esIa, mensaje, proyectoId])
 
@@ -104,7 +102,13 @@ export function ChatMessageItem({ mensaje, esPropio, mensajes, miRol, proyectoId
           <ChatQuotedMessage respuestaAId={mensaje.respuestaAId} mensajes={mensajes} />
           <ChatMessageContent contenido={contenidoVisible} currentUsername={user?.username} />
           {proposal && proposal.totalCambios > 0 && (
-            <ChatProposalCard proposal={proposal} miRol={miRol} proyectoId={proyectoId ?? mensaje.proyectoId} />
+            <ChatProposalCard
+              proposal={proposal}
+              miRol={miRol}
+              proyectoId={proyectoId ?? mensaje.proyectoId}
+              isApplied={mensaje.propuestaAplicada}
+              aplicadoPor={mensaje.aplicadoPor}
+            />
           )}
         </div>
       </div>

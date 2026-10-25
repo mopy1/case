@@ -19,7 +19,7 @@ actualizá esta guía en el mismo cambio.
 
 No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
-## 2. Árbol de carpetas (122 archivos `.java`: 112 en main + 10 test)
+## 2. Árbol de carpetas (123 archivos `.java`: 112 en main + 11 test)
 
 ```text
 case-backend/
@@ -32,6 +32,7 @@ case-backend/
 │   ├── core/websocket/StompAuthInterceptorTest.java          # CONNECT/SUBSCRIBE/SEND (Mockito, sin BD)
 │   ├── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío
 │   │                        ChatMensajeServiceMencionIaTest.java,  # invocación async de IA ante @SeniorDev
+│   │                        ChatMensajeServiceAplicarTest.java,   # aplicar propuesta, RBAC, idempotencia y broadcast
 │   │                        ChatMensajeRequestValidationTest.java, # Bean Validation del body
 │   │                        ChatFixtures.java                      # entidades en memoria para los tests
 │   └── modules/chat/ia/ChatMencionIaUtilsTest.java,          # regex @SeniorDev
@@ -136,6 +137,7 @@ case-backend/
 - `enviar`: `strip()` del contenido (vacío → 400), `tipo=USUARIO`, `saveAndFlush` y después
   `convertAndSend("/topic/proyectos/{id}/chat", respuesta)`. Si el mensaje contiene `@SeniorDev`
   (`ChatMencionIaUtils.contieneMencionSeniorDev`), dispara de forma asíncrona (`@Async`) a `SeniorDevService.procesarMencion`.
+- `marcarPropuestaAplicada`: `POST /api/proyectos/{id}/chat/mensajes/{mId}/aplicar`. Exige rol de escritura (`ADMIN` o `COLABORADOR`; `LECTOR` da 403). Idempotente: si ya estaba aplicada (`propuesta_aplicada=true`), no sobreescribe ni falla. Persiste `propuesta_aplicada = true` y `aplicado_por = username`, y emite el `ChatMensajeResponse` actualizado a `/topic/proyectos/{id}/chat`.
 - Senior Dev IA (`SeniorDevService`, orquestación asíncrona F2):
   - Lock por proyecto en `ConcurrentHashMap<Long, ReentrantLock>` para garantizar secuencia en la sala.
   - Emite estado `PENSANDO` a `/topic/proyectos/{id}/chat/ia`.
@@ -210,6 +212,7 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/notas` | Escritor | 201 | `{accion (≤100), motivo}`; no hay editar/borrar |
 | GET | `/api/proyectos/{proyectoId}/chat/mensajes?antesDe=&limite=` | Miembro | 200 `ChatMensajeResponse[]` | Ascendente; `limite` 30 (1..100, recorta); `antesDe` = ids menores; no numérico → 400 |
 | POST | `/api/proyectos/{proyectoId}/chat/mensajes` | Miembro (incl. LECTOR) | 201 `ChatMensajeResponse` | `{contenido}` 1..4000 (strip); además difunde por WS |
+| POST | `/api/proyectos/{proyectoId}/chat/mensajes/{mensajeId}/aplicar` | Escritor (ADMIN/COLABORADOR) | 200 `ChatMensajeResponse` | Marca propuesta aplicada, persiste `propuesta_aplicada=true` y `aplicado_por=username`, difunde por WS; LECTOR da 403 |
 | GET | `/api/proyectos/{proyectoId}/chat/presencia` | Miembro | 200 `ChatPresenciaResponse` | `{proyectoId, usuarios:[{usuarioId, username}]}` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/presencia` | Auth | 200 lista | Body libre: `clientId` (obligatorio, si falta 400), `username`, `color`, `cursor{x,y}`, `selectedEntityId` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/desconectar` | Auth | 200 vacío | `{clientId}` |
@@ -228,8 +231,8 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/xmi/previsualizar` | ADMIN | 200 `XmiPreviewResponse` | multipart, campo `archivo` |
 | POST | `/api/proyectos/{proyectoId}/xmi/importar?modo=FUSIONAR\|REEMPLAZAR` | ADMIN | 200 `DiagramaResponse` | multipart `archivo`; `modo` default FUSIONAR |
 
-Total: **39 endpoints REST** (36 previos + 3 del chat; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
-contenido, respuestaAId, createdAt}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
+Total: **40 endpoints REST** (36 previos + 4 del chat; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
+contenido, respuestaAId, createdAt, propuestaAplicada, aplicadoPor}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
 autor ya no es miembro; `respuestaAId` null en F1).
 
 **WebSocket (STOMP 1.2)** — `ws(s)://<host>/ws`, sin SockJS. CONNECT con header nativo

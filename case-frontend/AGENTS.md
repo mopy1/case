@@ -60,7 +60,7 @@ src/
         │   ├── chat-proposal.types.ts # ChatProposal, ChatProposalSummary, PermisosPropuesta, evaluarPermisosPropuesta
         │   ├── mention.types.ts       # MentionItem, MentionTriggerState
         │   └── markdown.types.ts      # MarkdownBlock, MarkdownBlockType, MarkdownInlineToken
-        ├── api/chatApi.ts             # listarMensajes, enviarMensaje, obtenerPresencia (apiFetch)
+        ├── api/chatApi.ts             # listarMensajes, enviarMensaje, obtenerPresencia, marcarPropuestaAplicada (apiFetch)
         ├── lib/
         │   ├── chatSocket.ts          # chatWsUrl() y chatTopics(p) (mensajes, presencia, ia)
         │   ├── chatFormat.ts          # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
@@ -261,7 +261,7 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   - **Tarjetas de Propuestas Interactivas y RBAC (`ChatProposalCard`, `ChatProposalSummary`, `ChatProposalActionButton`, `useChatProposalExecutor`, `chatProposalParser`, `chatProposalStorage`):**
     Senior Dev responde con análisis conceptual en prosa limpia y emite comandos estructurados al final. El cliente procesa el mensaje con `parseChatProposal`, limpiando el texto del cuerpo visible y generando una tarjeta `ChatProposalCard` si hay cambios detectados (tablas nuevas, atributos, relaciones UML, tareas Kanban o notas ADR).
     - **Permisos de colaboración (RBAC):** `evaluarPermisosPropuesta(miRol)` valida si el usuario es `ADMIN` o `COLABORADOR` para habilitar el botón "⚡ Aplicar cambios en el proyecto". Si el usuario es `LECTOR`, el botón se deshabilita con cursor bloqueado y leyenda explicativa ("🔒 Solo ADMIN y COLABORADOR pueden aplicar cambios al proyecto.").
-    - **Ejecución y Persistencia:** Al presionar aplicar, `useChatProposalExecutor` ejecuta `executeAllMessageChanges`, emite notificaciones Toast (`sonner`), conmuta el estado visual a "✓ Cambios aplicados en el proyecto" y persiste los IDs aplicados en `localStorage` (`swcase_applied_proposals_<proyectoId>`) para idempotencia y recargas fluidas.
+    - **Ejecución y Persistencia en tiempo real:** Al presionar aplicar, `useChatProposalExecutor` ejecuta `executeAllMessageChanges`, sincroniza el estado con el backend (`POST /api/proyectos/{id}/chat/mensajes/{mensajeId}/aplicar`), emite notificaciones Toast (`sonner`), actualiza `localStorage` de respaldo, y el backend difunde el mensaje actualizado por WebSocket STOMP (`/topic/proyectos/{id}/chat`), reflejando "✓ Cambios aplicados en el proyecto por @username" (o "por vos") reactivamente para todos los miembros conectados en la sala.
   - `ChatThinkingIndicator`: burbuja animada con icono de bot y tres puntos pulsantes cuando Senior Dev está procesando una consulta.
   - `ChatQuotedMessage`: cita visual del mensaje original al que responde el Senior Dev (`respuestaAId`), mostrando autor y extracto del contenido.
   - `ChatMessageItem`: estilos diferenciados por rol/tipo (`USUARIO`, `IA` con badge "Senior Dev" / fondo tintado sutil, o `SISTEMA` centrado).

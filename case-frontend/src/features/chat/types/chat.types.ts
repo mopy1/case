@@ -23,6 +23,8 @@ export interface ChatMensaje {
   contenido: string
   respuestaAId: number | null
   createdAt: string // ISO-8601
+  propuestaAplicada?: boolean
+  aplicadoPor?: string | null
 }
 
 export interface EnviarMensajeRequest {

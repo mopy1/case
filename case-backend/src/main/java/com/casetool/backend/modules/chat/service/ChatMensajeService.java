@@ -100,6 +100,26 @@ public class ChatMensajeService {
         return response;
     }
 
+    public ChatMensajeResponse marcarPropuestaAplicada(Long proyectoId, Long mensajeId, Long usuarioId) {
+        MiembroProyecto miembro = accesoService.verificarMiembro(proyectoId, usuarioId);
+        accesoService.verificarPuedeEscribir(miembro);
+        ChatMensaje mensaje = chatMensajeRepository.findById(mensajeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Mensaje no encontrado"));
+        if (!mensaje.getProyecto().getId().equals(proyectoId)) {
+            throw new IllegalArgumentException("El mensaje no pertenece al proyecto");
+        }
+        if (!mensaje.isPropuestaAplicada()) {
+            mensaje.setPropuestaAplicada(true);
+            mensaje.setAplicadoPor(miembro.getUsuario().getUsername());
+            chatMensajeRepository.saveAndFlush(mensaje);
+        }
+        Map<Long, MiembroProyecto.Rol> roles = rolesDelProyecto(proyectoId);
+        MiembroProyecto.Rol rolAutor = mensaje.getUsuario() != null ? roles.get(mensaje.getUsuario().getId()) : null;
+        ChatMensajeResponse response = ChatMensajeResponse.from(mensaje, rolAutor);
+        messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), response);
+        return response;
+    }
+
     /** Default 30; fuera de [1, 100] se recorta en vez de dar error. */
     static int recortarLimite(Integer limite) {
         if (limite == null) {

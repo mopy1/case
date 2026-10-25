@@ -23,6 +23,8 @@ export interface ChatProposal {
   totalCambios: number
   detalles: string[]
   copilotMessage: CopilotMessage
+  propuestaAplicada?: boolean
+  aplicadoPor?: string | null
 }
 
 /** Estado de ciclo de vida de la propuesta en la sesión del usuario. */

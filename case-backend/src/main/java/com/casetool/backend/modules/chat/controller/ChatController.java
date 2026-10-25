@@ -52,6 +52,14 @@ public class ChatController {
                 .body(mensajeService.enviar(proyectoId, request, principal.getId()));
     }
 
+    @PostMapping("/mensajes/{mensajeId}/aplicar")
+    public ResponseEntity<ChatMensajeResponse> aplicarPropuesta(
+            @PathVariable Long proyectoId,
+            @PathVariable Long mensajeId,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ResponseEntity.ok(mensajeService.marcarPropuestaAplicada(proyectoId, mensajeId, principal.getId()));
+    }
+
     @GetMapping("/presencia")
     public ResponseEntity<ChatPresenciaResponse> presencia(
             @PathVariable Long proyectoId,
