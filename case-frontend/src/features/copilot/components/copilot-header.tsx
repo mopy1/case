@@ -9,7 +9,8 @@ interface CopilotHeaderProps {
   autoMode: boolean
   onToggleAutoMode: () => void
   onClear: () => void
-  onClose: () => void
+  /** Opcional: dentro del panel con pestañas el cierre vive en la fila de pestañas. */
+  onClose?: () => void
 }
 
 const SECTION_LABELS: Record<CopilotSection, string> = {
@@ -88,22 +89,24 @@ export function CopilotHeader({
           <TooltipContent side="bottom">Reiniciar conversación</TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-9 sm:size-7 flex items-center justify-center rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground cursor-pointer"
-                onClick={onClose}
-                aria-label="Cerrar panel Copilot"
-              />
-            }
-          >
-            <X className="size-5 sm:size-4 text-foreground/80 hover:text-foreground" />
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Cerrar panel</TooltipContent>
-        </Tooltip>
+        {onClose && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 sm:size-7 flex items-center justify-center rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground cursor-pointer"
+                  onClick={onClose}
+                  aria-label="Cerrar panel Copilot"
+                />
+              }
+            >
+              <X className="size-5 sm:size-4 text-foreground/80 hover:text-foreground" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Cerrar panel</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </div>
   )

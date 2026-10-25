@@ -1,6 +1,6 @@
 # case-frontend — Guía técnica (estado real del código)
 
-SPA del CASE Tool: modelado UML/ER colaborativo, Kanban, notas ADR, XMI, generador Spring Boot y
+SPA del CASE Tool: modelado UML/ER colaborativo, Kanban, notas ADR, XMI, generador Spring Boot, chat grupal del equipo (STOMP) y
 Copilot IA. Producción: https://casetool-sw.duckdns.org (misma origin que la API, vía Nginx).
 
 ## 1. Stack (versiones instaladas)
@@ -15,6 +15,7 @@ Copilot IA. Producción: https://casetool-sw.duckdns.org (misma origin que la AP
 | `cn()` | paquete `cn` (reemplazo de clsx + tailwind-merge; `lib/utils.ts` lo re-exporta) | 0.2 |
 | Lienzo | `@xyflow/react` (React Flow) | 12.11 |
 | Rutas | `react-router-dom` | 7.18 |
+| Tiempo real (chat) | `@stomp/stompjs` (STOMP 1.2 sobre WebSocket nativo, sin SockJS) | 7.3 |
 | ZIP | `jszip` + `file-saver` | — |
 | Iconos / fuente | `lucide-react`, `@fontsource-variable/inter` | — |
 | Lint | `oxlint` (`.oxlintrc.json`: plugins react, typescript, oxc) | 1.79 |
@@ -30,7 +31,7 @@ src/
 ├── index.css                 # Tailwind v4, tokens OKLCH (claro/.dark), vars --visual-viewport-height/--keyboard-height
 ├── components/
 │   ├── ui/                   # Primitivas shadcn (generadas): alert avatar badge button card checkbox dialog
-│   │                         #   dropdown-menu empty field input label select separator skeleton textarea tooltip
+│   │                         #   dropdown-menu empty field input label select separator skeleton tabs textarea tooltip
 │   └── common/
 │       ├── ConfirmDialog.tsx       # Diálogo "¿Eliminar…?" reutilizado por todos los borrados
 │       ├── ErrorBoundary.tsx       # Error de render recuperable; se resetea con `resetKey` (ruta)
@@ -51,7 +52,16 @@ src/
 ├── routes/
 │   ├── ProtectedRoute.tsx    # Sin token en localStorage → /login
 │   └── GuestRoute.tsx        # Con token → /proyectos
-└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, collaboration, voice
+└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, chat, collaboration, voice
+    └── chat/                 # Chat grupal del equipo (ver §6 chat)
+        ├── index.ts          # export { ChatTeamView } + tipos
+        ├── types/chat.types.ts   # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, CHAT_LIMITE_PAGINA=30, CHAT_MAX_CARACTERES=4000
+        ├── api/chatApi.ts        # listarMensajes, enviarMensaje, obtenerPresencia (apiFetch)
+        ├── lib/chatSocket.ts     # chatWsUrl() y chatTopics(p)
+        ├── lib/chatFormat.ts     # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
+        ├── hooks/                # useChatMensajes (historial+envío), useChatSocket (Client STOMP), useChatSala (orquesta)
+        └── components/           # chat-team-view, chat-presence-bar, chat-message-list, chat-message-item,
+                                  #   chat-input, chat-empty-state, chat-skeleton
 ```
 
 Convención por feature: `api/` (llamadas HTTP), `hooks/` (estado + mutaciones), `components/`,
@@ -75,7 +85,13 @@ URL al código. Todas las páginas se cargan con `React.lazy` + `Suspense`.
 - `ProjectNavRail` (izquierda): volver, 5 secciones (`project-nav-rail.data.ts`), diálogo de
   colaboradores (`ProjectMembersDialog`), avatares de miembros, tema y menú de usuario.
 - `<main>`: `<Outlet/>` dentro de `ErrorBoundary resetKey={pathname}`; si `getProject` falla muestra Alert.
-- `CopilotPanel` (derecha). Abierto/cerrado en localStorage `sw_case_copilot_open` (solo escritorio).
+- `CopilotPanel` (derecha): shell (backdrop móvil, `<aside>`, resize) con **dos pestañas** (`copilot-panel-tabs.tsx`,
+  `Tabs` de Base UI, ambas `keepMounted`): **Equipo** (`teamPanel` = `<ChatTeamView key={proyectoId} />`) y
+  **Copilot** (`copilot-assistant-view.tsx`, el asistente de siempre). Pestaña activa en localStorage
+  `sw_case_panel_tab` (`equipo` por defecto, `usePanelTab`); el evento `copilot:voice-submit` salta a "Copilot".
+  El cierre `X` vive en la fila de pestañas (`CopilotHeader.onClose` es opcional). Como el `<aside>` siempre
+  está montado, el WebSocket del chat vive mientras el usuario está dentro del proyecto ("en la sala" =
+  proyecto abierto), aunque el panel esté cerrado o en la otra pestaña. Abierto/cerrado en localStorage `sw_case_copilot_open` (solo escritorio).
   Escritorio (>= 768px): acoplado y redimensionable 280–720px (`usePanelResize`, localStorage
   `sw_case_copilot_width`, doble clic resetea a 350). Móvil: inicia cerrado; drawer `fixed` con backdrop.
 - `usePushToTalk` + `VoicePushToTalkHud`: el texto dictado se envía al Copilot con el evento de
@@ -176,6 +192,25 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 - Entrada: texto, dictado (`useSpeechRecognition`, comandos de voz "enviar"/"detener") y foto
   (`copilotImageUtils.ts`: redimensiona a 1200px, JPEG 0.8, base64).
 
+### chat (pestaña "Equipo" del panel lateral, sin IA)
+- REST (`chatApi.ts`): `GET /proyectos/{p}/chat/mensajes?limite=30[&antesDe={id}]` (orden ascendente;
+  `hayMas = length === 30`), `POST /proyectos/{p}/chat/mensajes` (`{contenido}` ≤ 4000) → `ChatMensaje`,
+  `GET /proyectos/{p}/chat/presencia` → `{proyectoId, usuarios: [{usuarioId, username}]}`. Cualquier miembro
+  (incluido LECTOR) lee y escribe.
+- WebSocket (`useChatSocket`): `Client` de `@stomp/stompjs` contra `chatWsUrl()` =
+  `(VITE_API_URL || origin)` con `http→ws` + `/ws`; `reconnectDelay` 5s, heartbeat 10s/10s. `beforeConnect`
+  manda `Authorization: Bearer <token>` (el vigente en localStorage; sin token → estado `error`). Se suscribe a
+  `/topic/proyectos/{p}/chat` (mensajes nuevos) y `/topic/proyectos/{p}/chat/presencia` (lista completa;
+  esta suscripción es la que cuenta como "en la sala"). Frame ERROR con `401`/`403` → `deactivate()` y
+  "Sin tiempo real" (sin bucle de reconexión); corte de red → "Reconectando…".
+- `useChatSala`: en cada `onConnect` pide `GET .../presencia` (snapshot); si el historial había fallado (backend caído al
+  entrar) hace `recargar()` solo, y si es reconexión `sincronizar()` (GET últimos + unión) para recuperar lo perdido. El propio usuario se agrega a "en la sala" si está conectado.
+  El emisor recibe su mensaje por REST y por WS: `unirMensajes` deduplica por `id`.
+- UI: barra de presencia (`AvatarGroup` máx. 4 + "+N", badge emerald/ámbar/rose de conexión), 4 estados
+  (skeleton · Alert + "Reintentar" · vacío con "Saludar al equipo" · lista), "Cargar anteriores" conserva el
+  scroll, Enter envía / Shift+Enter salto, contador desde 3500 caracteres; si el POST falla el texto queda
+  en el input con el error. Texto plano (`whitespace-pre-wrap`, sin HTML).
+
 ### collaboration (solo en DiagramEditorPage)
 - `useRealtimeCollaboration(p)` combina tres mecanismos:
   1. `BroadcastChannel("sw-case-collab-{p}")`: pestañas del mismo navegador; cursor cada >= 40ms,
@@ -199,13 +234,13 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 | `project:diagram-updated` `{proyectoId}` | acciones del Copilot, `useDiagramPolling` | `useDiagram` (refetch) |
 | `project:task-created/updated/deleted` | `useTaskMutations`, Copilot | `useTasks` |
 | `project:note-created` | Copilot | `useNotes` |
-| `copilot:voice-submit` `{text}` | `ProjectLayout` (push-to-talk) | `CopilotPanel` |
+| `copilot:voice-submit` `{text}` | `ProjectLayout` (push-to-talk) | `CopilotAssistantView` (envía) y `usePanelTab` (cambia a la pestaña Copilot) |
 
 ## 8. Variables de entorno (Vite, se hornean en el build)
 
 | Variable | Uso | Dev (`.env`) | Prod (`.env.production`) |
 | --- | --- | --- | --- |
-| `VITE_API_URL` | Prefijo de la API | `http://localhost:8081` | vacío (rutas relativas por Nginx) |
+| `VITE_API_URL` | Prefijo de la API y base del WebSocket del chat (`ws://…/ws`; vacío → `wss://<origin>/ws`) | `http://localhost:8081` | vacío (rutas relativas por Nginx) |
 | `VITE_DEEPSEEK_API_KEY` | Copilot texto | clave | clave |
 | `VITE_GEMINI_API_KEY` | Copilot visión | clave | clave |
 
@@ -227,7 +262,7 @@ en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.j
 ## 10. Reglas para agentes
 
 1. Ningún archivo de código > 150 líneas (componentes idealmente < 120). Excepciones actuales:
-   `components/ui/{select,field,dropdown-menu}.tsx` (generados por shadcn) y
+   `components/ui/{select,field,dropdown-menu}.tsx` (generados por shadcn; `ui/tabs.tsx` también trae el warning `only-export-components` de `tabsListVariants`, igual que `button`/`badge`) y
    `generator/lib/springboot/{relacionesJpa,capaServicio}.ts` (pendientes de dividir).
 2. Páginas delgadas: la lógica va en hooks/lib; HTTP siempre vía `apiFetch` (salvo auth).
 3. No cambiar contratos con el backend (paths, DTOs, enums) sin cambiar el backend y su `Endpoints.md`.

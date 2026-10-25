@@ -1,37 +1,23 @@
-import { useEffect } from "react"
+import type { ReactNode } from "react"
 import { useIsMobile } from "@/hooks/useIsMobile"
 import { cn } from "@/lib/utils"
-import { useCopilot } from "../hooks/useCopilot"
 import { usePanelResize } from "../hooks/usePanelResize"
-import { CopilotHeader } from "./copilot-header"
-import { CopilotInput } from "./copilot-input"
-import { CopilotMessageList } from "./copilot-message-list"
-import { CopilotQuickSuggestions } from "./copilot-quick-suggestions"
+import { usePanelTab } from "../hooks/usePanelTab"
+import { CopilotAssistantView } from "./copilot-assistant-view"
+import { CopilotPanelTabs } from "./copilot-panel-tabs"
 
 interface CopilotPanelProps {
   proyectoId: number
   isOpen: boolean
   onClose: () => void
+  /** Contenido de la pestaña "Equipo" (chat grupal, `features/chat`). */
+  teamPanel: ReactNode
 }
 
-export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps) {
-  const copilot = useCopilot(proyectoId)
+export function CopilotPanel({ proyectoId, isOpen, onClose, teamPanel }: CopilotPanelProps) {
   const isMobile = useIsMobile()
   const { width, isDragging, setIsDragging, resetWidth } = usePanelResize()
-  const { sendMessage } = copilot
-
-  // Texto dictado con Push-to-Talk (ver `ProjectLayout`) — depende de `sendMessage` (memoizada con
-  // useCallback) y no del objeto `copilot` entero, que es nuevo en cada render.
-  useEffect(() => {
-    const onVoiceSubmit = (e: Event) => {
-      const custom = e as CustomEvent<{ text: string }>
-      if (custom.detail?.text) {
-        sendMessage(custom.detail.text)
-      }
-    }
-    window.addEventListener("copilot:voice-submit", onVoiceSubmit)
-    return () => window.removeEventListener("copilot:voice-submit", onVoiceSubmit)
-  }, [sendMessage])
+  const { tab, setTab } = usePanelTab()
 
   return (
     <>
@@ -45,7 +31,7 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
       )}
 
       <aside
-        aria-label="Panel Asistente IA y Manual CASE"
+        aria-label="Panel de equipo y asistente IA"
         style={
           isMobile
             ? { height: "var(--visual-viewport-height, 100dvh)", maxHeight: "var(--visual-viewport-height, 100dvh)" }
@@ -80,52 +66,13 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
           </div>
         )}
 
-        <div className="flex h-full w-full flex-col overflow-hidden">
-          <CopilotHeader
-            section={copilot.activeSection}
-            autoMode={copilot.autoMode}
-            onToggleAutoMode={copilot.toggleAutoMode}
-            onClear={copilot.clearChat}
-            onClose={onClose}
-          />
-
-          <CopilotMessageList
-            messages={copilot.messages}
-            loading={copilot.loading}
-            savingNoteId={copilot.savingNoteId}
-            creatingEntityKey={copilot.creatingEntityKey}
-            creatingRelationKey={copilot.creatingRelationKey}
-            deletingRelationKey={copilot.deletingRelationKey}
-            creatingAttributeKey={copilot.creatingAttributeKey}
-            deletingEntityKey={copilot.deletingEntityKey}
-            creatingTaskKey={copilot.creatingTaskKey}
-            executingSystemActionKey={copilot.executingSystemActionKey}
-            applyingAllMessageId={copilot.applyingAllMessageId}
-            onSaveAdr={copilot.handleSaveAdr}
-            onCreateEntity={copilot.handleCreateEntity}
-            onCreateRelation={copilot.handleCreateRelation}
-            onDeleteRelation={copilot.handleDeleteRelation}
-            onCreateAttribute={copilot.handleCreateAttribute}
-            onDeleteEntity={copilot.handleDeleteEntity}
-            onCreateTask={copilot.handleCreateTask}
-            onExecuteSystemAction={copilot.handleExecuteSystemAction}
-            onApplyAll={copilot.handleApplyAll}
-          />
-
-          {copilot.messages.length <= 1 && (
-            <CopilotQuickSuggestions
-              questions={copilot.quickQuestions}
-              onSelect={copilot.sendMessage}
-              disabled={copilot.loading}
-            />
-          )}
-
-          <CopilotInput
-            section={copilot.activeSection}
-            loading={copilot.loading}
-            onSend={copilot.sendMessage}
-          />
-        </div>
+        <CopilotPanelTabs
+          tab={tab}
+          onTabChange={setTab}
+          onClose={onClose}
+          teamPanel={teamPanel}
+          copilotPanel={<CopilotAssistantView proyectoId={proyectoId} />}
+        />
       </aside>
     </>
   )

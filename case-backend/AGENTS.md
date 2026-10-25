@@ -1,8 +1,8 @@
 # case-backend — Guía técnica (estado real del código)
 
 API REST de la CASE Tool: usuarios + JWT, proyectos colaborativos (miembros con rol, tareas Kanban,
-notas de diseño), diagramador de tablas/relaciones y exportación/importación XMI (Enterprise
-Architect). Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
+notas de diseño), diagramador de tablas/relaciones, exportación/importación XMI (Enterprise
+Architect) y chat de equipo en vivo por proyecto (STOMP sobre WebSocket, Parcial 2 · F1). Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
 actualizá esta guía en el mismo cambio.
 
 ## 1. Stack (versiones reales del `pom.xml`)
@@ -13,12 +13,13 @@ actualizá esta guía en el mismo cambio.
 | Spring Boot (parent) | **4.1.1** (Spring Framework 7.0.x, Spring Security 7.1.x, Tomcat 11) |
 | Persistencia | Spring Data JPA + Hibernate 7.4 + PostgreSQL (driver 42.7) |
 | Seguridad | JWT HMAC con JJWT 0.12.6, BCrypt, sesión `STATELESS` |
+| Tiempo real | `spring-boot-starter-websocket`: STOMP 1.2 sobre WebSocket nativo (sin SockJS), simple broker en memoria |
 | Otros | Lombok (solo en `model/`), Bean Validation, DOM XML del JDK para XMI |
 | Build | Maven Wrapper `./mvnw` (Maven 3.9.16) |
 
 No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
-## 2. Árbol de carpetas (92 archivos `.java`: 91 en main + 1 test)
+## 2. Árbol de carpetas (108 archivos `.java`: 103 en main + 5 test)
 
 ```text
 case-backend/
@@ -26,13 +27,19 @@ case-backend/
 ├── Dockerfile          # dev: compila con Maven dentro de la imagen y corre el jar (puerto 8081)
 ├── Dockerfile.prod     # prod: copia un target/*.jar YA compilado (deploy-aws.sh no lo compila)
 ├── src/main/resources/application.properties   # única configuración (static/ y templates/ vacíos)
-├── src/test/java/com/casetool/backend/CaseBackendApplicationTests.java   # contextLoads (necesita BD)
+├── src/test/java/com/casetool/backend/
+│   ├── CaseBackendApplicationTests.java          # contextLoads (necesita BD)
+│   ├── core/websocket/StompAuthInterceptorTest.java          # CONNECT/SUBSCRIBE/SEND (Mockito, sin BD)
+│   └── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío
+│                            ChatMensajeRequestValidationTest.java, # Bean Validation del body
+│                            ChatFixtures.java                      # entidades en memoria para los tests
 └── src/main/java/com/casetool/backend/
     ├── CaseBackendApplication.java
     ├── core/
     │   ├── config/      CorsConfig
     │   ├── exception/   GlobalExceptionHandler, ResourceNotFoundException
-    │   └── security/    SecurityConfig, JwtService, JwtAuthenticationFilter, JwtAuthenticationEntryPoint
+    │   ├── security/    SecurityConfig, JwtService, JwtAuthenticationFilter, JwtAuthenticationEntryPoint
+    │   └── websocket/   WebSocketConfig (/ws + broker /topic), StompAuthInterceptor (JWT y membresía por frame)
     └── modules/
         ├── seguridad/
         │   ├── controller/  AuthController
@@ -62,6 +69,12 @@ case-backend/
         │   ├── repository/  EntidadDiagramaRepository, AtributoEntidadRepository, RelacionDiagramaRepository
         │   └── service/     DiagramaService, EntidadDiagramaService, AtributoEntidadService,
         │                    RelacionDiagramaService, TablaIntermediaService
+        ├── chat/
+        │   ├── controller/  ChatController
+        │   ├── dto/         ChatMensajeRequest, ChatMensajeResponse, ChatPresenciaResponse (UsuarioEnSala)
+        │   ├── model/       ChatMensaje (@Entity, enum Tipo USUARIO/IA/SISTEMA)
+        │   ├── repository/  ChatMensajeRepository
+        │   └── service/     ChatMensajeService, ChatPresenciaService, ChatPresenciaListener, ChatDestinos
         └── xmi/             (sin model/repository propios: usa los services de diagrama)
             ├── controller/  XmiController
             ├── dto/         ModoImportacionXmi (FUSIONAR | REEMPLAZAR), XmiPreviewResponse
@@ -73,7 +86,7 @@ case-backend/
 
 **core**
 - `SecurityConfig`: CSRF off, CORS on, `STATELESS`. Públicos solo `POST /api/auth/login` y
-  `POST /api/auth/register`, más el dispatch interno de `/error` (`DispatcherType.ERROR`, para que
+  `POST /api/auth/register`, el handshake `/ws` (el JWT se valida en el frame STOMP), más el dispatch interno de `/error` (`DispatcherType.ERROR`, para que
   un 400/404/500 no manejado no se convierta en 401 y cierre la sesión del frontend); todo lo demás
   exige JWT. `BCryptPasswordEncoder` como bean.
 - `JwtAuthenticationFilter`: lee `Authorization: Bearer <token>`, valida firma+expiración
@@ -83,6 +96,14 @@ case-backend/
 - `JwtAuthenticationEntryPoint`: sin autenticación → **401** JSON (distinto del 403 de rol).
 - `CorsConfig`: `/api/**`, orígenes desde `cors.allowed-origins` (lista separada por comas).
 - `GlobalExceptionHandler`: cuerpo `{timestamp, status, error, message}` (el frontend lee `message`).
+  Un query/path de tipo incorrecto (`?limite=abc`) da 400 con ese mismo cuerpo.
+- `websocket/WebSocketConfig`: endpoint `/ws` (orígenes = `cors.allowed-origins`), `enableSimpleBroker("/topic")`
+  con heartbeat servidor 10 s/10 s y el `messageBrokerTaskScheduler`. No hay destinos `/app`.
+- `websocket/StompAuthInterceptor` (canal inbound): `CONNECT` exige header nativo
+  `Authorization: Bearer <jwt>` → si falta/es inválido/usuario borrado lanza `"401 Token inválido o ausente"`;
+  `SUBSCRIBE` solo a `/topic/proyectos/{id}/chat(/presencia)?` siendo miembro (`"403 Destino no permitido"` /
+  `"403 No sos colaborador de este proyecto"`); `SEND` siempre `"403 Los mensajes se envían por REST"`.
+  Spring responde frame `ERROR` (header `message`) y cierra la conexión.
 
 **seguridad**: registro (username/email únicos → 409), login por username **o** email (falla → 401
 "Credenciales incorrectas"), `/me` con el perfil. `UsuarioPrincipal` permite usar
@@ -97,6 +118,20 @@ case-backend/
 - `ColaboracionController`: presencia en memoria (`ConcurrentHashMap` estático, no BD). Cada
   heartbeat guarda cursor/selección, purga sesiones con > 3,5 s sin actividad y devuelve a los
   demás. Se pierde al reiniciar y no escala a más de una instancia.
+
+**chat** (Parcial 2 · F1, sin IA)
+- Leer y escribir = cualquier miembro, **incluido LECTOR** (decisión D1: el chat no modifica el modelo).
+- `ChatMensajeService.listar`: `limite` default 30 recortado a `[1,100]`; `antesDe` = cursor por `id`;
+  consulta `created_at DESC, id DESC` con `Limit` + `@EntityGraph(usuario)`, se invierte y sale ascendente.
+  El `rol` de cada autor (actual) sale de 1 consulta de miembros → `Map` (sin N+1).
+- `enviar`: `strip()` del contenido (vacío → 400), `tipo=USUARIO`, `saveAndFlush` y después
+  `convertAndSend("/topic/proyectos/{id}/chat", respuesta)`. El emisor recibe su mensaje 2 veces
+  (POST + broadcast): el frontend deduplica por `id`.
+- Presencia (`ChatPresenciaService`, en memoria, igual que `ColaboracionController`): cuenta una
+  suscripción a `.../chat/presencia` (decisión D2: "en la sala" = tiene el proyecto abierto). Clave
+  `sessionId:subscriptionId`; `ChatPresenciaListener` escucha Subscribe/Unsubscribe/Disconnect y cada
+  cambio difunde la lista completa (dedupe por usuario, orden por username). Se pierde al reiniciar.
+- `ChatDestinos`: arma y parsea los tópicos (único lugar con esos strings).
 
 **diagrama**
 - `DiagramaService.obtenerDiagrama`: 3 consultas fijas (entidades, atributos del proyecto,
@@ -149,6 +184,9 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | DELETE | `/api/proyectos/{proyectoId}/tareas/{tareaId}` | Escritor | 204 | |
 | GET | `/api/proyectos/{proyectoId}/notas` | Miembro | 200 lista | Orden `createdAt` desc |
 | POST | `/api/proyectos/{proyectoId}/notas` | Escritor | 201 | `{accion (≤100), motivo}`; no hay editar/borrar |
+| GET | `/api/proyectos/{proyectoId}/chat/mensajes?antesDe=&limite=` | Miembro | 200 `ChatMensajeResponse[]` | Ascendente; `limite` 30 (1..100, recorta); `antesDe` = ids menores; no numérico → 400 |
+| POST | `/api/proyectos/{proyectoId}/chat/mensajes` | Miembro (incl. LECTOR) | 201 `ChatMensajeResponse` | `{contenido}` 1..4000 (strip); además difunde por WS |
+| GET | `/api/proyectos/{proyectoId}/chat/presencia` | Miembro | 200 `ChatPresenciaResponse` | `{proyectoId, usuarios:[{usuarioId, username}]}` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/presencia` | Auth | 200 lista | Body libre: `clientId` (obligatorio, si falta 400), `username`, `color`, `cursor{x,y}`, `selectedEntityId` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/desconectar` | Auth | 200 vacío | `{clientId}` |
 | GET | `/api/proyectos/{proyectoId}/diagrama` | Miembro | 200 | `{entidades[ {.., atributos[]} ], relaciones[]}` |
@@ -166,6 +204,17 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/xmi/previsualizar` | ADMIN | 200 `XmiPreviewResponse` | multipart, campo `archivo` |
 | POST | `/api/proyectos/{proyectoId}/xmi/importar?modo=FUSIONAR\|REEMPLAZAR` | ADMIN | 200 `DiagramaResponse` | multipart `archivo`; `modo` default FUSIONAR |
 
+Total: **39 endpoints REST** (36 previos + 3 del chat; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
+contenido, respuestaAId, createdAt}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
+autor ya no es miembro; `respuestaAId` null en F1).
+
+**WebSocket (STOMP 1.2)** — `ws(s)://<host>/ws`, sin SockJS. CONNECT con header nativo
+`Authorization: Bearer <jwt>`; heartbeat 10000,10000. Destinos (solo server → cliente):
+`/topic/proyectos/{id}/chat` (cada POST, payload `ChatMensajeResponse`) y
+`/topic/proyectos/{id}/chat/presencia` (al entrar/salir alguien, payload `ChatPresenciaResponse`, lista
+completa). Errores: frame `ERROR` con `message` `401 …` / `403 …` y cierre. En Nginx (`case-frontend/nginx*.conf`)
+`location = /ws` con `Upgrade`/`Connection: upgrade` y timeouts de 3600 s.
+
 Detalle: en las rutas anidadas (`/tareas/{tareaId}`, `/entidades/{entidadId}/atributos/{atributoId}`,
 `/relaciones/{relacionId}`) el permiso se valida contra el proyecto real del recurso; el
 `{proyectoId}`/`{entidadId}` del path no se cruza con el recurso.
@@ -174,7 +223,7 @@ Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`) o `I
 401 sin token / credenciales malas; 403 no miembro o rol insuficiente; 404 recurso inexistente;
 409 nombre/usuario duplicado o violación de integridad en BD.
 
-## 5. Modelo de datos (Hibernate `ddl-auto=update`, sin migraciones)
+## 5. Modelo de datos (9 tablas, Hibernate `ddl-auto=update`, sin migraciones)
 
 | Tabla | Columnas clave | Restricciones |
 | :--- | :--- | :--- |
@@ -185,6 +234,7 @@ Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`) o `I
 | `notas_proyecto` | `id`, `proyecto_id`, `usuario_id` (autor), `accion`(100), `motivo` TEXT, `created_at` | `proyecto_id` CASCADE |
 | `diagrama_entidades` | `id`, `proyecto_id`, `nombre`(100), `pos_x`, `pos_y`, `created_at` | único (`proyecto_id`,`nombre`); CASCADE |
 | `entidad_atributos` | `id`, `entidad_id`, `nombre`(100), `tipo_sql`(50), `es_pk`, `es_fk`, `referencia_entidad_id` (nullable), `nullable`, `created_at` | único (`entidad_id`,`nombre`); `entidad_id` CASCADE; `referencia_entidad_id` **RESTRICT a propósito** |
+| `chat_mensajes` | `id`, `proyecto_id`, `usuario_id` (nullable: null = IA/SISTEMA), `tipo`(20: USUARIO/IA/SISTEMA), `contenido` TEXT, `respuesta_a_id` (nullable, FK a sí misma), `created_at` | `proyecto_id` CASCADE; `respuesta_a_id` SET NULL; índice `idx_chat_mensajes_proyecto_created` (`proyecto_id`,`created_at`); CHECK de `tipo` (agregar un valor exige `ALTER TABLE` manual) |
 | `diagrama_relaciones` | `id`, `proyecto_id`, `entidad_origen_id`, `entidad_destino_id`, `multiplicidad_origen`(20), `multiplicidad_destino`(20), `tipo`(20, nullable), `puntos_control` jsonb, `created_at` | las 3 FK con CASCADE |
 
 Enums se guardan como texto (`@Enumerated(STRING)`). Las FK a `usuarios` no tienen cascada (no
@@ -215,7 +265,8 @@ arrancar con la clave de desarrollo. Generarla con `openssl rand -base64 48`. De
 ```bash
 cd case-backend
 ./mvnw -q -DskipTests compile        # verificación mínima obligatoria
-./mvnw -q test                       # contextLoads: necesita Postgres accesible
+./mvnw -q test                       # contextLoads necesita Postgres accesible; el resto son unitarios
+./mvnw -q test -Dtest='Chat*Test,Stomp*Test'   # solo los unitarios del chat (sin BD)
 # Sin BD, para validar solo el cableado de beans:
 ./mvnw -q test -Dspring.jpa.hibernate.ddl-auto=none \
   -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \

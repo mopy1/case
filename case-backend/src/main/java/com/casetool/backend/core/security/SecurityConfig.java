@@ -40,6 +40,8 @@ public class SecurityConfig {
                         // /error debe ser publico: si no, un 400/404/500 sin manejador se convierte en 401 y el frontend cierra sesion
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
+                        // Handshake del WebSocket publico: el JWT se valida en el frame STOMP CONNECT (StompAuthInterceptor)
+                        .requestMatchers("/ws").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

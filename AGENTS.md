@@ -25,15 +25,19 @@ El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descarta
 
 ## 2. Arquitectura
 
-- **Backend:** monolito modular (`core/` transversal + `modules/{seguridad,proyecto,diagrama,xmi}`,
+- **Backend:** monolito modular (`core/` transversal + `modules/{seguridad,proyecto,diagrama,xmi,chat}`,
   cada uno con controller/dto/exception/model/repository/service). Autenticación JWT stateless;
   autorización por rol de proyecto (`ADMIN`, `COLABORADOR`, `LECTOR`) en `ProyectoAccesoService`.
-  Esquema gestionado por Hibernate `ddl-auto=update` (8 tablas, sin migraciones). 37 endpoints bajo `/api`.
-- **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,collaboration,voice}`).
+  Esquema gestionado por Hibernate `ddl-auto=update` (9 tablas, sin migraciones). 39 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
+- **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,chat,collaboration,voice}`).
   Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
 - **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip), Copilot IA (llamadas
   directas a DeepSeek / Gemini) y voz (Web Speech API).
-- **Colaboración:** sin WebSockets. Presencia y cursores por HTTP (`/api/proyectos/{id}/colaboracion`,
+- **Chat de equipo (Parcial 2 · F1):** mensajes por REST (`/api/proyectos/{id}/chat/mensajes`, tabla
+  `chat_mensajes`) y difusión en vivo por **WebSocket STOMP** (`/ws`, JWT en el CONNECT, membresía en el
+  SUBSCRIBE, tópicos `/topic/proyectos/{id}/chat` y `.../chat/presencia`). Pestaña "Equipo" del panel Copilot.
+  Nginx enruta `/ws` con `Upgrade`. Todavía sin IA (llega en F2).
+- **Colaboración del lienzo:** sin WebSockets. Presencia y cursores por HTTP (`/api/proyectos/{id}/colaboracion`,
   heartbeat ~800 ms, mapa en memoria del backend), refresco del diagrama por polling cada 7 s y
   `BroadcastChannel` entre pestañas del mismo navegador.
 
@@ -61,6 +65,7 @@ se hornean en el bundle.
 | Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente |
 | Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo |
 | Colaboración | Presencia, cursores remotos, refresco por polling |
+| Chat de equipo | Sala por proyecto en tiempo real (STOMP), historial paginado, presencia "en la sala"; cualquier miembro lee y escribe |
 | Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
@@ -80,9 +85,9 @@ se hornean en el bundle.
 
 Enunciado en el vault: `U/2-2026/SW/Parcial2/Enunciado.md`. Requisito central: una IA "Senior Dev"
 en un **chat grupal por proyecto** (respuestas visibles para todo el equipo, sabe a quién responde y
-mantiene el hilo), con el modelo desplegado en Colab o superior. Además, un agente de inducción para
-nuevos usuarios. Implica persistir mensajes en el backend y, probablemente, reemplazar el polling por
-WebSocket/SSE y mover la IA al servidor (resuelve el riesgo 1).
+mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan por fases en
+`U/2-2026/SW/Parcial2/Plan.md`; contrato de F1 en `U/2-2026/SW/Parcial2/F1_Spec_Chat.md`.
+**F1 (chat grupal sin IA) implementada.** Siguiente: F2, `@SeniorDev` con DeepSeek desde el backend.
 
 ## 7. Reglas para agentes
 

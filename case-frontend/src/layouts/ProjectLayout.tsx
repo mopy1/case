@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react"
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom"
-import { Bot } from "lucide-react"
+import { MessagesSquare } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ErrorBoundary } from "@/components/common/ErrorBoundary"
 import { ProjectNavRail } from "@/components/common/project-nav-rail"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import { CopilotPanel } from "@/features/copilot"
+import { ChatTeamView } from "@/features/chat"
 import { usePushToTalk, VoicePushToTalkHud } from "@/features/voice"
 import { useIsMobile } from "@/hooks/useIsMobile"
 import { decodeProjectId, encodeProjectId } from "@/lib/projectCode"
@@ -85,10 +86,10 @@ export function ProjectLayout() {
             type="button"
             onClick={() => setIsCopilotOpen(true)}
             className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 flex items-center gap-1.5 sm:gap-2 rounded-xl border border-border bg-card/95 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-semibold text-foreground shadow-md backdrop-blur-xs hover:bg-muted hover:border-primary transition-all cursor-pointer"
-            aria-label="Abrir Asistente Copilot IA"
+            aria-label="Abrir panel de equipo y Copilot IA"
           >
-            <Bot className="size-3.5 sm:size-4 text-primary shrink-0" />
-            <span className="text-[11px] sm:text-xs">Copilot IA</span>
+            <MessagesSquare className="size-3.5 sm:size-4 text-primary shrink-0" />
+            <span className="text-[11px] sm:text-xs">Equipo · Copilot</span>
           </button>
         )}
       </main>
@@ -97,6 +98,7 @@ export function ProjectLayout() {
         proyectoId={proyectoId}
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
+        teamPanel={<ChatTeamView key={proyectoId} proyectoId={proyectoId} />}
       />
 
       <VoicePushToTalkHud
