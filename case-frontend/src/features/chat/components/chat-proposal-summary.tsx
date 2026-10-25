@@ -1,62 +1,56 @@
-import { Database, FolderPlus, GitBranch, ListTodo, FileText, Trash2 } from "lucide-react"
+import { useState } from "react"
+import type { LucideIcon } from "lucide-react"
+import { Database, FileText, FolderPlus, GitBranch, ListTodo, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import type { ChatProposalSummary as SummaryData } from "../types/chat-proposal.types"
+
+const VISIBLES = 4
 
 interface ChatProposalSummaryProps {
   summary: SummaryData
   detalles: string[]
 }
 
-export function ChatProposalSummary({ summary, detalles }: ChatProposalSummaryProps) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1.5">
-        {summary.tablasNuevas > 0 && (
-          <Badge variant="secondary" className="gap-1 border-primary/20 text-[10px]">
-            <Database className="size-2.5 text-primary" />
-            {summary.tablasNuevas} {summary.tablasNuevas === 1 ? "tabla nueva" : "tablas nuevas"}
-          </Badge>
-        )}
-        {summary.atributosNuevos > 0 && (
-          <Badge variant="secondary" className="gap-1 border-sky-500/20 text-[10px]">
-            <FolderPlus className="size-2.5 text-sky-500" />
-            {summary.atributosNuevos} {summary.atributosNuevos === 1 ? "atributo" : "atributos"}
-          </Badge>
-        )}
-        {summary.relacionesNuevas > 0 && (
-          <Badge variant="secondary" className="gap-1 border-indigo-500/20 text-[10px]">
-            <GitBranch className="size-2.5 text-indigo-500" />
-            {summary.relacionesNuevas} {summary.relacionesNuevas === 1 ? "relación" : "relaciones"}
-          </Badge>
-        )}
-        {summary.tareasNuevas > 0 && (
-          <Badge variant="secondary" className="gap-1 border-amber-500/20 text-[10px]">
-            <ListTodo className="size-2.5 text-amber-500" />
-            {summary.tareasNuevas} {summary.tareasNuevas === 1 ? "tarea" : "tareas"}
-          </Badge>
-        )}
-        {summary.adrsNuevas > 0 && (
-          <Badge variant="secondary" className="gap-1 border-emerald-500/20 text-[10px]">
-            <FileText className="size-2.5 text-emerald-500" />
-            {summary.adrsNuevas} {summary.adrsNuevas === 1 ? "nota ADR" : "notas ADR"}
-          </Badge>
-        )}
-        {summary.tablasEliminadas > 0 && (
-          <Badge variant="destructive" className="gap-1 text-[10px]">
-            <Trash2 className="size-2.5" />
-            {summary.tablasEliminadas} {summary.tablasEliminadas === 1 ? "tabla eliminada" : "tablas eliminadas"}
-          </Badge>
-        )}
-      </div>
+const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
 
-      <ul className="max-h-24 space-y-0.5 overflow-y-auto rounded-md bg-muted/40 p-1.5 text-[10px] text-muted-foreground">
-        {detalles.map((d, idx) => (
-          <li key={idx} className="flex items-center gap-1.5 truncate">
-            <span className="size-1 shrink-0 rounded-full bg-primary/60" />
-            <span className="truncate">{d}</span>
+/** Chips de resumen + primeros 4 detalles con "Ver N más" (sin scroll interno). */
+export function ChatProposalSummary({ summary: s, detalles }: ChatProposalSummaryProps) {
+  const [abierto, setAbierto] = useState(false)
+  const chips: [number, LucideIcon, string][] = [
+    [s.tablasNuevas, Database, plural(s.tablasNuevas, "tabla nueva", "tablas nuevas")],
+    [s.atributosNuevos, FolderPlus, plural(s.atributosNuevos, "atributo", "atributos")],
+    [s.relacionesNuevas, GitBranch, plural(s.relacionesNuevas, "relación", "relaciones")],
+    [s.tareasNuevas, ListTodo, plural(s.tareasNuevas, "tarea", "tareas")],
+    [s.adrsNuevas, FileText, plural(s.adrsNuevas, "nota ADR", "notas ADR")],
+    [s.tablasEliminadas, Trash2, plural(s.tablasEliminadas, "tabla eliminada", "tablas eliminadas")],
+  ]
+  const lista = abierto ? detalles : detalles.slice(0, VISIBLES)
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-1.5">
+        {chips
+          .filter(([n]) => n > 0)
+          .map(([, Icon, texto]) => (
+            <Badge key={texto} variant="outline">
+              <Icon className="text-muted-foreground" /> {texto}
+            </Badge>
+          ))}
+      </div>
+      <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+        {lista.map((d, i) => (
+          <li key={i} className="flex min-w-0 items-start gap-2">
+            <span aria-hidden="true">•</span>
+            <span className="min-w-0 wrap-break-word">{d}</span>
           </li>
         ))}
       </ul>
-    </div>
+      {detalles.length > VISIBLES && (
+        <Button variant="ghost" size="xs" className="w-fit" onClick={() => setAbierto((v) => !v)}>
+          {abierto ? "Ver menos" : `Ver ${detalles.length - VISIBLES} más`}
+        </Button>
+      )}
+    </>
   )
 }

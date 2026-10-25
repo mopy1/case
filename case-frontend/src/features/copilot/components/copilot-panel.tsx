@@ -5,6 +5,7 @@ import { usePanelResize } from "../hooks/usePanelResize"
 import { usePanelTab } from "../hooks/usePanelTab"
 import { CopilotAssistantView } from "./copilot-assistant-view"
 import { CopilotPanelTabs } from "./copilot-panel-tabs"
+import { PanelResizeHandle } from "./panel-resize-handle"
 
 interface CopilotPanelProps {
   proyectoId: number
@@ -25,7 +26,8 @@ export function CopilotPanel({
   onToggleFullscreen,
 }: CopilotPanelProps) {
   const isMobile = useIsMobile()
-  const { width, isDragging, setIsDragging, resetWidth } = usePanelResize()
+  const resize = usePanelResize()
+  const { width, isDragging } = resize
   const { tab, setTab } = usePanelTab()
 
   return (
@@ -51,10 +53,10 @@ export function CopilotPanel({
         className={cn(
           "bg-card border-border",
           // Móvil: Drawer flotante adaptativo al teclado virtual que no empuja el layout
-          "fixed top-0 right-0 z-50 flex flex-col w-full sm:max-w-[380px] shadow-2xl transition-transform duration-200 ease-out overscroll-contain",
+          "fixed top-0 right-0 z-50 flex flex-col w-full sm:max-w-[420px] md:max-w-none shadow-2xl transition-transform duration-200 ease-out overscroll-contain",
           isOpen ? "translate-x-0 border-l" : "translate-x-full pointer-events-none invisible",
           // Escritorio: Panel acoplado redimensionable o pantalla completa
-          "md:relative md:top-auto md:right-auto md:inset-auto md:z-auto md:shadow-xl md:translate-x-0 md:visible md:h-full md:shrink-0",
+          "md:relative md:top-auto md:right-auto md:inset-auto md:z-auto md:shadow-none md:translate-x-0 md:visible md:h-full md:shrink-0",
           isFullscreen
             ? "md:w-full md:flex-1 md:max-w-none md:border-l-0"
             : "md:w-auto",
@@ -64,21 +66,8 @@ export function CopilotPanel({
             : "md:border-l-0 md:overflow-hidden md:opacity-0 md:pointer-events-none"
         )}
       >
-        {/* Resize handle exclusivo para pantallas de escritorio cuando no está en pantalla completa */}
-        {!isMobile && isOpen && !isFullscreen && (
-          <div
-            role="separator"
-            onMouseDown={(e) => {
-              e.preventDefault()
-              setIsDragging(true)
-            }}
-            onDoubleClick={resetWidth}
-            title="Arrastra para redimensionar el panel (Doble clic para restablecer)"
-            className="group absolute -left-1.5 top-0 bottom-0 z-50 flex w-3 cursor-col-resize select-none items-center justify-center"
-          >
-            <div className="h-full w-[3px] transition-colors group-hover:bg-primary/70 group-active:bg-primary" />
-          </div>
-        )}
+        {/* Divisor solo en escritorio y con el panel acoplado */}
+        {!isMobile && isOpen && !isFullscreen && <PanelResizeHandle {...resize} />}
 
         <CopilotPanelTabs
           tab={tab}

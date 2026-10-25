@@ -1,3 +1,4 @@
+import type { ChatAuthor } from "@/components/chat"
 import type { RolProyecto } from "@/features/projects/types/projects.type"
 import type { ChatMensaje } from "../types/chat.types"
 
@@ -14,10 +15,6 @@ export function unirMensajes(previos: ChatMensaje[], nuevos: ChatMensaje[]): Cha
   return [...porId.values()].sort((a, b) => a.id - b.id)
 }
 
-export function horaCorta(iso: string) {
-  return new Date(iso).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" })
-}
-
 export function etiquetaRol(rol: RolProyecto) {
   return ETIQUETAS_ROL[rol]
 }
@@ -26,4 +23,11 @@ export function nombreAutor(m: ChatMensaje) {
   if (m.tipo === "IA") return "SeniorDev"
   if (m.tipo === "SISTEMA") return "Sistema"
   return m.username ?? "Ex miembro"
+}
+
+/** `ChatMensaje` → autor del sistema de chat compartido. */
+export function autorDe(m: ChatMensaje): ChatAuthor {
+  if (m.tipo === "IA") return { id: "seniordev", name: "Senior Dev", kind: "agent" }
+  if (m.tipo === "SISTEMA") return { id: "sistema", name: "Sistema", kind: "system" }
+  return { id: m.usuarioId ?? nombreAutor(m), name: nombreAutor(m), role: m.rol ? etiquetaRol(m.rol) : undefined, kind: "human" }
 }

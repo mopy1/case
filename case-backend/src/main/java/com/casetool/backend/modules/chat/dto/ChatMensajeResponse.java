@@ -1,6 +1,8 @@
 package com.casetool.backend.modules.chat.dto;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
 
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.proyecto.model.MiembroProyecto;
@@ -18,7 +20,8 @@ public record ChatMensajeResponse(
     Long respuestaAId,
     Instant createdAt,
     Boolean propuestaAplicada,
-    String aplicadoPor
+    String aplicadoPor,
+    List<String> herramientasUsadas
 ) {
     /** {@code rol} es el rol ACTUAL del autor (null si es IA/SISTEMA o ya no es miembro). */
     public static ChatMensajeResponse from(ChatMensaje m, MiembroProyecto.Rol rol) {
@@ -34,7 +37,16 @@ public record ChatMensajeResponse(
             m.getRespuestaA() != null ? m.getRespuestaA().getId() : null,
             m.getCreatedAt(),
             m.isPropuestaAplicada(),
-            m.getAplicadoPor()
+            m.getAplicadoPor(),
+            herramientas(m.getHerramientasUsadas())
         );
+    }
+
+    /** "obtenerDiagrama,buscarEnHistorial" → lista; null o vacío → null. */
+    static List<String> herramientas(String csv) {
+        if (csv == null || csv.isBlank()) {
+            return null;
+        }
+        return Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 }

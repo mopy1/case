@@ -78,7 +78,7 @@ export async function askCopilot(
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Error al procesar la imagen con Google Gemini."
       return {
-        text: `⚠️ **Error de Reconocimiento Visual (Gemini):** ${errorMsg}\n\nAsegúrate de que la foto esté bien iluminada y las tablas/relaciones sean legibles.`,
+        text: `**Error de reconocimiento visual (Gemini):** ${errorMsg}\n\nAsegúrate de que la foto esté bien iluminada y las tablas/relaciones sean legibles.`,
       }
     }
   }

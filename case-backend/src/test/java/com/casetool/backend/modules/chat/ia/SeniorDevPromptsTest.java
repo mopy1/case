@@ -34,4 +34,16 @@ class SeniorDevPromptsTest {
                 .contains("ÚNICO salto de línea")
                 .contains("Aprovecha el formato Markdown para resaltar conceptos o términos clave");
     }
+
+    @Test
+    void promptF3ContieneHiloHerramientasYGenerarDdl() {
+        assertThat(SeniorDevPrompts.SYSTEM_PROMPT)
+                .contains("GENERAR_DDL")
+                .contains("abre tu respuesta con el @username")
+                .contains("usa las herramientas (obtenerDiagrama, listarTareas, listarNotas, buscarEnHistorial)")
+                .contains("Nunca inventes datos");
+        assertThat(SeniorDevPrompts.RESUMEN_PROMPT)
+                .contains("**Decisiones**")
+                .contains("Máximo 1800 caracteres");
+    }
 }

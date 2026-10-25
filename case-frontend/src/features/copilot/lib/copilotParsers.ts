@@ -17,7 +17,7 @@ export {
 
 export function parseAdrListFromText(text: string): AdrSuggestion[] {
   const results: AdrSuggestion[] = []
-  const regex = /(?:ADR_SUGERIDA|Acci[oó]n):\s*\[?([^\]\n]+?)(?:\s+MOTIVO:|\s*\n+[\s•\-*]*(?:MOTIVO|Motivo(?: T[eé]cnico)?):?)\s*\[?([^\]\n]+)\]?/gi
+  const regex = /(?<!\p{L})(?:ADR_SUGERIDA|Acci[oó]n):\s*\[?([^\]\n]+?)(?:\s+MOTIVO:|\s*\n+[\s•\-*]*(?:MOTIVO|Motivo(?: T[eé]cnico)?):?)\s*\[?([^\]\n]+)\]?/giu
   const matches = [...text.matchAll(regex)]
 
   for (const m of matches) {
@@ -43,7 +43,8 @@ export function cleanResponseText(rawText: string): string {
     .replace(/(?:\*{0,2})(?:CREAR_TAREA|AGREGAR_TAREA):?[^\n]+/gi, "")
     .replace(/(?:\*{0,2})(?:EXPORTAR_XMI|DESCARGAR_XMI|GENERAR_BACKEND|DESCARGAR_BACKEND):?[^\n]*/gi, "")
     .replace(/(?:\*{0,2})IR_A:?[^\n]+/gi, "")
-    .replace(/(?:\*{0,2})Acci[oó]n:?[^\n]+(?:\n+(?:\*{0,2})Motivo:?[^\n]+)?/gi, "")
+    // Sin letra antes: "transaccional" no es la etiqueta "Acción:" (antes cortaba el texto ahí).
+    .replace(/(?<!\p{L})(?:\*{0,2})Acci[oó]n:?[^\n]+(?:\n+(?:\*{0,2})Motivo:?[^\n]+)?/giu, "")
     .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")
     // Elimina bloques de código vacíos o fences huérfanos dejados tras extraer los comandos
     .replace(/```[a-zA-Z0-9_-]*\s*```/g, "")

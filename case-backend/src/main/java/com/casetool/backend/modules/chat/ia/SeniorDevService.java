@@ -10,12 +10,17 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent;
+import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent.Estado;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.chat.service.ChatDestinos;
 import com.casetool.backend.modules.proyecto.repository.ProyectoRepository;
 
+/**
+ * Orquesta una mención a @SeniorDev (en background, una a la vez por proyecto): contexto → bucle
+ * con herramientas → mensaje IA en el hilo → actualización de la memoria acumulada.
+ */
 @Service
 public class SeniorDevService {
 
@@ -25,60 +30,62 @@ public class SeniorDevService {
     private final ChatMensajeRepository chatRepo;
     private final ProyectoRepository proyectoRepo;
     private final SeniorDevContextBuilder contextBuilder;
+    private final SeniorDevConversacion conversacion;
+    private final SeniorDevResumidor resumidor;
     private final DeepSeekClient deepSeekClient;
     private final SimpMessagingTemplate messagingTemplate;
 
-    public SeniorDevService(
-            ChatMensajeRepository chatRepo,
-            ProyectoRepository proyectoRepo,
-            SeniorDevContextBuilder contextBuilder,
-            DeepSeekClient deepSeekClient,
-            SimpMessagingTemplate messagingTemplate) {
+    public SeniorDevService(ChatMensajeRepository chatRepo, ProyectoRepository proyectoRepo,
+            SeniorDevContextBuilder contextBuilder, SeniorDevConversacion conversacion, SeniorDevResumidor resumidor,
+            DeepSeekClient deepSeekClient, SimpMessagingTemplate messagingTemplate) {
         this.chatRepo = chatRepo;
         this.proyectoRepo = proyectoRepo;
         this.contextBuilder = contextBuilder;
+        this.conversacion = conversacion;
+        this.resumidor = resumidor;
         this.deepSeekClient = deepSeekClient;
         this.messagingTemplate = messagingTemplate;
     }
 
+    /** Lo llama el listener AFTER_COMMIT: el disparador ya está en BD (sin reintentos). */
     @Async
-    public void procesarMencion(Long proyectoId, Long disparadorId, String contenido, Long usuarioId) {
-        ReentrantLock lock = locks.computeIfAbsent(proyectoId, k -> new ReentrantLock());
+    public void procesarMencion(ChatMensajeResponse disparador) {
+        ReentrantLock lock = locks.computeIfAbsent(disparador.proyectoId(), k -> new ReentrantLock());
         lock.lock();
         try {
-            ejecutar(proyectoId, disparadorId, contenido);
+            ejecutar(disparador);
         } finally {
             lock.unlock();
         }
     }
 
-    private void ejecutar(Long proyectoId, Long disparadorId, String contenido) {
-        messagingTemplate.convertAndSend(
-                ChatDestinos.topicIa(proyectoId),
-                new ChatIaEstadoEvent(proyectoId, ChatIaEstadoEvent.Estado.PENSANDO, "Senior Dev está pensando...", disparadorId)
-        );
-
-        ChatMensaje disparador = buscarDisparador(disparadorId);
+    private void ejecutar(ChatMensajeResponse d) {
+        Long proyectoId = d.proyectoId();
+        emitir(proyectoId, Estado.PENSANDO, "Senior Dev está pensando...", d.id());
+        ChatMensaje disparador = chatRepo.findById(d.id()).orElse(null);
         try {
-            var mensajes = contextBuilder.construirMensajes(proyectoId, contenido);
-            String respuestaTexto = deepSeekClient.solicitarRespuesta(mensajes);
-
-            ChatMensaje iaMensaje = new ChatMensaje();
-            iaMensaje.setProyecto(disparador != null ? disparador.getProyecto() : proyectoRepo.getReferenceById(proyectoId));
-            iaMensaje.setUsuario(null);
-            iaMensaje.setTipo(ChatMensaje.Tipo.IA);
-            iaMensaje.setContenido(respuestaTexto);
-            iaMensaje.setRespuestaA(disparador);
-            chatRepo.saveAndFlush(iaMensaje);
-
-            messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), ChatMensajeResponse.from(iaMensaje, null));
-            messagingTemplate.convertAndSend(
-                    ChatDestinos.topicIa(proyectoId),
-                    new ChatIaEstadoEvent(proyectoId, ChatIaEstadoEvent.Estado.RESPONDIDO, null, disparadorId)
-            );
+            var contexto = contextBuilder.construirMensajes(d);
+            var respuesta = conversacion.responder(contexto, proyectoId, d.usuarioId(),
+                    detalle -> emitir(proyectoId, Estado.PENSANDO, detalle, d.id()));
+            ChatMensaje ia = nuevoMensaje(proyectoId, disparador, ChatMensaje.Tipo.IA, respuesta.texto());
+            ia.setHerramientasUsadas(respuesta.herramientas().isEmpty() ? null : String.join(",", respuesta.herramientas()));
+            chatRepo.saveAndFlush(ia);
+            messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), ChatMensajeResponse.from(ia, null));
+            emitir(proyectoId, Estado.RESPONDIDO, null, d.id());
         } catch (Exception ex) {
             log.error("Error al procesar consulta Senior Dev en proyecto {}: {}", proyectoId, ex.getMessage(), ex);
-            manejarFallo(proyectoId, disparador, disparadorId, ex);
+            manejarFallo(proyectoId, disparador, d.id(), ex);
+            return;
+        }
+        actualizarMemoria(proyectoId);
+    }
+
+    /** Después de responder (decisión D3): un fallo acá nunca afecta la respuesta ya enviada. */
+    private void actualizarMemoria(Long proyectoId) {
+        try {
+            resumidor.actualizarSiCorresponde(proyectoId);
+        } catch (Exception ex) {
+            log.warn("Fallo del resumidor en proyecto {}: {}", proyectoId, ex.getMessage());
         }
     }
 
@@ -86,37 +93,28 @@ public class SeniorDevService {
         String motivo = desglosarMotivo(ex);
         String texto = "⚠️ @SeniorDev no está disponible en este momento (" + motivo + "). Por favor intenta más tarde.";
         try {
-            ChatMensaje sistema = new ChatMensaje();
-            sistema.setProyecto(disparador != null ? disparador.getProyecto() : proyectoRepo.getReferenceById(proyectoId));
-            sistema.setUsuario(null);
-            sistema.setTipo(ChatMensaje.Tipo.SISTEMA);
-            sistema.setContenido(texto);
-            sistema.setRespuestaA(disparador);
+            ChatMensaje sistema = nuevoMensaje(proyectoId, disparador, ChatMensaje.Tipo.SISTEMA, texto);
             chatRepo.saveAndFlush(sistema);
-
             messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), ChatMensajeResponse.from(sistema, null));
         } catch (Exception e) {
             log.error("No se pudo persistir el mensaje de sistema de error", e);
         }
-
-        messagingTemplate.convertAndSend(
-                ChatDestinos.topicIa(proyectoId),
-                new ChatIaEstadoEvent(proyectoId, ChatIaEstadoEvent.Estado.ERROR, motivo, disparadorId)
-        );
+        emitir(proyectoId, Estado.ERROR, motivo, disparadorId);
     }
 
-    private ChatMensaje buscarDisparador(Long disparadorId) {
-        if (disparadorId == null) return null;
-        for (int i = 0; i < 5; i++) {
-            var opt = chatRepo.findById(disparadorId);
-            if (opt.isPresent()) return opt.get();
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        return null;
+    private ChatMensaje nuevoMensaje(Long proyectoId, ChatMensaje disparador, ChatMensaje.Tipo tipo, String contenido) {
+        ChatMensaje m = new ChatMensaje();
+        m.setProyecto(disparador != null ? disparador.getProyecto() : proyectoRepo.getReferenceById(proyectoId));
+        m.setUsuario(null);
+        m.setTipo(tipo);
+        m.setContenido(contenido);
+        m.setRespuestaA(disparador);
+        return m;
+    }
+
+    private void emitir(Long proyectoId, Estado estado, String detalle, Long disparadorId) {
+        messagingTemplate.convertAndSend(ChatDestinos.topicIa(proyectoId),
+                new ChatIaEstadoEvent(proyectoId, estado, detalle, disparadorId));
     }
 
     private String desglosarMotivo(Exception ex) {

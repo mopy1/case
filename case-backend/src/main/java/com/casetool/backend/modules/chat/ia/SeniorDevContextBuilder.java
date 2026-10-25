@@ -7,14 +7,20 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekChatRequest.Mensaje;
+import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
+import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
+import com.casetool.backend.modules.chat.repository.ChatMemoriaRepository;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.proyecto.model.MiembroProyecto;
 import com.casetool.backend.modules.proyecto.model.Proyecto;
 import com.casetool.backend.modules.proyecto.repository.MiembroProyectoRepository;
 import com.casetool.backend.modules.proyecto.repository.ProyectoRepository;
 
+/**
+ * Arma el prompt: {@code system} fijo + un {@code user} con 4 secciones, de lo estable a lo volátil:
+ * memoria acumulada, estado del proyecto, historial reciente (sin el disparador) y la consulta con autor.
+ */
 @Component
 @Transactional(readOnly = true)
 public class SeniorDevContextBuilder {
@@ -22,74 +28,80 @@ public class SeniorDevContextBuilder {
     private final ProyectoRepository proyectoRepo;
     private final MiembroProyectoRepository miembroRepo;
     private final ChatMensajeRepository chatRepo;
+    private final ChatMemoriaRepository memoriaRepo;
     private final SeniorDevProyectoFormatter proyectoFormatter;
 
     public SeniorDevContextBuilder(
             ProyectoRepository proyectoRepo,
             MiembroProyectoRepository miembroRepo,
             ChatMensajeRepository chatRepo,
+            ChatMemoriaRepository memoriaRepo,
             SeniorDevProyectoFormatter proyectoFormatter) {
         this.proyectoRepo = proyectoRepo;
         this.miembroRepo = miembroRepo;
         this.chatRepo = chatRepo;
+        this.memoriaRepo = memoriaRepo;
         this.proyectoFormatter = proyectoFormatter;
     }
 
-    public List<Mensaje> construirMensajes(Long proyectoId, String consultaActual) {
-        StringBuilder userContent = new StringBuilder();
-        userContent.append("=== ESTADO DEL PROYECTO ===\n")
-                .append(formatearEstadoProyecto(proyectoId)).append("\n\n")
-                .append("=== HISTORIAL DE LA SALA (ÚLTIMOS MENSAJES) ===\n")
-                .append(formatearHistorial(proyectoId));
-
-        if (consultaActual != null && !consultaActual.isBlank()) {
-            userContent.append("\n\n=== CONSULTA ACTUAL ===\n").append(consultaActual.trim());
-        }
-
-        return List.of(
-                new Mensaje("system", SeniorDevPrompts.SYSTEM_PROMPT),
-                new Mensaje("user", userContent.toString())
-        );
+    public List<DeepSeekMensaje> construirMensajes(ChatMensajeResponse disparador) {
+        Long proyectoId = disparador.proyectoId();
+        List<MiembroProyecto> miembros = miembroRepo.findByProyectoId(proyectoId);
+        String user = seccionMemoria(proyectoId) + "\n\n"
+                + "=== ESTADO DEL PROYECTO ===\n" + estadoProyecto(proyectoId, miembros) + "\n\n"
+                + seccionHistorial(proyectoId, disparador.id(), miembros) + "\n\n"
+                + seccionConsulta(disparador);
+        return List.of(DeepSeekMensaje.system(SeniorDevPrompts.SYSTEM_PROMPT), DeepSeekMensaje.user(user));
     }
 
-    private String formatearEstadoProyecto(Long proyectoId) {
+    private String seccionMemoria(Long proyectoId) {
+        return memoriaRepo.findById(proyectoId)
+                .map(m -> "=== MEMORIA DEL EQUIPO (resumen de los mensajes hasta #" + m.getUltimoMensajeResumidoId()
+                        + ") ===\n" + m.getResumen().trim())
+                .orElse("=== MEMORIA DEL EQUIPO ===\n(Todavía no hay memoria acumulada)");
+    }
+
+    private String estadoProyecto(Long proyectoId, List<MiembroProyecto> miembros) {
         Proyecto p = proyectoRepo.findById(proyectoId).orElse(null);
+        String lista = miembros.isEmpty() ? "(sin miembros)" : miembros.stream()
+                .map(m -> "@" + m.getUsuario().getUsername() + " (" + m.getRol() + ")")
+                .collect(Collectors.joining(", "));
         StringBuilder sb = new StringBuilder();
-        sb.append("Proyecto: ").append(p != null ? p.getNombre() : "Proyecto").append("\n");
-        sb.append("Descripción: ").append(p != null && p.getDescripcion() != null ? p.getDescripcion() : "Sin descripción").append("\n");
-
-        sb.append("Miembros del Equipo:\n");
-        List<MiembroProyecto> miembros = miembroRepo.findByProyectoId(proyectoId);
-        if (miembros.isEmpty()) sb.append("- (Sin miembros registrados)\n");
-        for (MiembroProyecto m : miembros) {
-            sb.append("- @").append(m.getUsuario().getUsername()).append(" (").append(m.getRol()).append(")\n");
+        sb.append("Proyecto: ").append(p != null ? p.getNombre() : "Proyecto").append(" · Miembros: ").append(lista).append('\n');
+        if (p != null && p.getDescripcion() != null && !p.getDescripcion().isBlank()) {
+            sb.append("Descripción: ").append(p.getDescripcion().trim()).append('\n');
         }
-
         proyectoFormatter.agregarSeccionesLienzoYGestion(proyectoId, sb);
         return sb.toString().trim();
     }
 
-    private String formatearHistorial(Long proyectoId) {
-        Map<Long, MiembroProyecto.Rol> roles = miembroRepo.findByProyectoId(proyectoId).stream()
+    /** Pide uno de más y descarta el disparador: la consulta va aparte, con su autor. */
+    private String seccionHistorial(Long proyectoId, Long disparadorId, List<MiembroProyecto> miembros) {
+        Map<Long, MiembroProyecto.Rol> roles = miembros.stream()
                 .collect(Collectors.toMap(mp -> mp.getUsuario().getId(), MiembroProyecto::getRol));
-        List<ChatMensaje> recientes = chatRepo.findByProyectoIdOrderByCreatedAtDescIdDesc(proyectoId, Limit.of(30));
-        List<ChatMensaje> ascendente = new ArrayList<>(recientes);
-        Collections.reverse(ascendente);
-        if (ascendente.isEmpty()) return "(No hay mensajes previos en la sala)";
+        List<ChatMensaje> recientes = chatRepo.findByProyectoIdOrderByCreatedAtDescIdDesc(
+                        proyectoId, Limit.of(SeniorDevLimites.HISTORIAL_MENSAJES + 1)).stream()
+                .filter(m -> !m.getId().equals(disparadorId))
+                .limit(SeniorDevLimites.HISTORIAL_MENSAJES)
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.reverse(recientes);
+        return "=== HISTORIAL RECIENTE (" + recientes.size() + " mensajes, del más viejo al más nuevo) ===\n"
+                + SeniorDevHistorialFormatter.historial(recientes, roles);
+    }
 
-        StringBuilder sb = new StringBuilder();
-        for (ChatMensaje m : ascendente) {
-            if (m.getTipo() == ChatMensaje.Tipo.IA) {
-                sb.append("[Senior Dev · IA]: ").append(m.getContenido()).append("\n");
-            } else if (m.getTipo() == ChatMensaje.Tipo.SISTEMA) {
-                sb.append("[Sistema]: ").append(m.getContenido()).append("\n");
-            } else {
-                String user = m.getUsuario() != null ? m.getUsuario().getUsername() : "usuario";
-                MiembroProyecto.Rol rol = m.getUsuario() != null ? roles.get(m.getUsuario().getId()) : null;
-                String rolStr = rol != null ? rol.name() : "MIEMBRO";
-                sb.append("[").append(user).append(" · ").append(rolStr).append("]: ").append(m.getContenido()).append("\n");
-            }
+    private String seccionConsulta(ChatMensajeResponse d) {
+        String user = d.username() != null ? d.username() : "usuario";
+        String rol = d.rol() != null ? d.rol().name() : "MIEMBRO";
+        String texto = SeniorDevLimites.recortar(d.contenido() != null ? d.contenido().trim() : "",
+                SeniorDevLimites.CONSULTA_MAX_CHARS);
+        StringBuilder sb = new StringBuilder("=== CONSULTA ACTUAL (responde a esta) ===\n");
+        sb.append('#').append(d.id()).append(" [").append(user).append(" · ").append(rol).append("] pregunta: ")
+                .append(texto).append('\n')
+                .append("Empieza tu respuesta con @").append(user).append('.');
+        if (d.rol() == MiembroProyecto.Rol.LECTOR) {
+            sb.append(' ').append(user).append(" es LECTOR: no puede aplicar propuestas; si propones cambios, ")
+                    .append("aclárale que un ADMIN o COLABORADOR debe aplicarlos.");
         }
-        return sb.toString().trim();
+        return sb.toString();
     }
 }

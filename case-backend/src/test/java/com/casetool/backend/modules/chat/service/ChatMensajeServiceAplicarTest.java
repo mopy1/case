@@ -12,11 +12,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.casetool.backend.core.exception.ResourceNotFoundException;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
-import com.casetool.backend.modules.chat.ia.SeniorDevService;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
@@ -40,8 +39,7 @@ class ChatMensajeServiceAplicarTest {
     @Mock UsuarioRepository usuarioRepository;
     @Mock MiembroProyectoRepository miembroProyectoRepository;
     @Mock ProyectoAccesoService accesoService;
-    @Mock SimpMessagingTemplate messagingTemplate;
-    @Mock SeniorDevService seniorDevService;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks ChatMensajeService service;
 
     private final Proyecto proyecto = ChatFixtures.proyecto(P);
@@ -63,7 +61,7 @@ class ChatMensajeServiceAplicarTest {
         assertThat(mensaje.getAplicadoPor()).isEqualTo("adrian");
         verify(accesoService).verificarPuedeEscribir(admin);
         verify(chatMensajeRepository).saveAndFlush(mensaje);
-        verify(messagingTemplate).convertAndSend(eq(ChatDestinos.topicMensajes(P)), eq(res));
+        verify(eventPublisher).publishEvent(new ChatMensajePublicadoEvent(res, false));
     }
 
     @Test
@@ -80,7 +78,7 @@ class ChatMensajeServiceAplicarTest {
         assertThat(res.aplicadoPor()).isEqualTo("maria");
         verify(accesoService).verificarPuedeEscribir(colab);
         verify(chatMensajeRepository).saveAndFlush(mensaje);
-        verify(messagingTemplate).convertAndSend(eq(ChatDestinos.topicMensajes(P)), eq(res));
+        verify(eventPublisher).publishEvent(new ChatMensajePublicadoEvent(res, false));
     }
 
     @Test
@@ -93,7 +91,7 @@ class ChatMensajeServiceAplicarTest {
         assertThatThrownBy(() -> service.marcarPropuestaAplicada(P, M, U))
                 .isInstanceOf(RolInsuficienteProyectoException.class);
         verify(chatMensajeRepository, never()).findById(any());
-        verifyNoInteractions(messagingTemplate);
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -103,7 +101,7 @@ class ChatMensajeServiceAplicarTest {
 
         assertThatThrownBy(() -> service.marcarPropuestaAplicada(P, M, 99L))
                 .isInstanceOf(AccesoDenegadoProyectoException.class);
-        verifyNoInteractions(chatMensajeRepository, messagingTemplate);
+        verifyNoInteractions(chatMensajeRepository, eventPublisher);
     }
 
     @Test
@@ -120,7 +118,7 @@ class ChatMensajeServiceAplicarTest {
         assertThat(res.propuestaAplicada()).isTrue();
         assertThat(res.aplicadoPor()).isEqualTo("usuario_previo");
         verify(chatMensajeRepository, never()).saveAndFlush(any());
-        verify(messagingTemplate).convertAndSend(eq(ChatDestinos.topicMensajes(P)), eq(res));
+        verify(eventPublisher).publishEvent(new ChatMensajePublicadoEvent(res, false));
     }
 
     @Test
@@ -133,7 +131,7 @@ class ChatMensajeServiceAplicarTest {
         assertThatThrownBy(() -> service.marcarPropuestaAplicada(P, M, U))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(chatMensajeRepository, never()).saveAndFlush(any());
-        verifyNoInteractions(messagingTemplate);
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

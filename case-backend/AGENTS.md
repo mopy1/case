@@ -2,7 +2,8 @@
 
 API REST de la CASE Tool: usuarios + JWT, proyectos colaborativos (miembros con rol, tareas Kanban,
 notas de diseño), diagramador de tablas/relaciones, exportación/importación XMI (Enterprise
-Architect) y chat de equipo en vivo por proyecto (STOMP sobre WebSocket, Parcial 2 · F1). Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
+Architect), DDL PostgreSQL determinístico del diagrama y chat de equipo en vivo por proyecto (STOMP sobre WebSocket,
+Parcial 2 · F1) con Senior Dev IA (F2) que tiene contexto largo, herramientas de solo lectura y memoria acumulada (F3/F4). Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
 actualizá esta guía en el mismo cambio.
 
 ## 1. Stack (versiones reales del `pom.xml`)
@@ -19,7 +20,7 @@ actualizá esta guía en el mismo cambio.
 
 No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
-## 2. Árbol de carpetas (123 archivos `.java`: 112 en main + 11 test)
+## 2. Árbol de carpetas (154 archivos `.java`: 133 en main + 21 test)
 
 ```text
 case-backend/
@@ -30,15 +31,23 @@ case-backend/
 ├── src/test/java/com/casetool/backend/
 │   ├── CaseBackendApplicationTests.java          # contextLoads (necesita BD)
 │   ├── core/websocket/StompAuthInterceptorTest.java          # CONNECT/SUBSCRIBE/SEND (Mockito, sin BD)
-│   ├── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío
-│   │                        ChatMensajeServiceMencionIaTest.java,  # invocación async de IA ante @SeniorDev
-│   │                        ChatMensajeServiceAplicarTest.java,   # aplicar propuesta, RBAC, idempotencia y broadcast
+│   ├── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío → evento
+│   │                        ChatMensajeServiceMencionIaTest.java,  # evento con mencionaIa true/false
+│   │                        ChatMensajeServiceAplicarTest.java,   # aplicar propuesta, RBAC, idempotencia y evento
+│   │                        ChatMensajeBroadcastListenerTest.java, # AFTER_COMMIT: broadcast siempre, IA solo con mención
+│   │                        ChatMemoriaServiceTest.java,          # memoria vacía/llena, 403, crear/actualizar, CSV herramientas
 │   │                        ChatMensajeRequestValidationTest.java, # Bean Validation del body
 │   │                        ChatFixtures.java                      # entidades en memoria para los tests
-│   └── modules/chat/ia/ChatMencionIaUtilsTest.java,          # regex @SeniorDev
-│                       SeniorDevContextBuilderTest.java,     # ensamblado de prompt en 4 capas
-│                       SeniorDevPromptsTest.java,            # verificación de reglas cero SQL y comandos
-│                       SeniorDevServiceTest.java             # orquestación async, locks, WS y fallback
+│   ├── modules/chat/ia/ChatMencionIaUtilsTest.java,          # regex @SeniorDev
+│   │                   SeniorDevContextBuilderTest.java,     # #id [autor · ROL], aviso LECTOR, disparador fuera, hilo ↳, memoria
+│   │                   SeniorDevHistorialFormatterTest.java, # recorte 600, comandos fuera, lote de resumen
+│   │                   SeniorDevConversacionTest.java,       # bucle de tools: rondas, tope por turno, "none", 400 → sin tools
+│   │                   SeniorDevResumidorTest.java,          # umbral 20, lote/marca, recorte 2000, error conserva resumen
+│   │                   SeniorDevPromptsTest.java,            # cero SQL, comandos, GENERAR_DDL, herramientas, RESUMEN_PROMPT
+│   │                   SeniorDevServiceTest.java,            # PENSANDO con detalle, herramientasUsadas, resumidor, fallback
+│   │                   dto/DeepSeekMensajeJsonTest.java,     # NON_NULL y deserialización de tool_calls (Jackson 3)
+│   │                   tools/SeniorDevHerramientaEjecutorTest, HerramientasProyectoTest, HerramientaBuscarHistorialTest
+│   └── modules/diagrama/service/DdlPostgresServiceTest.java  # DDL: orden, NOT NULL, PK compuesta, FK, snake_case, determinismo
 └── src/main/java/com/casetool/backend/
     ├── CaseBackendApplication.java
     ├── core/
@@ -66,7 +75,7 @@ case-backend/
         │                    ProyectoAccesoService
         ├── diagrama/
         │   ├── controller/  DiagramaController, EntidadDiagramaController, AtributoEntidadController,
-        │   │                RelacionDiagramaController
+        │   │                RelacionDiagramaController, DdlController (GET /ddl text/plain)
         │   ├── dto/         DiagramaResponse, EntidadDiagramaRequest/Response, AtributoEntidadRequest/Response,
         │   │                RelacionDiagramaRequest/Response, ActualizarPuntosControlRequest, PuntoControlDto
         │   ├── exception/   NombreDuplicadoDiagramaException
@@ -74,17 +83,25 @@ case-backend/
         │   │                TipoRelacionUml), PuntoControl (POJO guardado como JSON, no es @Entity)
         │   ├── repository/  EntidadDiagramaRepository, AtributoEntidadRepository, RelacionDiagramaRepository
         │   └── service/     DiagramaService, EntidadDiagramaService, AtributoEntidadService,
-        │                    RelacionDiagramaService, TablaIntermediaService
+        │                    RelacionDiagramaService, TablaIntermediaService,
+        │                    DdlPostgresService (DDL determinístico), DdlPostgresNombres (snake_case, tipos, multiplicidad)
         ├── chat/
         │   ├── controller/  ChatController
-        │   ├── dto/         ChatMensajeRequest, ChatMensajeResponse, ChatPresenciaResponse (UsuarioEnSala),
-        │   │                ChatIaEstadoEvent (PENSANDO | RESPONDIDO | ERROR)
-        │   ├── model/       ChatMensaje (@Entity, enum Tipo USUARIO/IA/SISTEMA, autorreferencia respuestaA)
-        │   ├── repository/  ChatMensajeRepository
-        │   ├── service/     ChatMensajeService, ChatPresenciaService, ChatPresenciaListener, ChatDestinos
-        │   └── ia/          SeniorDevService (@Async orquestador), SeniorDevContextBuilder (4 capas),
-        │                    SeniorDevProyectoFormatter, SeniorDevPrompts, DeepSeekClient (RestClient timeout 60s),
-        │                    ChatMencionIaUtils (@seniordev regex), dto/ (DeepSeekChatRequest, DeepSeekChatResponse)
+        │   ├── dto/         ChatMensajeRequest, ChatMensajeResponse (+ herramientasUsadas), ChatPresenciaResponse,
+        │   │                ChatMemoriaResponse, ChatIaEstadoEvent (PENSANDO | RESPONDIDO | ERROR)
+        │   ├── model/       ChatMensaje (@Entity, enum Tipo USUARIO/IA/SISTEMA, respuestaA, herramientasUsadas),
+        │   │                ChatMemoria (@Entity, PK = FK proyecto, resumen + marca de agua)
+        │   ├── repository/  ChatMensajeRepository (+ full-text nativo, conteo/lote para resumen), ChatMemoriaRepository
+        │   ├── service/     ChatMensajeService (publica ChatMensajePublicadoEvent), ChatMensajeBroadcastListener (AFTER_COMMIT),
+        │   │                ChatMemoriaService, ChatBusquedaIndiceInitializer (índice GIN), ChatPresenciaService,
+        │   │                ChatPresenciaListener, ChatDestinos
+        │   └── ia/          SeniorDevService (@Async orquestador), SeniorDevConversacion (bucle de tools),
+        │                    SeniorDevContextBuilder, SeniorDevHistorialFormatter, SeniorDevProyectoFormatter,
+        │                    SeniorDevResumidor, SeniorDevPrompts, SeniorDevLimites (todos los topes), DeepSeekClient,
+        │                    ChatMencionIaUtils (@seniordev regex),
+        │                    dto/ (DeepSeekMensaje, DeepSeekToolCall, DeepSeekTool, DeepSeekChatRequest, DeepSeekChatResponse),
+        │                    tools/ (SeniorDevHerramientas, SeniorDevHerramientaEjecutor, HerramientasProyecto,
+        │                            HerramientaBuscarHistorial)
         └── xmi/             (sin model/repository propios: usa los services de diagrama)
             ├── controller/  XmiController
             ├── dto/         ModoImportacionXmi (FUSIONAR | REEMPLAZAR), XmiPreviewResponse
@@ -134,25 +151,43 @@ case-backend/
 - `ChatMensajeService.listar`: `limite` default 30 recortado a `[1,100]`; `antesDe` = cursor por `id`;
   consulta `created_at DESC, id DESC` con `Limit` + `@EntityGraph(usuario)`, se invierte y sale ascendente.
   El `rol` de cada autor (actual) sale de 1 consulta de miembros → `Map` (sin N+1).
-- `enviar`: `strip()` del contenido (vacío → 400), `tipo=USUARIO`, `saveAndFlush` y después
-  `convertAndSend("/topic/proyectos/{id}/chat", respuesta)`. Si el mensaje contiene `@SeniorDev`
-  (`ChatMencionIaUtils.contieneMencionSeniorDev`), dispara de forma asíncrona (`@Async`) a `SeniorDevService.procesarMencion`.
-- `marcarPropuestaAplicada`: `POST /api/proyectos/{id}/chat/mensajes/{mId}/aplicar`. Exige rol de escritura (`ADMIN` o `COLABORADOR`; `LECTOR` da 403). Idempotente: si ya estaba aplicada (`propuesta_aplicada=true`), no sobreescribe ni falla. Persiste `propuesta_aplicada = true` y `aplicado_por = username`, y emite el `ChatMensajeResponse` actualizado a `/topic/proyectos/{id}/chat`.
-- Senior Dev IA (`SeniorDevService`, orquestación asíncrona F2):
-  - Lock por proyecto en `ConcurrentHashMap<Long, ReentrantLock>` para garantizar secuencia en la sala.
-  - Emite estado `PENSANDO` a `/topic/proyectos/{id}/chat/ia`.
-  - Construye el contexto en 4 capas (`SeniorDevContextBuilder` + `SeniorDevProyectoFormatter`):
-    1) System prompt con rol de Senior Dev mentor (`SeniorDevPrompts.SYSTEM_PROMPT`):
-       - **Regla estricta Cero SQL y Cero Código en el chat:** prohibición absoluta de código ejecutable o DDL/DML; respuestas explicativas, conceptuales y arquitectónicas en español.
-       - **Formato y Legibilidad Markdown:** párrafos separados por doble salto de línea (`\n\n`) en puntos y aparte; listas compactas (`- `, `1. `) con un único salto simple (`\n`) entre ítems consecutivos sin líneas en blanco intermedias; términos clave en negrita (`**término**`) o citas (`> nota`).
-       - **Comandos estructurados al final:** emite sugerencias de cambios limpias al final (`CREAR_TABLA`, `AGREGAR_ATRIBUTO`, `CREAR_RELACION`, `ELIMINAR_RELACION`, `ELIMINAR_TABLA`, `CREAR_TAREA`, `ADR_SUGERIDA`, `EXPORTAR_XMI`, `GENERAR_BACKEND`) para que el frontend las extraiga y presente como tarjetas interactivas de propuesta.
-    2) Estado del proyecto compacto (entidades, columnas PK/FK, relaciones con multiplicidades, tareas Kanban, notas ADR).
-    3) Historial reciente de la sala (~30 mensajes formateados `[username · ROL]: contenido`).
-    4) Consulta actual del disparador.
-  - Invoca `DeepSeekClient` (`RestClient` configurable mediante `application.properties`, timeout 60s).
-  - Guarda la respuesta como `ChatMensaje` (`tipo=IA`, `usuario=null`, `respuestaA=disparador`).
-  - Difunde a `/topic/proyectos/{id}/chat` y emite estado `RESPONDIDO` a `/topic/proyectos/{id}/chat/ia`.
-  - Fallback elegante: si la API key está vacía o DeepSeek falla (timeout, 401, 429), guarda y difunde un mensaje `tipo=SISTEMA` con explicación amigable y emite estado `ERROR` sin romper la transacción ni la sala.
+- `enviar`: `strip()` del contenido (vacío → 400), `tipo=USUARIO`, `saveAndFlush` y `publishEvent(ChatMensajePublicadoEvent(resp, mencionaIa))`.
+  `ChatMensajeBroadcastListener` (`@TransactionalEventListener(AFTER_COMMIT)`) recién después del commit hace
+  `convertAndSend("/topic/proyectos/{id}/chat", resp)` y, si hay `@SeniorDev` (`ChatMencionIaUtils`), llama a
+  `SeniorDevService.procesarMencion(resp)` (`@Async`). Así la IA siempre encuentra el disparador en BD (sin reintentos).
+- `marcarPropuestaAplicada`: `POST /api/proyectos/{id}/chat/mensajes/{mId}/aplicar`. Exige rol de escritura (`ADMIN` o `COLABORADOR`; `LECTOR` da 403). Idempotente: si ya estaba aplicada (`propuesta_aplicada=true`), no sobreescribe ni falla. Persiste `propuesta_aplicada = true` y `aplicado_por = username` y publica el mismo evento con `mencionaIa=false` (broadcast AFTER_COMMIT).
+- Senior Dev IA (`SeniorDevService`, F2 + F3):
+  - Lock por proyecto (`ConcurrentHashMap<Long, ReentrantLock>`): las menciones se atienden en orden (cola secuencial, D6).
+  - `PENSANDO` → `SeniorDevContextBuilder` → `SeniorDevConversacion.responder` → guarda `tipo=IA` con `respuestaA` y
+    `herramientas_usadas` (CSV) → difunde → `RESPONDIDO` → `SeniorDevResumidor.actualizarSiCorresponde` (try/catch, D3).
+  - Prompt (`system` fijo + 1 `user`, de lo estable a lo volátil): `=== MEMORIA DEL EQUIPO ===` (resumen acumulado),
+    `=== ESTADO DEL PROYECTO ===` compacto (miembros; ≤ 40 tablas con columnas PK/FK; relaciones; tareas no HECHO ≤ 15
+    + conteo; últimas 10 ADR con motivo ≤ 120), `=== HISTORIAL RECIENTE ===` (últimos 30 **sin el disparador**, una línea
+    por mensaje `#id [user · ROL]` / `#id [Senior Dev ↳ #id]`, recorte 600, a la IA se le quitan las líneas de comandos)
+    y `=== CONSULTA ACTUAL ===` con `#id [user · ROL] pregunta: …` + "Empieza tu respuesta con @user" (+ aviso si es LECTOR).
+  - `SeniorDevPrompts.SYSTEM_PROMPT`: reglas F2 (cero SQL/código, Markdown, comandos `CREAR_TABLA`…`GENERAR_BACKEND`) +
+    F3: identidad e hilo (abrir con `@autor`, no repetir `↳ #id`, citar `#id`), uso de herramientas (nunca inventar) y
+    `GENERAR_DDL` (si piden DDL, no lo escribe: el visor lo genera). `RESUMEN_PROMPT` para la memoria.
+  - Herramientas (tool calling, `tools/`): `obtenerDiagrama(tabla?)`, `listarTareas(estado?, asignado?)`,
+    `listarNotas(texto?, limite≤20)`, `buscarEnHistorial(consulta, autor?, limite≤10)`. Solo lectura; el `proyectoId`
+    NO es argumento: lo fija el servidor y se ejecutan con el `usuarioId` del autor a través de los services existentes
+    (que verifican membresía con `ProyectoAccesoService`). Resultados en texto compacto, recorte 6 000; cualquier error
+    → `ERROR: …` (nunca excepción). Cada ejecución se loguea con proyecto y usuario.
+  - Bucle (`SeniorDevConversacion`): hasta 3 rondas con `tool_choice "auto"`, máx. 4 llamadas por ronda (las demás
+    reciben `ERROR: límite…`, cada `tool_call_id` tiene su mensaje `tool`), deadline 90 s; si se agota, una llamada final
+    con `tool_choice "none"`. Cada herramienta emite un `PENSANDO` con `detalle` ("Revisando el diagrama…",
+    "Buscando en el historial: “…”…"). Si DeepSeek responde 400 a la 1.ª llamada con tools → una llamada sin tools (F2).
+    `temperature 0.5`, `max_tokens 1200`, timeout por llamada 45 s.
+  - Búsqueda full-text: consulta nativa con `to_tsvector('spanish', contenido) @@ websearch_to_tsquery('spanish', :q)`
+    (nunca falla con texto libre), ordenada por `ts_rank`, excluye `SISTEMA`; usa el índice GIN `idx_chat_mensajes_fts`
+    que crea `ChatBusquedaIndiceInitializer` (`CREATE INDEX IF NOT EXISTS` al arrancar; si falla solo `log.warn`).
+  - Resumen acumulado (`SeniorDevResumidor`): corte = id más viejo de la ventana de 30; si hay ≥ 20 mensajes entre la
+    marca y el corte, resume un lote (≤ 100, ascendente) con `RESUMEN_PROMPT` (`temperature 0.2`, `max_tokens 600`, sin
+    tools), recorta a 2 000 y guarda `marca = último id del lote`. Error → conserva el resumen anterior. La memoria
+    cubre solo lo que ya salió de la ventana corta (sin solapamiento).
+  - Fallback: sin API key o error de DeepSeek (timeout, 401, 429) → mensaje `tipo=SISTEMA` + estado `ERROR`, sin romper la sala.
+  - Todos los topes están en `SeniorDevLimites` (constantes, sin `@Value`).
+- Memoria (`ChatMemoriaService`): `GET /chat/memoria` para cualquier miembro; sin fila → 200 con `resumen: null`.
 - Presencia (`ChatPresenciaService`, en memoria, igual que `ColaboracionController`): cuenta una
   suscripción a `.../chat/presencia` (decisión D2: "en la sala" = tiene el proyecto abierto). Clave
   `sessionId:subscriptionId`; `ChatPresenciaListener` escucha Subscribe/Unsubscribe/Disconnect y cada
@@ -160,6 +195,12 @@ case-backend/
 - `ChatDestinos`: arma y parsea los tópicos (mensajes `/chat`, presencia `/chat/presencia`, estado IA `/chat/ia`).
 
 **diagrama**
+- `DdlPostgresService` (`GET /ddl`, cualquier miembro): DDL PostgreSQL sin IA ni fecha → mismo diagrama, mismo texto.
+  Encabezado con el nombre del proyecto; tablas en orden alfabético y columnas por id, nombres `snake_case` (misma regla
+  que el generador Spring Boot; comillas solo si no es identificador simple), `VARCHAR`→`VARCHAR(255)`,
+  `DECIMAL`→`NUMERIC(12,2)`, `NOT NULL` si `nullable=false`, `PRIMARY KEY (…)` (compuesta si hay varias); después las FK
+  como `ALTER TABLE … ADD CONSTRAINT fk_<tabla>_<col> …` (si la referenciada no tiene PK simple, comentario) y las
+  relaciones UML sin columna FK como comentario. Diagrama vacío → solo comentarios.
 - `DiagramaService.obtenerDiagrama`: 3 consultas fijas (entidades, atributos del proyecto,
   relaciones con `@EntityGraph`) y agrupa atributos en memoria — sin N+1.
 - Nombres únicos: entidad por proyecto, atributo por entidad (409 si se repite).
@@ -214,6 +255,7 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/chat/mensajes` | Miembro (incl. LECTOR) | 201 `ChatMensajeResponse` | `{contenido}` 1..4000 (strip); además difunde por WS |
 | POST | `/api/proyectos/{proyectoId}/chat/mensajes/{mensajeId}/aplicar` | Escritor (ADMIN/COLABORADOR) | 200 `ChatMensajeResponse` | Marca propuesta aplicada, persiste `propuesta_aplicada=true` y `aplicado_por=username`, difunde por WS; LECTOR da 403 |
 | GET | `/api/proyectos/{proyectoId}/chat/presencia` | Miembro | 200 `ChatPresenciaResponse` | `{proyectoId, usuarios:[{usuarioId, username}]}` |
+| GET | `/api/proyectos/{proyectoId}/chat/memoria` | Miembro (incl. LECTOR) | 200 `ChatMemoriaResponse` | `{proyectoId, resumen, ultimoMensajeResumidoId, updatedAt}`; sin memoria → campos null (no 404) |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/presencia` | Auth | 200 lista | Body libre: `clientId` (obligatorio, si falta 400), `username`, `color`, `cursor{x,y}`, `selectedEntityId` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/desconectar` | Auth | 200 vacío | `{clientId}` |
 | GET | `/api/proyectos/{proyectoId}/diagrama` | Miembro | 200 | `{entidades[ {.., atributos[]} ], relaciones[]}` |
@@ -227,18 +269,21 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | PUT | `/api/proyectos/{proyectoId}/relaciones/{relacionId}` | Escritor | 200 | Mismo body |
 | PATCH | `/api/proyectos/{proyectoId}/relaciones/{relacionId}/puntos` | Escritor | 200 | `{puntos:[{x,y}]}` reemplaza la lista |
 | DELETE | `/api/proyectos/{proyectoId}/relaciones/{relacionId}` | Escritor | 204 | |
+| GET | `/api/proyectos/{proyectoId}/ddl` | Miembro (incl. LECTOR) | 200 `text/plain;charset=UTF-8` | DDL PostgreSQL determinístico; `Content-Disposition: inline; filename="esquema-{id}.sql"` |
 | GET | `/api/proyectos/{proyectoId}/xmi/exportar` | Miembro | 200 XML | Descarga `diagrama-{id}.xmi` |
 | POST | `/api/proyectos/{proyectoId}/xmi/previsualizar` | ADMIN | 200 `XmiPreviewResponse` | multipart, campo `archivo` |
 | POST | `/api/proyectos/{proyectoId}/xmi/importar?modo=FUSIONAR\|REEMPLAZAR` | ADMIN | 200 `DiagramaResponse` | multipart `archivo`; `modo` default FUSIONAR |
 
-Total: **40 endpoints REST** (36 previos + 4 del chat; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
-contenido, respuestaAId, createdAt, propuestaAplicada, aplicadoPor}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
-autor ya no es miembro; `respuestaAId` null en F1).
+Total: **42 endpoints REST** (36 previos + 5 del chat + 1 DDL; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
+contenido, respuestaAId, createdAt, propuestaAplicada, aplicadoPor, herramientasUsadas}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
+autor ya no es miembro; `respuestaAId` = mensaje al que responde la IA/sistema; `herramientasUsadas` = lista de
+`obtenerDiagrama|listarTareas|listarNotas|buscarEnHistorial` o null si no es IA o no consultó nada).
 
 **WebSocket (STOMP 1.2)** — `ws(s)://<host>/ws`, sin SockJS. CONNECT con header nativo
 `Authorization: Bearer <jwt>`; heartbeat 10000,10000. Destinos (solo server → cliente):
 `/topic/proyectos/{id}/chat` (cada mensaje, payload `ChatMensajeResponse`),
-`/topic/proyectos/{id}/chat/ia` (eventos de estado IA: PENSANDO, RESPONDIDO, ERROR, payload `ChatIaEstadoEvent`), y
+`/topic/proyectos/{id}/chat/ia` (eventos de estado IA: PENSANDO, RESPONDIDO, ERROR, payload `ChatIaEstadoEvent`; en F3 llegan
+**varios** `PENSANDO` por respuesta, uno por herramienta, con `detalle` distinto), y
 `/topic/proyectos/{id}/chat/presencia` (al entrar/salir alguien, payload `ChatPresenciaResponse`, lista
 completa). Errores: frame `ERROR` con `message` `401 …` / `403 …` y cierre. En Nginx (`case-frontend/nginx*.conf`)
 `location = /ws` con `Upgrade`/`Connection: upgrade` y timeouts de 3600 s.
@@ -251,7 +296,7 @@ Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`) o `I
 401 sin token / credenciales malas; 403 no miembro o rol insuficiente; 404 recurso inexistente;
 409 nombre/usuario duplicado o violación de integridad en BD.
 
-## 5. Modelo de datos (9 tablas, Hibernate `ddl-auto=update`, sin migraciones)
+## 5. Modelo de datos (10 tablas, Hibernate `ddl-auto=update`, sin migraciones)
 
 | Tabla | Columnas clave | Restricciones |
 | :--- | :--- | :--- |
@@ -262,7 +307,8 @@ Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`) o `I
 | `notas_proyecto` | `id`, `proyecto_id`, `usuario_id` (autor), `accion`(100), `motivo` TEXT, `created_at` | `proyecto_id` CASCADE |
 | `diagrama_entidades` | `id`, `proyecto_id`, `nombre`(100), `pos_x`, `pos_y`, `created_at` | único (`proyecto_id`,`nombre`); CASCADE |
 | `entidad_atributos` | `id`, `entidad_id`, `nombre`(100), `tipo_sql`(50), `es_pk`, `es_fk`, `referencia_entidad_id` (nullable), `nullable`, `created_at` | único (`entidad_id`,`nombre`); `entidad_id` CASCADE; `referencia_entidad_id` **RESTRICT a propósito** |
-| `chat_mensajes` | `id`, `proyecto_id`, `usuario_id` (nullable: null = IA/SISTEMA), `tipo`(20: USUARIO/IA/SISTEMA), `contenido` TEXT, `respuesta_a_id` (nullable, FK a sí misma), `created_at` | `proyecto_id` CASCADE; `respuesta_a_id` SET NULL; índice `idx_chat_mensajes_proyecto_created` (`proyecto_id`,`created_at`); CHECK de `tipo` (agregar un valor exige `ALTER TABLE` manual) |
+| `chat_mensajes` | `id`, `proyecto_id`, `usuario_id` (nullable: null = IA/SISTEMA), `tipo`(20: USUARIO/IA/SISTEMA), `contenido` TEXT, `respuesta_a_id` (nullable, FK a sí misma), `created_at`, `propuesta_aplicada` (NOT NULL default false), `aplicado_por`(100), `herramientas_usadas`(255, nullable, CSV) | `proyecto_id` CASCADE; `respuesta_a_id` SET NULL; índice `idx_chat_mensajes_proyecto_created` (`proyecto_id`,`created_at`); índice GIN `idx_chat_mensajes_fts` sobre `to_tsvector('spanish', contenido)` (lo crea `ChatBusquedaIndiceInitializer`, Hibernate lo ignora); CHECK de `tipo` (agregar un valor exige `ALTER TABLE` manual) |
+| `chat_memoria` | `proyecto_id` (PK y FK), `resumen` TEXT, `ultimo_mensaje_resumido_id` (marca de agua, sin FK), `updated_at` | `proyecto_id` ON DELETE CASCADE (verificado con `\d chat_memoria`) |
 | `diagrama_relaciones` | `id`, `proyecto_id`, `entidad_origen_id`, `entidad_destino_id`, `multiplicidad_origen`(20), `multiplicidad_destino`(20), `tipo`(20, nullable), `puntos_control` jsonb, `created_at` | las 3 FK con CASCADE |
 
 Enums se guardan como texto (`@Enumerated(STRING)`). Las FK a `usuarios` no tienen cascada (no
@@ -281,6 +327,9 @@ existe endpoint para borrar usuarios).
 | `jwt.secret` | `JWT_SECRET` (Base64, ≥ 256 bits) | clave de desarrollo pública — **debe** sobreescribirse en prod |
 | `jwt.expiration-ms` | `JWT_EXPIRATION_MS` | `86400000` (24 h) |
 | `server.port` | `SERVER_PORT` | `8081` |
+| `deepseek.api.key` | `DEEPSEEK_API_KEY` | vacío → Senior Dev responde con mensaje `SISTEMA` "Clave de API no configurada" (fuera de Docker la toma del `.env` raíz) |
+| `deepseek.api.url` / `deepseek.model` | `DEEPSEEK_API_URL` / `DEEPSEEK_MODEL` | `https://api.deepseek.com` / `deepseek-chat` |
+| `deepseek.timeout-ms` | `DEEPSEEK_TIMEOUT_MS` | `45000` por llamada (el bucle de herramientas tiene además un deadline de 90 s en `SeniorDevLimites`) |
 
 `docker-compose.yml` / `docker-compose.prod.yml` (raíz del repo) pasan al contenedor
 `case_backend`: `SPRING_DATASOURCE_*` (host `postgres-db:5432`), `SPRING_JPA_HIBERNATE_DDL_AUTO=update`
@@ -294,7 +343,7 @@ arrancar con la clave de desarrollo. Generarla con `openssl rand -base64 48`. De
 cd case-backend
 ./mvnw -q -DskipTests compile        # verificación mínima obligatoria
 ./mvnw -q test                       # contextLoads necesita Postgres accesible; el resto son unitarios
-./mvnw -q test -Dtest='Chat*Test,Stomp*Test'   # solo los unitarios del chat (sin BD)
+./mvnw -q test -Dtest='Chat*Test,SeniorDev*Test,Herramienta*Test,DeepSeek*Test,Ddl*Test,Stomp*Test'   # unitarios sin BD (97)
 # Sin BD, para validar solo el cableado de beans:
 ./mvnw -q test -Dspring.jpa.hibernate.ddl-auto=none \
   -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \

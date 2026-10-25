@@ -7,17 +7,20 @@ public record DeepSeekChatResponse(
     List<Choice> choices,
     Usage usage
 ) {
-    public record Choice(int index, Mensaje message, String finish_reason) {}
-
-    public record Mensaje(String role, String content) {}
+    public record Choice(int index, DeepSeekMensaje message, String finish_reason) {}
 
     public record Usage(int prompt_tokens, int completion_tokens, int total_tokens) {}
 
-    public String contenido() {
-        if (choices == null || choices.isEmpty() || choices.get(0).message() == null) {
-            return "";
+    /** Mensaje del primer choice, o null si la respuesta vino vacía. */
+    public DeepSeekMensaje mensaje() {
+        if (choices == null || choices.isEmpty()) {
+            return null;
         }
-        String content = choices.get(0).message().content();
-        return content != null ? content.trim() : "";
+        return choices.get(0).message();
+    }
+
+    public String contenido() {
+        DeepSeekMensaje m = mensaje();
+        return m != null && m.content() != null ? m.content().trim() : "";
     }
 }

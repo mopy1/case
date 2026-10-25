@@ -73,6 +73,7 @@ export interface CopilotMessage {
   id: string
   sender: "user" | "assistant"
   text: string
+  /** ISO-8601; se muestra con `horaCorta`. */
   timestamp: string
   adrSuggestion?: AdrSuggestion
   adrSuggestions?: AdrSuggestion[]

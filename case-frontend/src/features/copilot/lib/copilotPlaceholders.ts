@@ -1,10 +1,11 @@
 import type { CopilotSection } from "../types/copilot.types"
 
+/** Placeholders cortos: entran en una línea a 320 px. */
 export const SECTION_PLACEHOLDERS: Record<CopilotSection, string> = {
-  diagrama: "Escribe tablas, relaciones o toma foto a un diagrama...",
-  generador: "Pregunta sobre Spring Boot 3.4, dependencias, controladores...",
-  xmi: "Pregunta sobre importar o exportar XMI para EA 16...",
-  notas: "Pide documentar decisiones arquitectónicas o registrar ADRs...",
-  tareas: "Pregunta sobre tareas y colaboradores del proyecto...",
-  general: "Escribe tu consulta, pide crear tablas o sube un diagrama...",
+  diagrama: "Pedile una tabla, una relación o subí una foto",
+  generador: "Preguntá sobre el backend generado",
+  xmi: "Preguntá cómo importar o exportar XMI",
+  notas: "Pedile documentar una decisión (ADR)",
+  tareas: "Preguntá sobre las tareas del equipo",
+  general: "Pedile una tabla, una relación o subí una foto",
 }

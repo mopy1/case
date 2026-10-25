@@ -3,7 +3,6 @@ package com.casetool.backend.modules.chat.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -18,12 +17,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Limit;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.casetool.backend.core.exception.ResourceNotFoundException;
 import com.casetool.backend.modules.chat.dto.ChatMensajeRequest;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
-import com.casetool.backend.modules.chat.ia.SeniorDevService;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
@@ -45,8 +43,7 @@ class ChatMensajeServiceTest {
     @Mock UsuarioRepository usuarioRepository;
     @Mock MiembroProyectoRepository miembroProyectoRepository;
     @Mock ProyectoAccesoService accesoService;
-    @Mock SimpMessagingTemplate messagingTemplate;
-    @Mock SeniorDevService seniorDevService;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks ChatMensajeService service;
 
     private final Proyecto proyecto = ChatFixtures.proyecto(P);
@@ -109,7 +106,8 @@ class ChatMensajeServiceTest {
         assertThat(r.rol()).isEqualTo(MiembroProyecto.Rol.LECTOR);
         assertThat(r.tipo()).isEqualTo(ChatMensaje.Tipo.USUARIO);
         assertThat(r.proyectoId()).isEqualTo(P);
-        verify(messagingTemplate).convertAndSend("/topic/proyectos/7/chat", r);
+        // El broadcast ya no ocurre acá: se publica el evento y el listener difunde después del commit
+        verify(eventPublisher).publishEvent(new ChatMensajePublicadoEvent(r, false));
     }
 
     @Test
@@ -119,7 +117,7 @@ class ChatMensajeServiceTest {
 
         assertThatThrownBy(() -> service.enviar(P, new ChatMensajeRequest("hola"), 99L))
                 .isInstanceOf(AccesoDenegadoProyectoException.class);
-        verifyNoInteractions(chatMensajeRepository, messagingTemplate);
+        verifyNoInteractions(chatMensajeRepository, eventPublisher);
     }
 
     @Test
@@ -130,7 +128,7 @@ class ChatMensajeServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("El mensaje no puede estar vacío");
         verify(chatMensajeRepository, never()).saveAndFlush(any());
-        verify(messagingTemplate, never()).convertAndSend(anyString(), any(Object.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     private ChatMensaje mensaje(Long id) {

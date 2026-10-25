@@ -13,6 +13,8 @@ import org.springframework.web.client.RestClient;
 
 import com.casetool.backend.modules.chat.ia.dto.DeepSeekChatRequest;
 import com.casetool.backend.modules.chat.ia.dto.DeepSeekChatResponse;
+import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
+import com.casetool.backend.modules.chat.ia.dto.DeepSeekTool;
 
 @Component
 public class DeepSeekClient {
@@ -26,7 +28,7 @@ public class DeepSeekClient {
             @Value("${deepseek.api.key:}") String apiKey,
             @Value("${deepseek.api.url:https://api.deepseek.com}") String apiUrl,
             @Value("${deepseek.model:deepseek-chat}") String model,
-            @Value("${deepseek.timeout-ms:60000}") long timeoutMs) {
+            @Value("${deepseek.timeout-ms:45000}") long timeoutMs) {
         this(apiKey, model, construirRestClient(apiUrl, timeoutMs));
     }
 
@@ -40,12 +42,18 @@ public class DeepSeekClient {
         return !apiKey.isBlank();
     }
 
-    public String solicitarRespuesta(List<DeepSeekChatRequest.Mensaje> mensajes) {
+    /**
+     * Una llamada a /chat/completions. Con {@code tools} el modelo puede devolver {@code tool_calls}
+     * en vez de texto; {@code toolChoice} = "auto" lo deja elegir y "none" lo obliga a contestar.
+     */
+    public DeepSeekMensaje completar(List<DeepSeekMensaje> mensajes, List<DeepSeekTool> tools,
+            String toolChoice, double temperatura, int maxTokens) {
         if (!tieneApiKey()) {
             throw new IllegalStateException("Clave de API de DeepSeek no configurada");
         }
-
-        DeepSeekChatRequest request = new DeepSeekChatRequest(model, mensajes, 0.7, 1024);
+        boolean conTools = tools != null && !tools.isEmpty();
+        DeepSeekChatRequest request = new DeepSeekChatRequest(model, mensajes, temperatura, maxTokens,
+                conTools ? tools : null, conTools ? toolChoice : null);
 
         DeepSeekChatResponse response = restClient.post()
                 .uri("/chat/completions")
@@ -54,11 +62,16 @@ public class DeepSeekClient {
                 .retrieve()
                 .body(DeepSeekChatResponse.class);
 
-        if (response == null || response.contenido().isBlank()) {
+        DeepSeekMensaje mensaje = response != null ? response.mensaje() : null;
+        if (mensaje == null || (!mensaje.tieneToolCalls() && response.contenido().isBlank())) {
             throw new IllegalStateException("Respuesta vacía del proveedor de IA");
         }
+        return mensaje;
+    }
 
-        return response.contenido();
+    /** Atajo sin herramientas: devuelve solo el texto (lo usan el resumidor y la degradación F2). */
+    public String solicitarRespuesta(List<DeepSeekMensaje> mensajes, double temperatura, int maxTokens) {
+        return completar(mensajes, null, null, temperatura, maxTokens).content().trim();
     }
 
     private static RestClient construirRestClient(String apiUrl, long timeoutMs) {

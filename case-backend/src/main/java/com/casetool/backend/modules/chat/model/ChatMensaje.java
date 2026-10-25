@@ -54,6 +54,10 @@ public class ChatMensaje {
   @Column(name = "aplicado_por", length = 100)
   private String aplicadoPor;
 
+  /** Herramientas que consultó Senior Dev, separadas por coma (ej. "obtenerDiagrama,buscarEnHistorial"); null si ninguna. */
+  @Column(name = "herramientas_usadas", length = 255)
+  private String herramientasUsadas;
+
   @PrePersist
   void onCreate() {
     this.createdAt = Instant.now();

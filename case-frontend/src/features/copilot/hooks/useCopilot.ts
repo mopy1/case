@@ -5,7 +5,7 @@ import type { CopilotMessage } from "../types/copilot.types"
 import { getQuickQuestionsForSection } from "../lib/copilotQuestions"
 import { askCopilot } from "../lib/geminiService"
 import type { ProcessedImage } from "../lib/copilotImageUtils"
-import { createWelcomeMessage, detectActiveSection } from "../lib/copilotSection"
+import { detectActiveSection } from "../lib/copilotSection"
 import { useCopilotActionHandlers } from "./useCopilotActionHandlers"
 import { executeAllMessageChanges } from "../lib/copilotBatchExecutor"
 import { markAllAppliedInMessage } from "../lib/copilotMessageUpdaters"
@@ -16,7 +16,7 @@ const AUTO_MODE_KEY = "sw_case_copilot_auto_mode"
 export function useCopilot(proyectoId: number) {
   const location = useLocation()
   const activeSection = useMemo(() => detectActiveSection(location.pathname), [location.pathname])
-  const [messages, setMessages] = useState<CopilotMessage[]>([createWelcomeMessage(activeSection)])
+  const [messages, setMessages] = useState<CopilotMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [autoMode, setAutoMode] = useState<boolean>(() => localStorage.getItem(AUTO_MODE_KEY) === "true")
 
@@ -36,13 +36,13 @@ export function useCopilot(proyectoId: number) {
       const trimmed = text.trim()
       if ((!trimmed && !image) || loading) return
 
-      const displayText = trimmed || (image ? "📷 Diagrama enviado para reconocimiento" : "")
+      const displayText = trimmed || (image ? "Diagrama enviado para reconocimiento" : "")
       const userMsg: CopilotMessage = {
         id: `user-${Date.now()}`,
         sender: "user",
         text: displayText,
         imageUrl: image?.previewUrl,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: new Date().toISOString(),
         section: activeSection,
       }
 
@@ -57,7 +57,7 @@ export function useCopilot(proyectoId: number) {
           id: assistantMsgId,
           sender: "assistant",
           text: res.text,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          timestamp: new Date().toISOString(),
           adrSuggestion: res.adrSuggestion,
           adrSuggestions: res.adrSuggestions,
           entitySuggestions: res.entitySuggestions,
@@ -87,9 +87,7 @@ export function useCopilot(proyectoId: number) {
     [activeSection, autoMode, loading, proyectoId]
   )
 
-  const clearChat = useCallback(() => {
-    setMessages([createWelcomeMessage(activeSection)])
-  }, [activeSection])
+  const clearChat = useCallback(() => setMessages([]), [])
 
   return {
     messages,

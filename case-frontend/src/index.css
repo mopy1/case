@@ -49,6 +49,11 @@ html, body, #root {
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-mention: var(--mention);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -59,6 +64,15 @@ html, body, #root {
 }
 
 :root {
+    color-scheme: light;
+    --success: oklch(0.52 0.12 155);
+    --success-foreground: oklch(0.985 0 0);
+    --warning: oklch(0.6 0.14 65);
+    --warning-foreground: oklch(0.2 0.02 65);
+    --mention: oklch(0.6 0.14 65);
+    --scrollbar-thumb: oklch(0.147 0.004 49.25 / 18%);
+    --scrollbar-thumb-hover: oklch(0.147 0.004 49.25 / 34%);
+    --chat-measure: 68ch;
     --background: oklch(1 0 0);
     --foreground: oklch(0.147 0.004 49.25);
     --card: oklch(1 0 0);
@@ -94,6 +108,12 @@ html, body, #root {
 }
 
 .dark {
+    color-scheme: dark;
+    --success: oklch(0.74 0.14 155);
+    --warning: oklch(0.8 0.13 75);
+    --mention: oklch(0.8 0.13 75);
+    --scrollbar-thumb: oklch(1 0 0 / 14%);
+    --scrollbar-thumb-hover: oklch(1 0 0 / 26%);
     --background: oklch(0.147 0.004 49.25);
     --foreground: oklch(0.985 0.001 106.423);
     --card: oklch(0.20 0.006 56.043);
@@ -151,7 +171,31 @@ html, body, #root {
   html {
     @apply font-sans;
     }
+
+  /* Scrollbars: con color-scheme (arriba) Chrome/Edge dejan de pintar la barra nativa clara en oscuro.
+     scrollbar-color se hereda; scrollbar-width no. */
+  html { scrollbar-color: var(--scrollbar-thumb) transparent; }
+  * { scrollbar-width: thin; }
+
+  /* Respaldo WebKit (Safari, Chrome < 121): Chrome ignora estas reglas si hay scrollbar-color. */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
 }
+
+/* Utilidades que pide MessageScroller y no trae shadcn/tailwind.css */
+@utility scrollbar-thin { scrollbar-width: thin; }
+@utility scrollbar-gutter-stable { scrollbar-gutter: stable; }
+@utility scrollbar-thumb-transparent { scrollbar-color: transparent transparent; }
+@utility scrollbar-track-transparent { scrollbar-color: var(--scrollbar-thumb) transparent; }
+@utility scrollbar-hover { &:hover { scrollbar-color: var(--scrollbar-thumb-hover) transparent; } }
 
 /* React Flow - Controles, MiniMap y Lienzo en Modo Oscuro */
 .react-flow__attribution {

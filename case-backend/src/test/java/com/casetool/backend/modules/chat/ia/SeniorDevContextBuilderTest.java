@@ -3,23 +3,26 @@ package com.casetool.backend.modules.chat.ia;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Limit;
 
-import com.casetool.backend.modules.chat.ia.dto.DeepSeekChatRequest.Mensaje;
+import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
+import com.casetool.backend.modules.chat.ia.dto.DeepSeekMensaje;
+import com.casetool.backend.modules.chat.model.ChatMemoria;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
+import com.casetool.backend.modules.chat.repository.ChatMemoriaRepository;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
-import com.casetool.backend.modules.diagrama.model.*;
-import com.casetool.backend.modules.diagrama.repository.*;
 import com.casetool.backend.modules.proyecto.model.*;
 import com.casetool.backend.modules.proyecto.repository.*;
 import com.casetool.backend.modules.seguridad.model.Usuario;
@@ -27,106 +30,108 @@ import com.casetool.backend.modules.seguridad.model.Usuario;
 @ExtendWith(MockitoExtension.class)
 class SeniorDevContextBuilderTest {
 
-    private static final Long PROY_ID = 10L;
+    private static final Long P = 10L;
 
     @Mock ProyectoRepository proyectoRepo;
     @Mock MiembroProyectoRepository miembroRepo;
-    @Mock EntidadDiagramaRepository entidadRepo;
-    @Mock AtributoEntidadRepository atributoRepo;
-    @Mock RelacionDiagramaRepository relacionRepo;
-    @Mock TareaProyectoRepository tareaRepo;
-    @Mock NotaProyectoRepository notaRepo;
     @Mock ChatMensajeRepository chatRepo;
+    @Mock ChatMemoriaRepository memoriaRepo;
+    @Mock SeniorDevProyectoFormatter formatter;
+
+    private SeniorDevContextBuilder builder;
+    private final Proyecto proyecto = new Proyecto();
+    private final Usuario ana = usuario(1L, "ana");
+    private final Usuario maria = usuario(2L, "maria");
+
+    @BeforeEach
+    void setUp() {
+        builder = new SeniorDevContextBuilder(proyectoRepo, miembroRepo, chatRepo, memoriaRepo, formatter);
+        proyecto.setId(P);
+        proyecto.setNombre("Tienda Online");
+        when(proyectoRepo.findById(P)).thenReturn(Optional.of(proyecto));
+        when(miembroRepo.findByProyectoId(P)).thenReturn(List.of(
+                miembro(ana, MiembroProyecto.Rol.LECTOR), miembro(maria, MiembroProyecto.Rol.COLABORADOR)));
+    }
 
     @Test
-    void construyePromptEnCuatroCapasConContextoCompleto() {
-        SeniorDevProyectoFormatter formatter = new SeniorDevProyectoFormatter(
-                entidadRepo, atributoRepo, relacionRepo, tareaRepo, notaRepo);
-        SeniorDevContextBuilder builder = new SeniorDevContextBuilder(
-                proyectoRepo, miembroRepo, chatRepo, formatter);
+    void consultaLlevaIdAutorRolYAvisoDeLector() {
+        sinMemoria();
+        when(chatRepo.findByProyectoIdOrderByCreatedAtDescIdDesc(eq(P), any(Limit.class))).thenReturn(List.of());
 
-        Proyecto proyecto = new Proyecto();
-        proyecto.setId(PROY_ID);
-        proyecto.setNombre("ERP Ventas");
-        proyecto.setDescripcion("Sistema de gestión");
-        when(proyectoRepo.findById(PROY_ID)).thenReturn(Optional.of(proyecto));
+        String user = construir().get(1).content();
 
-        Usuario userAdrian = usuario(1L, "adrian");
-        Usuario userMaria = usuario(2L, "maria");
+        assertThat(user)
+                .contains("=== CONSULTA ACTUAL (responde a esta) ===")
+                .contains("#143 [ana · LECTOR] pregunta: @SeniorDev ¿qué decidimos?")
+                .contains("Empieza tu respuesta con @ana.")
+                .contains("ana es LECTOR: no puede aplicar propuestas")
+                .contains("Proyecto: Tienda Online · Miembros: @ana (LECTOR), @maria (COLABORADOR)")
+                .contains("(Todavía no hay memoria acumulada)");
+    }
 
-        MiembroProyecto m1 = new MiembroProyecto();
-        m1.setUsuario(userAdrian);
-        m1.setRol(MiembroProyecto.Rol.ADMIN);
+    @Test
+    void historialExcluyeAlDisparadorMarcaHiloYQuitaComandosDeLaIa() {
+        sinMemoria();
+        ChatMensaje humano = mensaje(140L, maria, ChatMensaje.Tipo.USUARIO, "Revisemos Pedido");
+        ChatMensaje ia = mensaje(141L, null, ChatMensaje.Tipo.IA,
+                "@maria, conviene una tabla intermedia.\n\nCREAR_TABLA: [Detalle] (x: 1, y: 2)\nATRIBUTOS: [id:BIGINT:pk]");
+        ia.setRespuestaA(humano);
+        ChatMensaje disparador = mensaje(143L, ana, ChatMensaje.Tipo.USUARIO, "@SeniorDev ¿qué decidimos?");
+        when(chatRepo.findByProyectoIdOrderByCreatedAtDescIdDesc(P, Limit.of(31)))
+                .thenReturn(List.of(disparador, ia, humano));
 
-        MiembroProyecto m2 = new MiembroProyecto();
-        m2.setUsuario(userMaria);
-        m2.setRol(MiembroProyecto.Rol.COLABORADOR);
-        when(miembroRepo.findByProyectoId(PROY_ID)).thenReturn(List.of(m1, m2));
+        String user = construir().get(1).content();
+        String historial = user.substring(user.indexOf("=== HISTORIAL"), user.indexOf("=== CONSULTA"));
 
-        EntidadDiagrama entidadCliente = new EntidadDiagrama();
-        entidadCliente.setId(101L);
-        entidadCliente.setNombre("Cliente");
-        entidadCliente.setProyecto(proyecto);
-        when(entidadRepo.findByProyectoId(PROY_ID)).thenReturn(List.of(entidadCliente));
+        assertThat(historial)
+                .contains("(2 mensajes, del más viejo al más nuevo)")
+                .contains("#140 [maria · COLABORADOR]: Revisemos Pedido")
+                .contains("#141 [Senior Dev ↳ #140]: @maria, conviene una tabla intermedia.")
+                .doesNotContain("CREAR_TABLA").doesNotContain("ATRIBUTOS").doesNotContain("#143");
+        assertThat(historial.indexOf("#140")).isLessThan(historial.indexOf("#141"));
+        verify(chatRepo).findByProyectoIdOrderByCreatedAtDescIdDesc(P, Limit.of(31));
+    }
 
-        AtributoEntidad attrId = new AtributoEntidad();
-        attrId.setId(201L);
-        attrId.setEntidad(entidadCliente);
-        attrId.setNombre("id");
-        attrId.setTipoSql("INT");
-        attrId.setEsPk(true);
-        when(atributoRepo.findByProyectoId(PROY_ID)).thenReturn(List.of(attrId));
+    @Test
+    void memoriaPresenteVaPrimeroConSuMarca() {
+        ChatMemoria memoria = new ChatMemoria();
+        memoria.setResumen("- Decisiones: borrado lógico de Cliente (@maria, #12)");
+        memoria.setUltimoMensajeResumidoId(117L);
+        when(memoriaRepo.findById(P)).thenReturn(Optional.of(memoria));
+        when(chatRepo.findByProyectoIdOrderByCreatedAtDescIdDesc(eq(P), any(Limit.class))).thenReturn(List.of());
 
-        RelacionDiagrama relacion = new RelacionDiagrama();
-        relacion.setEntidadOrigen(entidadCliente);
-        relacion.setEntidadDestino(entidadCliente);
-        relacion.setMultiplicidadOrigen(RelacionDiagrama.Multiplicidad.UNO);
-        relacion.setMultiplicidadDestino(RelacionDiagrama.Multiplicidad.CERO_O_MAS);
-        relacion.setTipo(RelacionDiagrama.TipoRelacionUml.ASOCIACION);
-        when(relacionRepo.findByProyectoId(PROY_ID)).thenReturn(List.of(relacion));
+        List<DeepSeekMensaje> mensajes = construir();
 
-        TareaProyecto tarea = new TareaProyecto();
-        tarea.setTitulo("Crear índices");
-        tarea.setEstado(TareaProyecto.Estado.PENDIENTE);
-        tarea.setPrioridad(TareaProyecto.Prioridad.ALTA);
-        tarea.setUsuario(userAdrian);
-        when(tareaRepo.findByProyectoIdOrderByCreatedAtDesc(PROY_ID)).thenReturn(List.of(tarea));
-
-        NotaProyecto nota = new NotaProyecto();
-        nota.setAccion("Normalización a 3FN");
-        nota.setMotivo("Evitar redundancia");
-        nota.setUsuario(userAdrian);
-        when(notaRepo.findByProyectoIdOrderByCreatedAtDesc(PROY_ID)).thenReturn(List.of(nota));
-
-        ChatMensaje msgPrevio = new ChatMensaje();
-        msgPrevio.setId(50L);
-        msgPrevio.setProyecto(proyecto);
-        msgPrevio.setUsuario(userMaria);
-        msgPrevio.setTipo(ChatMensaje.Tipo.USUARIO);
-        msgPrevio.setContenido("Hola equipo");
-        when(chatRepo.findByProyectoIdOrderByCreatedAtDescIdDesc(eq(PROY_ID), any(Limit.class)))
-                .thenReturn(List.of(msgPrevio));
-
-        List<Mensaje> mensajes = builder.construirMensajes(PROY_ID, "@SeniorDev ¿conviene normalizar?");
-
-        assertThat(mensajes).hasSize(2);
         assertThat(mensajes.get(0).role()).isEqualTo("system");
-        assertThat(mensajes.get(0).content()).contains("Senior Dev").contains("Reglas obligatorias");
+        assertThat(mensajes.get(0).content()).isEqualTo(SeniorDevPrompts.SYSTEM_PROMPT);
+        assertThat(mensajes.get(1).content())
+                .startsWith("=== MEMORIA DEL EQUIPO (resumen de los mensajes hasta #117) ===\n- Decisiones: borrado lógico");
+    }
 
-        String userPrompt = mensajes.get(1).content();
-        assertThat(userPrompt)
-                .contains("=== ESTADO DEL PROYECTO ===")
-                .contains("Proyecto: ERP Ventas")
-                .contains("@adrian (ADMIN)")
-                .contains("@maria (COLABORADOR)")
-                .contains("Cliente (id: INT PK)")
-                .contains("Cliente (1) -> Cliente (0..*) [ASOCIACION]")
-                .contains("[PENDIENTE] Crear índices (Prioridad: ALTA, Asignado: adrian)")
-                .contains("Normalización a 3FN (por adrian): Evitar redundancia")
-                .contains("=== HISTORIAL DE LA SALA (ÚLTIMOS MENSAJES) ===")
-                .contains("[maria · COLABORADOR]: Hola equipo")
-                .contains("=== CONSULTA ACTUAL ===")
-                .contains("@SeniorDev ¿conviene normalizar?");
+    private List<DeepSeekMensaje> construir() {
+        return builder.construirMensajes(new ChatMensajeResponse(143L, P, 1L, "ana", MiembroProyecto.Rol.LECTOR,
+                ChatMensaje.Tipo.USUARIO, "@SeniorDev ¿qué decidimos?", null, Instant.now(), false, null, null));
+    }
+
+    private void sinMemoria() {
+        when(memoriaRepo.findById(P)).thenReturn(Optional.empty());
+    }
+
+    private ChatMensaje mensaje(Long id, Usuario autor, ChatMensaje.Tipo tipo, String contenido) {
+        ChatMensaje m = new ChatMensaje();
+        m.setId(id);
+        m.setProyecto(proyecto);
+        m.setUsuario(autor);
+        m.setTipo(tipo);
+        m.setContenido(contenido);
+        return m;
+    }
+
+    private MiembroProyecto miembro(Usuario u, MiembroProyecto.Rol rol) {
+        MiembroProyecto m = new MiembroProyecto();
+        m.setUsuario(u);
+        m.setRol(rol);
+        return m;
     }
 
     private static Usuario usuario(Long id, String username) {

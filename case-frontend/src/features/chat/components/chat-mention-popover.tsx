@@ -8,37 +8,26 @@ interface ChatMentionPopoverProps {
   onHoverItem: (index: number) => void
 }
 
-/**
- * Popover flotante accesible posicionado sobre el input para autocompletar menciones con @.
- */
-export function ChatMentionPopover({
-  candidatos,
-  indiceSeleccionado,
-  onSeleccionar,
-  onHoverItem,
-}: ChatMentionPopoverProps) {
+/** Lista flotante sobre el composer para autocompletar menciones con @ (flechas, Enter, Tab, Esc). */
+export function ChatMentionPopover({ candidatos, indiceSeleccionado, onSeleccionar, onHoverItem }: ChatMentionPopoverProps) {
   return (
     <div
       role="listbox"
       aria-label="Sugerencias de mención"
-      className="absolute bottom-full left-0 right-0 z-30 mb-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-popover/95 p-1.5 shadow-lg backdrop-blur-xs animate-in fade-in slide-in-from-bottom-2 duration-150"
+      className="absolute inset-x-0 bottom-full z-30 mb-1 flex max-h-56 flex-col gap-0.5 overflow-y-auto rounded-2xl border border-border bg-popover p-1.5 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150"
     >
       {candidatos.length === 0 ? (
-        <div className="px-3 py-2.5 text-center text-xs text-muted-foreground select-none">
-          Sin coincidencias para la mención
-        </div>
+        <p className="px-3 py-2.5 text-center text-sm text-muted-foreground">Sin coincidencias</p>
       ) : (
-        <div className="space-y-0.5">
-          {candidatos.map((item, index) => (
-            <ChatMentionItem
-              key={item.id}
-              item={item}
-              seleccionado={index === indiceSeleccionado}
-              onSelect={() => onSeleccionar(item)}
-              onHover={() => onHoverItem(index)}
-            />
-          ))}
-        </div>
+        candidatos.map((item, index) => (
+          <ChatMentionItem
+            key={item.id}
+            item={item}
+            seleccionado={index === indiceSeleccionado}
+            onSelect={() => onSeleccionar(item)}
+            onHover={() => onHoverItem(index)}
+          />
+        ))
       )}
     </div>
   )

@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Limit;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +15,6 @@ import com.casetool.backend.core.exception.ResourceNotFoundException;
 import com.casetool.backend.modules.chat.dto.ChatMensajeRequest;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
 import com.casetool.backend.modules.chat.ia.ChatMencionIaUtils;
-import com.casetool.backend.modules.chat.ia.SeniorDevService;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.proyecto.model.MiembroProyecto;
@@ -36,8 +35,7 @@ public class ChatMensajeService {
     private final UsuarioRepository usuarioRepository;
     private final MiembroProyectoRepository miembroProyectoRepository;
     private final ProyectoAccesoService accesoService;
-    private final SimpMessagingTemplate messagingTemplate;
-    private final SeniorDevService seniorDevService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ChatMensajeService(
             ChatMensajeRepository chatMensajeRepository,
@@ -45,15 +43,13 @@ public class ChatMensajeService {
             UsuarioRepository usuarioRepository,
             MiembroProyectoRepository miembroProyectoRepository,
             ProyectoAccesoService accesoService,
-            SimpMessagingTemplate messagingTemplate,
-            SeniorDevService seniorDevService) {
+            ApplicationEventPublisher eventPublisher) {
         this.chatMensajeRepository = chatMensajeRepository;
         this.proyectoRepository = proyectoRepository;
         this.usuarioRepository = usuarioRepository;
         this.miembroProyectoRepository = miembroProyectoRepository;
         this.accesoService = accesoService;
-        this.messagingTemplate = messagingTemplate;
-        this.seniorDevService = seniorDevService;
+        this.eventPublisher = eventPublisher;
     }
 
     /** Página de historial en orden cronológico ascendente (el más viejo primero). */
@@ -73,7 +69,10 @@ public class ChatMensajeService {
                 .toList();
     }
 
-    /** Cualquier miembro (también LECTOR, decisión D1) escribe; se guarda y después se difunde. */
+    /**
+     * Cualquier miembro (también LECTOR, decisión D1) escribe. La difusión por WS y el disparo de
+     * Senior Dev ocurren después del commit ({@link ChatMensajeBroadcastListener}).
+     */
     public ChatMensajeResponse enviar(Long proyectoId, ChatMensajeRequest request, Long usuarioId) {
         MiembroProyecto miembro = accesoService.verificarMiembro(proyectoId, usuarioId);
         String contenido = request.contenido() == null ? "" : request.contenido().strip();
@@ -91,12 +90,8 @@ public class ChatMensajeService {
         chatMensajeRepository.saveAndFlush(mensaje);
 
         ChatMensajeResponse response = ChatMensajeResponse.from(mensaje, miembro.getRol());
-        messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), response);
-
-        if (ChatMencionIaUtils.contieneMencionSeniorDev(contenido)) {
-            seniorDevService.procesarMencion(proyectoId, mensaje.getId(), contenido, usuarioId);
-        }
-
+        eventPublisher.publishEvent(new ChatMensajePublicadoEvent(response,
+                ChatMencionIaUtils.contieneMencionSeniorDev(contenido)));
         return response;
     }
 
@@ -116,7 +111,7 @@ public class ChatMensajeService {
         Map<Long, MiembroProyecto.Rol> roles = rolesDelProyecto(proyectoId);
         MiembroProyecto.Rol rolAutor = mensaje.getUsuario() != null ? roles.get(mensaje.getUsuario().getId()) : null;
         ChatMensajeResponse response = ChatMensajeResponse.from(mensaje, rolAutor);
-        messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), response);
+        eventPublisher.publishEvent(new ChatMensajePublicadoEvent(response, false));
         return response;
     }
 

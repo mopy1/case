@@ -1,3 +1,5 @@
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import type {
   AdrSuggestion,
   AttributeSuggestion,
@@ -9,6 +11,7 @@ import type {
   SystemActionSuggestion,
   TaskSuggestion,
 } from "../types/copilot.types"
+import { countPendingActions } from "../lib/copilotPendingActions"
 import { CopilotAdrCard } from "./copilot-adr-card"
 import { CopilotAttributeCard } from "./copilot-attribute-card"
 import { CopilotEntityCard } from "./copilot-entity-card"
@@ -17,6 +20,8 @@ import { CopilotRelationCard } from "./copilot-relation-card"
 import { CopilotRelationDeleteCard } from "./copilot-relation-delete-card"
 import { CopilotSystemActionCard } from "./copilot-system-action-card"
 import { CopilotTaskCard } from "./copilot-task-card"
+
+const VISIBLES = 3
 
 export interface CopilotCardListProps {
   message: CopilotMessage
@@ -38,111 +43,49 @@ export interface CopilotCardListProps {
   onExecuteSystemAction: (messageId: string, actionIndex: number, action: SystemActionSuggestion) => void
 }
 
-export function CopilotCardList({
-  message,
-  isSavingAdr,
-  creatingEntityKey,
-  creatingRelationKey,
-  creatingAttributeKey,
-  deletingEntityKey,
-  deletingRelationKey,
-  creatingTaskKey,
-  executingSystemActionKey,
-  onSaveAdr,
-  onCreateEntity,
-  onCreateRelation,
-  onDeleteRelation,
-  onCreateAttribute,
-  onDeleteEntity,
-  onCreateTask,
-  onExecuteSystemAction,
-}: CopilotCardListProps) {
+/** Tarjetas de un mensaje: las primeras 3 y "Ver N sugerencias más". */
+export function CopilotCardList({ message: m, isSavingAdr, ...p }: CopilotCardListProps) {
+  const [todas, setTodas] = useState(false)
+  const id = m.id
+  const emphasis = countPendingActions(m) === 1 ? "primary" : "secondary"
+  const base = { messageId: id, emphasis } as const
+  const adrs = m.adrSuggestions ?? (m.adrSuggestion ? [m.adrSuggestion] : [])
+
+  const tarjetas = [
+    ...(m.relationDeleteSuggestions ?? []).map((s, i) => (
+      <CopilotRelationDeleteCard key={`rd${i}`} {...base} deleteIndex={i} suggestion={s} isDeleting={p.deletingRelationKey === `${id}-reldel-${i}`} onDelete={p.onDeleteRelation} />
+    )),
+    ...(m.entityDeleteSuggestions ?? []).map((s, i) => (
+      <CopilotEntityDeleteCard key={`ed${i}`} {...base} deleteIndex={i} suggestion={s} isDeleting={p.deletingEntityKey === `${id}-del-${i}`} onDelete={p.onDeleteEntity} />
+    )),
+    ...(m.entitySuggestions ?? []).map((e, i) => (
+      <CopilotEntityCard key={`e${i}`} {...base} entityIndex={i} entity={e} isCreating={p.creatingEntityKey === `${id}-ent-${i}`} onCreate={p.onCreateEntity} />
+    )),
+    ...(m.attributeSuggestions ?? []).map((a, i) => (
+      <CopilotAttributeCard key={`a${i}`} {...base} attributeIndex={i} attribute={a} isCreating={p.creatingAttributeKey === `${id}-attr-${i}`} onCreate={p.onCreateAttribute} />
+    )),
+    ...(m.relationSuggestions ?? []).map((r, i) => (
+      <CopilotRelationCard key={`r${i}`} {...base} relationIndex={i} relation={r} isCreating={p.creatingRelationKey === `${id}-rel-${i}`} onCreate={p.onCreateRelation} />
+    )),
+    ...(m.taskSuggestions ?? []).map((t, i) => (
+      <CopilotTaskCard key={`t${i}`} {...base} taskIndex={i} task={t} isCreating={p.creatingTaskKey === `${id}-task-${i}`} onCreate={p.onCreateTask} />
+    )),
+    ...(m.systemActions ?? []).map((s, i) => (
+      <CopilotSystemActionCard key={`s${i}`} {...base} actionIndex={i} action={s} isExecuting={p.executingSystemActionKey === `${id}-sys-${i}`} onExecute={p.onExecuteSystemAction} />
+    )),
+    ...adrs.map((adr, i) => <CopilotAdrCard key={`adr${i}`} {...base} adr={adr} isSaving={isSavingAdr} onSave={p.onSaveAdr} />),
+  ]
+  if (tarjetas.length === 0) return null
+  const ocultas = tarjetas.length - VISIBLES
+
   return (
-    <div className="flex w-full flex-col gap-1.5">
-      {message.relationDeleteSuggestions?.map((r, i) => (
-        <CopilotRelationDeleteCard
-          key={i}
-          messageId={message.id}
-          deleteIndex={i}
-          suggestion={r}
-          isDeleting={deletingRelationKey === `${message.id}-reldel-${i}`}
-          onDelete={onDeleteRelation}
-        />
-      ))}
-
-      {message.entityDeleteSuggestions?.map((del, i) => (
-        <CopilotEntityDeleteCard
-          key={i}
-          messageId={message.id}
-          deleteIndex={i}
-          suggestion={del}
-          isDeleting={deletingEntityKey === `${message.id}-del-${i}`}
-          onDelete={onDeleteEntity}
-        />
-      ))}
-
-      {message.entitySuggestions?.map((ent, i) => (
-        <CopilotEntityCard
-          key={i}
-          messageId={message.id}
-          entityIndex={i}
-          entity={ent}
-          isCreating={creatingEntityKey === `${message.id}-ent-${i}`}
-          onCreate={onCreateEntity}
-        />
-      ))}
-
-      {message.attributeSuggestions?.map((attr, i) => (
-        <CopilotAttributeCard
-          key={i}
-          messageId={message.id}
-          attributeIndex={i}
-          attribute={attr}
-          isCreating={creatingAttributeKey === `${message.id}-attr-${i}`}
-          onCreate={onCreateAttribute}
-        />
-      ))}
-
-      {message.relationSuggestions?.map((rel, i) => (
-        <CopilotRelationCard
-          key={i}
-          messageId={message.id}
-          relationIndex={i}
-          relation={rel}
-          isCreating={creatingRelationKey === `${message.id}-rel-${i}`}
-          onCreate={onCreateRelation}
-        />
-      ))}
-
-      {message.taskSuggestions?.map((task, i) => (
-        <CopilotTaskCard
-          key={i}
-          messageId={message.id}
-          taskIndex={i}
-          task={task}
-          isCreating={creatingTaskKey === `${message.id}-task-${i}`}
-          onCreate={onCreateTask}
-        />
-      ))}
-
-      {message.systemActions?.map((act, i) => (
-        <CopilotSystemActionCard
-          key={i}
-          messageId={message.id}
-          actionIndex={i}
-          action={act}
-          isExecuting={executingSystemActionKey === `${message.id}-sys-${i}`}
-          onExecute={onExecuteSystemAction}
-        />
-      ))}
-
-      {message.adrSuggestions ? (
-        message.adrSuggestions.map((adr, i) => (
-          <CopilotAdrCard key={i} messageId={message.id} adr={adr} isSaving={isSavingAdr} onSave={onSaveAdr} />
-        ))
-      ) : message.adrSuggestion ? (
-        <CopilotAdrCard messageId={message.id} adr={message.adrSuggestion} isSaving={isSavingAdr} onSave={onSaveAdr} />
-      ) : null}
-    </div>
+    <>
+      {todas ? tarjetas : tarjetas.slice(0, VISIBLES)}
+      {ocultas > 0 && (
+        <Button variant="ghost" size="sm" className="w-fit" onClick={() => setTodas((v) => !v)}>
+          {todas ? "Ver menos" : ocultas === 1 ? "Ver 1 sugerencia más" : `Ver ${ocultas} sugerencias más`}
+        </Button>
+      )}
+    </>
   )
 }

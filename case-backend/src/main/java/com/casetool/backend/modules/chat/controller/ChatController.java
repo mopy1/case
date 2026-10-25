@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.casetool.backend.modules.chat.dto.ChatMemoriaResponse;
 import com.casetool.backend.modules.chat.dto.ChatMensajeRequest;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
 import com.casetool.backend.modules.chat.dto.ChatPresenciaResponse;
+import com.casetool.backend.modules.chat.service.ChatMemoriaService;
 import com.casetool.backend.modules.chat.service.ChatMensajeService;
 import com.casetool.backend.modules.chat.service.ChatPresenciaService;
 import com.casetool.backend.modules.seguridad.model.UsuarioPrincipal;
@@ -28,10 +30,13 @@ public class ChatController {
 
     private final ChatMensajeService mensajeService;
     private final ChatPresenciaService presenciaService;
+    private final ChatMemoriaService memoriaService;
 
-    public ChatController(ChatMensajeService mensajeService, ChatPresenciaService presenciaService) {
+    public ChatController(ChatMensajeService mensajeService, ChatPresenciaService presenciaService,
+            ChatMemoriaService memoriaService) {
         this.mensajeService = mensajeService;
         this.presenciaService = presenciaService;
+        this.memoriaService = memoriaService;
     }
 
     @GetMapping("/mensajes")
@@ -65,5 +70,12 @@ public class ChatController {
             @PathVariable Long proyectoId,
             @AuthenticationPrincipal UsuarioPrincipal principal) {
         return ResponseEntity.ok(presenciaService.obtener(proyectoId, principal.getId()));
+    }
+
+    @GetMapping("/memoria")
+    public ResponseEntity<ChatMemoriaResponse> memoria(
+            @PathVariable Long proyectoId,
+            @AuthenticationPrincipal UsuarioPrincipal principal) {
+        return ResponseEntity.ok(memoriaService.obtener(proyectoId, principal.getId()));
     }
 }

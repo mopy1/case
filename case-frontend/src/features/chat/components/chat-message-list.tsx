@@ -1,78 +1,62 @@
-import { useEffect, useLayoutEffect, useRef } from "react"
-import { History, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ChatAgentStatus, ChatDaySeparator, ChatThread, ChatThreadItem, cambiaDeDia, debeAgrupar } from "@/components/chat"
+import type { ChatMessageVariant } from "@/components/chat"
 import type { RolProyecto } from "@/features/projects/types/projects.type"
+import { nombreAutor } from "../lib/chatFormat"
 import type { ChatIaEstadoEvent, ChatMensaje } from "../types/chat.types"
 import { ChatMessageItem } from "./chat-message-item"
-import { ChatThinkingIndicator } from "./chat-thinking-indicator"
 
 interface ChatMessageListProps {
   mensajes: ChatMensaje[]
   yoId: number | null
+  miUsername?: string
   hayMas: boolean
   cargandoAnteriores: boolean
   onCargarAnteriores: () => void
   iaEstado?: ChatIaEstadoEvent | null
   miRol?: RolProyecto | null
-  proyectoId?: number
+  proyectoId: number
 }
 
-/** Lista scrolleable con auto-scroll a mensajes recientes y soporte para indicador de IA. */
-export function ChatMessageList({
-  mensajes,
-  yoId,
-  hayMas,
-  cargandoAnteriores,
-  onCargarAnteriores,
-  iaEstado,
-  miRol,
-  proyectoId,
-}: ChatMessageListProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const distanciaAlFondo = useRef<number | null>(null)
-  const ultimoId = mensajes.at(-1)?.id
-  const primerId = mensajes[0]?.id
-  const estaPensando = iaEstado?.estado === "PENSANDO"
+function varianteDe(m: ChatMensaje, yoId: number | null): ChatMessageVariant {
+  if (m.tipo === "IA") return "agent"
+  if (m.tipo === "SISTEMA") return "system"
+  return yoId !== null && m.usuarioId === yoId ? "own" : "peer"
+}
 
-  useEffect(() => {
-    const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [ultimoId, estaPensando])
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current
-    if (!el || distanciaAlFondo.current === null) return
-    el.scrollTop = el.scrollHeight - distanciaAlFondo.current
-    distanciaAlFondo.current = null
-  }, [primerId])
-
-  function handleCargarAnteriores() {
-    const el = scrollRef.current
-    if (el) distanciaAlFondo.current = el.scrollHeight - el.scrollTop
-    onCargarAnteriores()
-  }
-
+/** Hilo del Equipo: separador de día, agrupación por autor y estado de Senior Dev. */
+export function ChatMessageList({ mensajes, yoId, miUsername, hayMas, cargandoAnteriores, onCargarAnteriores, iaEstado, miRol, proyectoId }: ChatMessageListProps) {
   return (
-    <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
-      {hayMas && (
-        <div className="flex justify-center">
-          <Button variant="ghost" size="sm" disabled={cargandoAnteriores} onClick={handleCargarAnteriores}>
-            {cargandoAnteriores ? <Loader2 className="animate-spin" /> : <History />}
-            Cargar anteriores
-          </Button>
-        </div>
+    <ChatThread hasMore={hayMas} loadingMore={cargandoAnteriores} onLoadMore={onCargarAnteriores}>
+      {mensajes.map((m, i) => {
+        const prev = mensajes[i - 1]
+        const variant = varianteDe(m, yoId)
+        const nuevoDia = cambiaDeDia(prev?.createdAt, m.createdAt)
+        const grouped =
+          !nuevoDia &&
+          debeAgrupar(
+            prev && { autorKey: nombreAutor(prev), iso: prev.createdAt, variant: varianteDe(prev, yoId) },
+            { autorKey: nombreAutor(m), iso: m.createdAt, variant }
+          )
+        return (
+          <ChatThreadItem key={m.id} messageId={String(m.id)}>
+            {nuevoDia && <ChatDaySeparator iso={m.createdAt} />}
+            <ChatMessageItem
+              mensaje={m}
+              variant={variant}
+              grouped={grouped}
+              mensajes={mensajes}
+              miUsername={miUsername}
+              miRol={miRol}
+              proyectoId={proyectoId}
+            />
+          </ChatThreadItem>
+        )
+      })}
+      {iaEstado?.estado === "PENSANDO" && (
+        <ChatThreadItem messageId="ia-pensando">
+          <ChatAgentStatus agentName="Senior Dev" label={iaEstado.detalle || "Leyendo el proyecto…"} />
+        </ChatThreadItem>
       )}
-      {mensajes.map((m) => (
-        <ChatMessageItem
-          key={m.id}
-          mensaje={m}
-          esPropio={yoId !== null && m.usuarioId === yoId}
-          mensajes={mensajes}
-          miRol={miRol}
-          proyectoId={proyectoId ?? m.proyectoId}
-        />
-      ))}
-      {estaPensando && <ChatThinkingIndicator detalle={iaEstado?.detalle} />}
-    </div>
+    </ChatThread>
   )
 }

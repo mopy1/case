@@ -13,6 +13,7 @@ Copilot IA. Producción: https://casetool-sw.duckdns.org (misma origin que la AP
 | Estilos | `tailwindcss` v4 (`@tailwindcss/vite`), `tw-animate-css`, `shadcn/tailwind.css` | 4.3 |
 | Componentes | shadcn estilo `base-luma` sobre `@base-ui/react` (no Radix) | 1.8 |
 | `cn()` | paquete `cn` (reemplazo de clsx + tailwind-merge; `lib/utils.ts` lo re-exporta) | 0.2 |
+| Chat (scroll) | `@shadcn/react` (primitiva headless de `MessageScroller`) | 0.3 |
 | Lienzo | `@xyflow/react` (React Flow) | 12.11 |
 | Rutas | `react-router-dom` | 7.18 |
 | Tiempo real (chat) | `@stomp/stompjs` (STOMP 1.2 sobre WebSocket nativo, sin SockJS) | 7.3 |
@@ -28,10 +29,33 @@ Alias `@/` → `src/` (vite.config.ts y tsconfig.app.json).
 src/
 ├── main.tsx                  # StrictMode > BrowserRouter > ThemeProvider > ErrorBoundary > App
 ├── App.tsx                   # Rutas + React.lazy por página + TooltipProvider
-├── index.css                 # Tailwind v4, tokens OKLCH (claro/.dark), vars --visual-viewport-height/--keyboard-height
+├── index.css                 # Tailwind v4, tokens OKLCH (claro/.dark) + success/warning/mention/scrollbar/chat-measure, color-scheme, scrollbars (ver §4.1)
 ├── components/
-│   ├── ui/                   # Primitivas shadcn (generadas): alert avatar badge button card checkbox dialog
-│   │                         #   dropdown-menu empty field input label select separator skeleton tabs textarea tooltip
+│   ├── ui/                   # Primitivas shadcn (generadas): alert attachment avatar badge bubble button card checkbox
+│   │                         #   dialog dropdown-menu empty field input kbd label marker message message-scroller
+│   │                         #   select separator skeleton spinner tabs textarea tooltip
+│   ├── chat/                 # Sistema de chat COMPARTIDO por Equipo y Copilot (ver §6 "Sistema de chat compartido")
+│   │   ├── index.ts                 # barrel: todo lo de abajo
+│   │   ├── chat.types.ts            # ChatAuthor, ChatMessageVariant, ActionStatus, QuickAction, AgentStep, ChatActionButton
+│   │   ├── chat-shell.tsx           # columna header/cuerpo/composer + `@container/chat`
+│   │   ├── chat-header.tsx          # cabecera 48 px (leading, title, description, actions, banner)
+│   │   ├── chat-thread.tsx          # MessageScroller (auto-scroll, preserveScrollOnPrepend, "Cargar anteriores", ir al final) + ChatThreadItem
+│   │   ├── chat-message.tsx         # 4 variantes: own (burbuja tinted der.), peer (muted izq.), agent (documento), system (Marker)
+│   │   ├── chat-message-meta.tsx    # nombre · rol · IA · te mencionó · hora (una línea)
+│   │   ├── chat-message-actions.tsx # Copiar respuesta + slot "Guardar como ADR" (F4)
+│   │   ├── chat-avatar.tsx          # iniciales con color de identidad / Bot / Info
+│   │   ├── chat-quote.tsx           # cita compacta (respuestaAId)
+│   │   ├── chat-day-separator.tsx   # Marker "Hoy" / "Ayer" / "24 oct"
+│   │   ├── chat-agent-status.tsx    # "la IA está trabajando" (shimmer) + pasos opcionales (F3)
+│   │   ├── chat-composer.tsx        # composer con slots: quickActions, overlay, attachment, tools, error; Enter/⇧Enter
+│   │   ├── chat-composer-button.tsx # herramienta ghost icon-sm con tooltip (voz, adjuntar, Senior Dev)
+│   │   ├── chat-quick-actions.tsx   # fila (scroll-x) o columna de acciones rápidas outline (F3/F4 y sugerencias del Copilot)
+│   │   ├── chat-action-card.tsx     # tarjeta aplicable con 5 estados idle/running/done/locked/error
+│   │   ├── chat-empty.tsx · chat-error.tsx · chat-skeleton.tsx   # 4 estados
+│   │   ├── use-autosize.ts          # altura del textarea (1–8 líneas)
+│   │   ├── lib/chat-time.ts         # horaCorta (24 h), etiquetaDia, cambiaDeDia, debeAgrupar (5 min)
+│   │   └── markdown/                # message-markdown (MessageMarkdown), markdown-renderer, code-block (Copiar),
+│   │                                #   markdown-inline (@yo en tono mention), normalizer, tokenizer, markdown.types
 │   └── common/
 │       ├── ConfirmDialog.tsx       # Diálogo "¿Eliminar…?" reutilizado por todos los borrados
 │       ├── ErrorBoundary.tsx       # Error de render recuperable; se resetea con `resetKey` (ruta)
@@ -58,44 +82,31 @@ src/
         ├── types/
         │   ├── chat.types.ts          # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, ChatIaEstado, ChatIaEstadoEvent
         │   ├── chat-proposal.types.ts # ChatProposal, ChatProposalSummary, PermisosPropuesta, evaluarPermisosPropuesta
-        │   ├── mention.types.ts       # MentionItem, MentionTriggerState
-        │   └── markdown.types.ts      # MarkdownBlock, MarkdownBlockType, MarkdownInlineToken
+        │   └── mention.types.ts       # MentionItem, MentionTriggerState
         ├── api/chatApi.ts             # listarMensajes, enviarMensaje, obtenerPresencia, marcarPropuestaAplicada (apiFetch)
         ├── lib/
         │   ├── chatSocket.ts          # chatWsUrl() y chatTopics(p) (mensajes, presencia, ia)
-        │   ├── chatFormat.ts          # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
+        │   ├── chatFormat.ts          # unirMensajes (dedupe por id), etiquetaRol, nombreAutor, autorDe (→ ChatAuthor)
         │   ├── chatProposalParser.ts  # Parser puro de comandos Senior Dev y extracción de texto conceptual limpio
-        │   ├── chatProposalStorage.ts # Persistencia en localStorage de propuestas aplicadas por proyecto
-        │   ├── chatMarkdownNormalizer.ts # Normalizador de espaciado: protege bloques ```, compacta listas y expande párrafos
-        │   ├── markdownBlockTokenizer.ts # AST de bloques Markdown (code, heading, blockquote, lists, paragraph)
-        │   └── markdownInline.tsx     # Inline Markdown (bold, italic, inline code, @SeniorDev y @mención propia)
+        │   └── chatProposalStorage.ts # Persistencia en localStorage de propuestas aplicadas por proyecto
         ├── hooks/
         │   ├── useChatMensajes.ts          # Historial + envío REST
         │   ├── useChatSocket.ts            # STOMP multicanal
         │   ├── useChatSala.ts              # Orquesta presencia + IA
         │   ├── useChatProposalExecutor.ts  # Ejecución de propuestas en lote, toast feedback y estado reactivo
         │   ├── useMentionTrigger.ts        # Detección de @query, filtrado y navegación de teclado (flechas/Enter/Tab/Esc)
-        │   └── useChatVoiceInput.ts        # Integración con Web Speech API sin sobrescribir texto previo
-        └── components/
-            ├── chat-team-view.tsx            # Contenedor principal con candidatos de mención, filtro de menciones, miRol y layout
-            ├── chat-presence-bar.tsx         # Barra de presencia y estado WS
-            ├── chat-mentions-filter.tsx      # Barra de filtrado superior (Todos, Mis menciones con badge, selector por miembro)
-            ├── chat-message-list.tsx         # Scroll virtual/automático y propagación de miRol / proyectoId
-            ├── chat-message-item.tsx         # Mensaje con avatar, roles, badge "@ Te mencionaron", texto limpio y propuesta
-            ├── chat-proposal-card.tsx        # Tarjeta contenedora interactiva de propuesta de arquitectura
-            ├── chat-proposal-summary.tsx     # Badges/chips de cambios proyectados (tablas, atributos, relaciones, ADRs)
-            ├── chat-proposal-action-button.tsx # Botón de aplicación con RBAC (ADMIN/COLABORADOR vs LECTOR)
-            ├── chat-message-content.tsx      # Normalizador, tokenizador AST y ChatMarkdownRenderer unificado (Chat y Copilot)
-            ├── chat-markdown-renderer.tsx    # Renderizado estructurado de bloques Markdown
-            ├── chat-code-block.tsx           # Bloque de código con header de lenguaje y botón "Copiar" (2s feedback)
-            ├── chat-quoted-message.tsx       # Cita visual al mensaje referenciado
-            ├── chat-thinking-indicator.tsx   # Indicador animado de pensamiento del Senior Dev
-            ├── chat-input.tsx                # Input con autocompletado @, botón +@SeniorDev, voz y hotkeys
-            ├── chat-mention-popover.tsx      # Popover flotante con sugerencias de mención
-            ├── chat-mention-item.tsx         # Renglón de sugerencia (avatar, username, rol/IA)
-            ├── chat-voice-button.tsx         # Botón de micrófono con estado pulsante y tooltip
-            ├── chat-empty-state.tsx          # Estado inicial accionable
-            └── chat-skeleton.tsx             # Skeleton de carga
+        │   └── useChatVoiceInput.ts        # Web Speech API acumulativa (baseTextRef)
+        └── components/                     # Adaptadores de dominio sobre components/chat (sin estilos de mensaje propios)
+            ├── chat-team-view.tsx        # ChatShell + 4 estados + filtro de menciones + candidatos
+            ├── team-header.tsx           # ChatHeader: presencia (AvatarGroup máx. 3), punto de estado WS, banner de filtro
+            ├── team-filter-menu.tsx      # DropdownMenu radio: Todos / Mis menciones (n) / por miembro o SeniorDev
+            ├── chat-message-list.tsx     # ChatThread + separador de día + agrupación + ChatAgentStatus (PENSANDO)
+            ├── chat-message-item.tsx     # ChatMensaje → ChatMessage (+ ChatQuote, ChatMessageActions, propuesta)
+            ├── chat-proposal-card.tsx    # ChatActionCard (Layers) con RBAC, running/done "Aplicado por @x", slot `secondary`
+            ├── chat-proposal-summary.tsx # Badges outline + 4 detalles y "Ver N más" (sin scroll interno)
+            ├── team-composer.tsx         # ChatComposer: menciones (popover + NAV_KEYS), botón Senior Dev, voz; slot quickActions
+            ├── chat-mention-popover.tsx  # listbox flotante sobre el composer
+            └── chat-mention-item.tsx     # renglón: ChatAvatar sm, @usuario, rol o IA
 ```
 
 Convención por feature: `api/` (llamadas HTTP), `hooks/` (estado + mutaciones), `components/`,
@@ -126,11 +137,27 @@ URL al código. Todas las páginas se cargan con `React.lazy` + `Suspense`.
   El cierre `X` vive en la fila de pestañas (`CopilotHeader.onClose` es opcional). Como el `<aside>` siempre
   está montado, el WebSocket del chat vive mientras el usuario está dentro del proyecto ("en la sala" =
   proyecto abierto), aunque el panel esté cerrado o en la otra pestaña. Abierto/cerrado en localStorage `sw_case_copilot_open` (solo escritorio).
-  Escritorio (>= 768px): acoplado y redimensionable 280–720px (`usePanelResize`, localStorage
-  `sw_case_copilot_width`, doble clic resetea a 350). Móvil: inicia cerrado; drawer `fixed` con backdrop.
+  Escritorio (>= 768px): acoplado y redimensionable (`usePanelResize` + `PanelResizeHandle`, ver §4.2).
+  Móvil: inicia cerrado; drawer `fixed` a todo el ancho (`sm:max-w-[420px] md:max-w-none`) con backdrop.
 - **Modo Pantalla Completa del Chat / Copilot (`isChatFullScreen`):** botón en la barra superior de pestañas (`copilot-panel-tabs.tsx`, icono `Maximize2` / `Minimize2`). Al activarse, oculta el `<main>` central (`hidden`) y expande el panel lateral al 100% del ancho disponible, manteniendo visible únicamente el `ProjectNavRail` a la izquierda. Se restaura con el botón de minimizar o presionando la tecla `Escape`.
 - `usePushToTalk` + `VoicePushToTalkHud`: el texto dictado se envía al Copilot con el evento de
   ventana `copilot:voice-submit`.
+
+### 4.1 Tokens y scrollbars (`index.css`)
+- Tokens nuevos (claro/oscuro): `--success`, `--warning`, `--mention` (+ `--color-*` en `@theme inline`), `--scrollbar-thumb(-hover)`,
+  `--chat-measure: 68ch`. En chat/copilot no se usan `emerald/amber/rose/sky/indigo`: `success`, `warning`, `mention`, `destructive`.
+  Única excepción a los tokens: la paleta de identidad de `lib/avatar.ts` (`bg-*-500/15 text-*-700 dark:text-*-300`).
+- Scrollbars en toda la app: `:root { color-scheme: light }` / `.dark { color-scheme: dark }` (causa raíz de las barras blancas en
+  oscuro en Chrome/Edge), `html { scrollbar-color: var(--scrollbar-thumb) transparent }`, `* { scrollbar-width: thin }` y respaldo
+  `::-webkit-scrollbar*`. Utilidades `scrollbar-thin`, `scrollbar-gutter-stable`, `scrollbar-thumb-transparent`, `scrollbar-track-transparent`
+  y `scrollbar-hover` (las pide `MessageScroller` y no vienen en `shadcn/tailwind.css`).
+
+### 4.2 Resize del panel (`features/copilot/hooks/usePanelResize.ts`, `components/panel-resize-handle.tsx`)
+- `PANEL_MIN` 320 · `PANEL_DEFAULT` 420 · máx. `max(320, min(vw − 56 − 360, round(vw·0.7)))` (1440 → 1008, 1920 → 1344; el lienzo
+  nunca queda < 360 px). El ancho preferido se guarda en `sw_case_copilot_width` **al soltar** y se re-ajusta (clamp) al cambiar la ventana.
+- Divisor `role="separator"` con `aria-valuemin/max/now`, pointer capture (React Flow no roba el puntero), píldora visible que se pone
+  `bg-primary` con hover/foco/arrastre, tooltip, doble clic → 420, teclado: ←/→ ±16, Shift ±64, Home = mín., End = máx., Enter = 420.
+- Pantalla completa (`isChatFullScreen`) ignora el ancho; el hilo y el composer se centran en `max-w-3xl` y la prosa IA en `--chat-measure`.
 
 ## 5. Cliente HTTP (`lib/api.ts`)
 
@@ -206,8 +233,17 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   `templates/*.template` (`?raw`, `mavenWrapperLoader.ts`).
 
 ### copilot
-- `useCopilot(proyectoId)`: historial en memoria (se pierde al recargar), sección activa según la URL,
+- `useCopilot(proyectoId)`: historial en memoria (se pierde al recargar; arranca vacío, sin mensaje de bienvenida falso),
+  `timestamp` ISO (se muestra con `horaCorta`, 24 h), sección activa según la URL,
   "Modo Autónomo" (localStorage `sw_case_copilot_auto_mode`: aplica todas las sugerencias sin clic).
+- UI sobre el sistema compartido (`components/chat`): `copilot-assistant-view` (ChatShell; vacío = `ChatEmpty` con la 1.ª sugerencia de
+  la sección como primaria y el resto en `ChatQuickActions layout="stack"`), `copilot-header` (ChatHeader "Solo vos lo ves · sección",
+  toggle Autónomo `aria-pressed` en tono warning + banner con "Desactivar", reinicio con `ConfirmDialog`), `copilot-message-list`
+  (ChatThread + `ChatAgentStatus` "Leyendo el diagrama…"), `copilot-message-item` (own/agent; imagen adjunta en la burbuja; Copiar),
+  `copilot-composer` (ChatComposer: foto con `CopilotImageButton`/`CopilotImagePreview` (Attachment), voz con comandos "enviar"/"detener"),
+  `copilot-apply-all-button` (barra "N cambios sugeridos · Aplicar todos", primaria con ≥ 2 pendientes), `copilot-card-list`
+  (primeras 3 + "Ver N sugerencias más"; con 1 pendiente esa tarjeta es la primaria) y 8 `copilot-*-card` sobre `ChatActionCard`
+  (`copilot-card.types.ts`: props base + `estadoTarjeta`). Placeholders cortos en `copilotPlaceholders.ts`.
 - Flujo de `sendMessage(texto, imagen?)`: `GET` diagrama → `askCopilot` (`lib/geminiService.ts`):
   1. Con imagen → Gemini Vision (`geminiVisionService.ts`), modelos en orden `gemini-3.5-flash-lite`,
      `gemini-3.5-flash`, `gemini-2.0-flash`; clave `VITE_GEMINI_API_KEY` en la query `?key=`.
@@ -242,31 +278,27 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 - `useChatSala`: en cada `onConnect` pide `GET .../presencia` (snapshot); si el historial había fallado (backend caído al
   entrar) hace `recargar()` solo, y si es reconexión `sincronizar()` (GET últimos + unión) para recuperar lo perdido. El propio usuario se agrega a "en la sala" si está conectado.
   El emisor recibe su mensaje por REST y por WS: `unirMensajes` deduplica por `id`. Maneja el estado `iaPensando` ante eventos de IA.
-- UI y Componentes F2 y F2+ (Mejoras avanzadas de Chat Grupal):
-  - **Menciones dinámicas con `@` estilo WhatsApp/Slack (`useMentionTrigger`, `ChatMentionPopover`, `ChatMentionItem`):**
-    Detecta `@query` en tiempo real desde el cursor; abre un popover accesible sobre el input con filtrado instantáneo por coincidencia insensible a mayúsculas/minúsculas. Incluye tanto al bot `@SeniorDev` (con icono de bot y badge IA) como a los miembros reales del proyecto cargados con `useProjectMembers` (con sus avatares, usernames y badges de rol).
-    - **Navegación robusta por teclado:** Se corrigió el bug de navegación de flechas ignorando `NAV_KEYS` (`ArrowUp`, `ArrowDown`, `Enter`, etc.) en el evento `onKeyUp` del `ChatInput`, garantizando que la selección cíclica fluya sin que se reinicie el índice a 0.
-  - **Filtro de menciones y resaltado personal (`ChatMentionsFilter`, `ChatMessageItem`, `markdownInline`):**
-    - **Barra de filtros superior:** Permite alternar entre "Todos", "Mis menciones" (con badge reactivo que indica el total de mensajes dirigidos al usuario actual) y un selector desplegable para filtrar por cualquier miembro o por SeniorDev.
-    - **Resaltado de mención propia:** Si un mensaje menciona al usuario actual (`@miUsername`), la tarjeta se resalta con borde y anillo ámbar (`border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/30`), incluye una insignia destacada `@ Te mencionaron` en la cabecera, y la mención en el texto se estiliza en tono ámbar distintivo.
-  - **Renderizado Markdown estructurado y normalizado (`chatMarkdownNormalizer`, `markdownBlockTokenizer`, `markdownInline`, `ChatMessageContent`, `ChatMarkdownRenderer`, `ChatCodeBlock`):**
-    - **Normalización inteligente:** `normalizeMarkdownSpacing` protege bloques de código delimitados por triple backtick ```` ``` ````, compacta listas consecutivas separadas por líneas en blanco a saltos simples y expande puntos y aparte ordinarios a doble salto (`\n\n`) para evitar bloques densos de texto.
-    - **Unificación con Copilot:** `ChatMessageContent` se utiliza idénticamente en el Chat de Equipo (`ChatMessageItem`) y en el Asistente Copilot (`CopilotMessageItem`), garantizando paridad visual completa (bloques de código con botón de copia de 2 segundos, listas estilizadas, citas y negritas/cursivas).
-  - **Calibración estética en Modo Oscuro (`index.css`):**
-    Tokens OKLCH optimizados para legibilidad y contraste: `--primary` ajustado a `oklch(0.65 0.22 27)` (brillante y distinguible), `--border` reforzado al 14%, `--input` al 18%, y `--muted-foreground` a `0.75` para affordance y jerarquía visual impecable.
-  - **Transcripción por voz integrada en el chat (`useChatVoiceInput`, `ChatVoiceButton`):**
-    Usa la Web Speech API (`webkitSpeechRecognition`/`SpeechRecognition`, `es-ES`) mediante un buffer acumulativo persistente (`baseTextRef`) que permite añadir texto dictado sin sobrescribir lo que el usuario ya había escrito. El botón `ChatVoiceButton` conmuta entre reposo y grabación continua (`animate-pulse` con indicador `animate-ping` y etiqueta "Escuchando…"), deteniéndose automáticamente al enviar el mensaje.
-  - **Modo Pantalla Completa:**
-    Controlado desde `ProjectLayout.tsx` (`isChatFullScreen`) y conmutado desde `CopilotPanelTabs`, permite expandir el chat grupal para lectura cómoda de código largo o discusiones complejas, ocultando el centro y dejando visible el riel lateral de navegación (`ProjectNavRail`). Se cancela con el botón de restaurar o la tecla `Escape`.
-  - **Tarjetas de Propuestas Interactivas y RBAC (`ChatProposalCard`, `ChatProposalSummary`, `ChatProposalActionButton`, `useChatProposalExecutor`, `chatProposalParser`, `chatProposalStorage`):**
-    Senior Dev responde con análisis conceptual en prosa limpia y emite comandos estructurados al final. El cliente procesa el mensaje con `parseChatProposal`, limpiando el texto del cuerpo visible y generando una tarjeta `ChatProposalCard` si hay cambios detectados (tablas nuevas, atributos, relaciones UML, tareas Kanban o notas ADR).
-    - **Permisos de colaboración (RBAC):** `evaluarPermisosPropuesta(miRol)` valida si el usuario es `ADMIN` o `COLABORADOR` para habilitar el botón "⚡ Aplicar cambios en el proyecto". Si el usuario es `LECTOR`, el botón se deshabilita con cursor bloqueado y leyenda explicativa ("🔒 Solo ADMIN y COLABORADOR pueden aplicar cambios al proyecto.").
-    - **Ejecución y Persistencia en tiempo real:** Al presionar aplicar, `useChatProposalExecutor` ejecuta `executeAllMessageChanges`, sincroniza el estado con el backend (`POST /api/proyectos/{id}/chat/mensajes/{mensajeId}/aplicar`), emite notificaciones Toast (`sonner`), actualiza `localStorage` de respaldo, y el backend difunde el mensaje actualizado por WebSocket STOMP (`/topic/proyectos/{id}/chat`), reflejando "✓ Cambios aplicados en el proyecto por @username" (o "por vos") reactivamente para todos los miembros conectados en la sala.
-  - `ChatThinkingIndicator`: burbuja animada con icono de bot y tres puntos pulsantes cuando Senior Dev está procesando una consulta.
-  - `ChatQuotedMessage`: cita visual del mensaje original al que responde el Senior Dev (`respuestaAId`), mostrando autor y extracto del contenido.
-  - `ChatMessageItem`: estilos diferenciados por rol/tipo (`USUARIO`, `IA` con badge "Senior Dev" / fondo tintado sutil, o `SISTEMA` centrado).
-  - `ChatInput`: integra el botón de atajo rápido `+ @SeniorDev`, el botón de dictado por voz `ChatVoiceButton`, el popover de menciones y atajos de teclado (`Enter` para enviar / `Shift+Enter` para salto de línea).
-  - Barra de presencia (`AvatarGroup` máx. 4 + "+N", badge emerald/ámbar/rose de conexión), 4 estados (skeleton · Alert + "Reintentar" · vacío con "Saludar al equipo" o consultar al Senior Dev · lista).
+- UI (rediseño F3/F4, "una conversación, dos salas"): todo se compone con `components/chat`. Mensaje propio a la derecha en burbuja
+  `tinted`, ajeno a la izquierda `muted` (con mención propia: `outline` con borde `mention`), Senior Dev como documento sin caja.
+  Cabecera `nombre · rol · hora` en una línea; agrupación por autor (< 5 min) y separador de día. Hora 24 h en ambos chats.
+  - **Menciones** (`useMentionTrigger`, `ChatMentionPopover`): `@query` desde el cursor, flechas/Enter/Tab/Esc; `NAV_KEYS` se ignoran
+    en `onKeyUp` para no reiniciar el índice. `@SeniorDev` y miembros reales (`useProjectMembers`). Botón Bot "Mencionar a Senior Dev".
+  - **Filtro** (`TeamFilterMenu`): Todos / Mis menciones (badge con el conteo en el trigger `@`) / por miembro o SeniorDev; con filtro
+    activo, banner `Marker` "Mostrando menciones a … · n" + "Quitar filtro". Vacío filtrado: "Nadie te mencionó todavía".
+  - **Markdown** (`components/chat/markdown`): `normalizeMarkdownSpacing` + tokenizador + render a 14 px; código con "Copiar" (2 s).
+  - **Voz** (`useChatVoiceInput`): buffer acumulativo `baseTextRef`; el botón pasa a `bg-destructive/10` con "Escuchando" (sin animate-ping).
+  - **Propuestas y RBAC** (`ChatProposalCard`): `ChatActionCard` "Propuesta de cambios · N cambios", botón primario "Aplicar N cambios";
+    LECTOR → estado `locked` con `Lock` + "Solo ADMIN y COLABORADOR pueden aplicar cambios al proyecto."; al aplicar:
+    `executeAllMessageChanges` → `POST …/chat/mensajes/{id}/aplicar` → difusión STOMP → `done` "Aplicado por @x" / "por vos" en todas las
+    ventanas; toast (`sonner`) y respaldo en localStorage.
+  - **Estados**: `ChatSkeleton` · `ChatError` (Alert + Reintentar) · `ChatEmpty` (primario "Preguntar a Senior Dev", outline "Saludar al
+    equipo") · lista. Senior Dev pensando: `ChatAgentStatus` con el `detalle` del evento `PENSANDO`.
+  - **Pantalla completa**: botón en la fila de pestañas o `Escape` para salir.
+- **Slots listos para F3/F4 (sin lógica todavía)**: `ChatMessage.sources?: string[]` ("Consultó: Diagrama · Historial" desde
+  `herramientasUsadas`), `ChatMessageActions.onSaveAdr?` (Guardar como ADR, mostrar solo a ADMIN/COLABORADOR), `ChatAgentStatus.steps?`
+  y `onCancel?`, `TeamComposer.quickActions?` (`<ChatQuickActions layout="row" …/>`, se oculta con el popover abierto),
+  `ChatProposalCard.secondary?` ("Ver DDL del modelo"), `ChatThread.loadMoreSlot?` (error inline de "Cargar anteriores"),
+  `ChatHeader.actions` (botón "Memoria").
 
 ### collaboration (solo en DiagramEditorPage)
 - `useRealtimeCollaboration(p)` combina tres mecanismos:
@@ -319,7 +351,7 @@ en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.j
 ## 10. Reglas para agentes
 
 1. Ningún archivo de código > 150 líneas (componentes idealmente < 120). Excepciones actuales:
-   `components/ui/{select,field,dropdown-menu}.tsx` (generados por shadcn; `ui/tabs.tsx` también trae el warning `only-export-components` de `tabsListVariants`, igual que `button`/`badge`) y
+   `components/ui/{select,field,dropdown-menu}.tsx` (generados por shadcn; `ui/tabs.tsx`, `ui/marker.tsx` y `ui/message-scroller.tsx` también traen el warning `only-export-components`, igual que `button`/`badge`) y
    `generator/lib/springboot/{relacionesJpa,capaServicio}.ts` (pendientes de dividir).
 2. Páginas delgadas: la lógica va en hooks/lib; HTTP siempre vía `apiFetch` (salvo auth).
 3. No cambiar contratos con el backend (paths, DTOs, enums) sin cambiar el backend y su `Endpoints.md`.
@@ -327,3 +359,6 @@ en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.j
 5. Primitivas UI: shadcn sobre Base UI (`npx shadcn add <x>`), no Radix.
 6. Verificar con `npm run build` (0 errores) y `npm run lint`.
 7. Nunca `git push`.
+8. Mensajes, composer, cabeceras, tarjetas y estados de cualquier chat se construyen con `components/chat`; prohibido estilizar
+   mensajes dentro de `features/*` o importar componentes privados entre features (lo compartido vive en `components/`).
+9. Sin emojis en la UI; nada por debajo de `text-xs`; una sola acción primaria por respuesta IA (además de Enviar).

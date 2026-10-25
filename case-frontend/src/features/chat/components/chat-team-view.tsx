@@ -1,76 +1,22 @@
 import { useMemo, useState } from "react"
-import { RotateCcw } from "lucide-react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { MessagesSquare } from "lucide-react"
+import { ChatEmpty, ChatError, ChatShell, ChatSkeleton } from "@/components/chat"
 import { Button } from "@/components/ui/button"
+import { Marker, MarkerContent } from "@/components/ui/marker"
 import { useAuth } from "@/hooks/useAuth"
 import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
-import type { RolProyecto } from "@/features/projects/types/projects.type"
 import type { MentionItem } from "../types/mention.types"
-import type { ChatMensaje } from "../types/chat.types"
 import { useChatSala } from "../hooks/useChatSala"
-import { ChatEmptyState } from "./chat-empty-state"
-import { ChatInput } from "./chat-input"
-import { ChatMentionsFilter } from "./chat-mentions-filter"
 import { ChatMessageList } from "./chat-message-list"
-import { ChatPresenceBar } from "./chat-presence-bar"
-import { ChatSkeleton } from "./chat-skeleton"
+import { TeamComposer } from "./team-composer"
+import { TeamHeader } from "./team-header"
 
-const SALUDO = "¡Hola equipo! 👋"
+const SALUDO = "¡Hola equipo!"
 const CONSULTA_IA = "@SeniorDev ¿cómo estructuramos las entidades principales del proyecto?"
-type Sala = ReturnType<typeof useChatSala>
+const menciona = (texto: string, usuario: string) => new RegExp(`@${usuario}\\b`, "i").test(texto)
 
-interface ChatTeamBodyProps {
-  sala: Sala
-  mensajes: ChatMensaje[]
-  miRol?: RolProyecto | null
-  proyectoId: number
-  onLimpiarFiltro: () => void
-}
-
-function ChatTeamBody({ sala, mensajes, miRol, proyectoId, onLimpiarFiltro }: ChatTeamBodyProps) {
-  if (sala.loading) return <ChatSkeleton />
-  if (sala.error) {
-    return (
-      <div className="flex-1 p-3">
-        <Alert variant="destructive">
-          <AlertTitle>No se pudo cargar el chat</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p>{sala.error}</p>
-            <Button variant="outline" size="sm" onClick={() => void sala.recargar()}>
-              <RotateCcw /> Reintentar
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-  if (sala.mensajes.length === 0) {
-    return <ChatEmptyState enviando={sala.enviando} onSaludar={() => void sala.enviar(SALUDO)} onConsultarIa={() => void sala.enviar(CONSULTA_IA)} />
-  }
-  if (mensajes.length === 0) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-        <p className="text-xs text-muted-foreground">No hay mensajes con la mención seleccionada.</p>
-        <Button variant="outline" size="sm" onClick={onLimpiarFiltro}>Ver todos los mensajes</Button>
-      </div>
-    )
-  }
-  return (
-    <ChatMessageList
-      mensajes={mensajes}
-      yoId={sala.yoId}
-      hayMas={sala.hayMas}
-      cargandoAnteriores={sala.cargandoAnteriores}
-      onCargarAnteriores={() => void sala.cargarAnteriores()}
-      iaEstado={sala.iaEstado}
-      miRol={miRol}
-      proyectoId={proyectoId}
-    />
-  )
-}
-
-/** Pestaña "Equipo" del panel lateral con presencia, menciones y filtro. */
+/** Pestaña "Equipo": sala en tiempo real con presencia, menciones, filtro y Senior Dev. */
 export function ChatTeamView({ proyectoId }: { proyectoId: number }) {
   const { user } = useAuth()
   const sala = useChatSala(proyectoId)
@@ -78,34 +24,79 @@ export function ChatTeamView({ proyectoId }: { proyectoId: number }) {
   const { proyecto } = useProject(proyectoId)
   const [filtro, setFiltro] = useState<string | null>(null)
 
-  const candidatos = useMemo<MentionItem[]>(() => {
-    const lista: MentionItem[] = [{ id: "seniordev", username: "SeniorDev", nombreMostrar: "Senior Dev", esIa: true }]
-    for (const m of miembros) {
-      lista.push({ id: m.usuarioId, username: m.username, nombreMostrar: m.username, esIa: false, rol: m.rol, email: m.email })
-    }
-    return lista
-  }, [miembros])
-
-  const totalMisMenciones = useMemo(() => {
-    if (!user?.username) return 0
-    const re = new RegExp(`@${user.username}\\b`, "i")
-    return sala.mensajes.filter((m) => re.test(m.contenido)).length
-  }, [sala.mensajes, user])
-
-  const mensajesFiltrados = useMemo(() => {
-    if (!filtro) return sala.mensajes
-    const target = filtro === "yo" ? user?.username : filtro
-    if (!target) return sala.mensajes
-    const re = new RegExp(`@${target}\\b`, "i")
-    return sala.mensajes.filter((m) => re.test(m.contenido))
+  const candidatos = useMemo<MentionItem[]>(
+    () => [
+      { id: "seniordev", username: "SeniorDev", nombreMostrar: "Senior Dev", esIa: true },
+      ...miembros.map((m) => ({ id: m.usuarioId, username: m.username, nombreMostrar: m.username, esIa: false, rol: m.rol, email: m.email })),
+    ],
+    [miembros]
+  )
+  const totalMisMenciones = useMemo(
+    () => (user?.username ? sala.mensajes.filter((m) => menciona(m.contenido, user.username)).length : 0),
+    [sala.mensajes, user]
+  )
+  const mensajes = useMemo(() => {
+    const objetivo = filtro === "yo" ? user?.username : filtro
+    return objetivo ? sala.mensajes.filter((m) => menciona(m.contenido, objetivo)) : sala.mensajes
   }, [filtro, sala.mensajes, user])
 
+  function cuerpo() {
+    if (sala.loading) return <ChatSkeleton />
+    if (sala.error) return <ChatError title="No se pudo cargar el chat" message={sala.error} onRetry={() => void sala.recargar()} />
+    if (sala.mensajes.length === 0) {
+      return (
+        <ChatEmpty
+          icon={MessagesSquare}
+          title="La sala está vacía"
+          description="Lo que escribas acá lo ve todo el equipo. Mencioná a @SeniorDev para pedirle una revisión."
+          primaryAction={{ label: "Preguntar a Senior Dev", onClick: () => void sala.enviar(CONSULTA_IA), loading: sala.enviando }}
+          secondaryAction={{ label: "Saludar al equipo", onClick: () => void sala.enviar(SALUDO), loading: sala.enviando }}
+        />
+      )
+    }
+    if (mensajes.length === 0) {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
+          <Marker className="w-auto">
+            <MarkerContent>{filtro === "yo" ? "Nadie te mencionó todavía" : `Nadie mencionó a @${filtro} todavía`}</MarkerContent>
+          </Marker>
+          <Button variant="outline" size="sm" onClick={() => setFiltro(null)}>
+            Ver todos los mensajes
+          </Button>
+        </div>
+      )
+    }
+    return (
+      <ChatMessageList
+        mensajes={mensajes}
+        yoId={sala.yoId}
+        miUsername={user?.username}
+        hayMas={sala.hayMas}
+        cargandoAnteriores={sala.cargandoAnteriores}
+        onCargarAnteriores={() => void sala.cargarAnteriores()}
+        iaEstado={sala.iaEstado}
+        miRol={proyecto?.miRol ?? null}
+        proyectoId={proyectoId}
+      />
+    )
+  }
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ChatPresenceBar usuarios={sala.enSala} estado={sala.estado} />
-      <ChatMentionsFilter filtroActivo={filtro} onCambiarFiltro={setFiltro} totalMisMenciones={totalMisMenciones} candidatos={candidatos} />
-      <ChatTeamBody sala={sala} mensajes={mensajesFiltrados} miRol={proyecto?.miRol ?? null} proyectoId={proyectoId} onLimpiarFiltro={() => setFiltro(null)} />
-      {!sala.loading && <ChatInput enviando={sala.enviando} errorEnvio={sala.errorEnvio} onEnviar={sala.enviar} candidatos={candidatos} />}
-    </div>
+    <ChatShell
+      header={
+        <TeamHeader
+          usuarios={sala.enSala}
+          estado={sala.estado}
+          filtro={filtro}
+          onFiltroChange={setFiltro}
+          totalMisMenciones={totalMisMenciones}
+          totalFiltrados={mensajes.length}
+          candidatos={candidatos}
+        />
+      }
+      composer={!sala.loading && <TeamComposer enviando={sala.enviando} errorEnvio={sala.errorEnvio} onEnviar={sala.enviar} candidatos={candidatos} />}
+    >
+      {cuerpo()}
+    </ChatShell>
   )
 }

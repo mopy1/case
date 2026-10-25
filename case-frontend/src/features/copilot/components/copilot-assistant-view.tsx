@@ -1,73 +1,75 @@
 import { useEffect } from "react"
+import { Bot } from "lucide-react"
+import { ChatEmpty, ChatQuickActions, ChatShell } from "@/components/chat"
+import type { QuickAction } from "@/components/chat"
 import { useCopilot } from "../hooks/useCopilot"
+import { CopilotComposer } from "./copilot-composer"
 import { CopilotHeader } from "./copilot-header"
-import { CopilotInput } from "./copilot-input"
 import { CopilotMessageList } from "./copilot-message-list"
-import { CopilotQuickSuggestions } from "./copilot-quick-suggestions"
 
-interface CopilotAssistantViewProps {
-  proyectoId: number
-}
-
-/** Pestaña "Copilot" del panel lateral: el asistente IA tal cual era antes de las pestañas. */
-export function CopilotAssistantView({ proyectoId }: CopilotAssistantViewProps) {
+/** Pestaña "Copilot": asistente individual (solo lo ve el usuario) sobre el sistema de chat compartido. */
+export function CopilotAssistantView({ proyectoId }: { proyectoId: number }) {
   const copilot = useCopilot(proyectoId)
-  const { sendMessage } = copilot
+  const { sendMessage, quickQuestions } = copilot
+  const [primera, ...resto] = quickQuestions
+  const sugerencias: QuickAction[] = resto.map((q) => ({ id: q, label: q }))
 
-  // Texto dictado con Push-to-Talk (ver `ProjectLayout`) — depende de `sendMessage` (memoizada con
-  // useCallback) y no del objeto `copilot` entero, que es nuevo en cada render.
+  // Texto dictado con push-to-talk (ver `ProjectLayout`): depende de `sendMessage` (useCallback).
   useEffect(() => {
     const onVoiceSubmit = (e: Event) => {
-      const custom = e as CustomEvent<{ text: string }>
-      if (custom.detail?.text) {
-        sendMessage(custom.detail.text)
-      }
+      const texto = (e as CustomEvent<{ text: string }>).detail?.text
+      if (texto) void sendMessage(texto)
     }
     window.addEventListener("copilot:voice-submit", onVoiceSubmit)
     return () => window.removeEventListener("copilot:voice-submit", onVoiceSubmit)
   }, [sendMessage])
 
   return (
-    <>
-      <CopilotHeader
-        section={copilot.activeSection}
-        autoMode={copilot.autoMode}
-        onToggleAutoMode={copilot.toggleAutoMode}
-        onClear={copilot.clearChat}
-      />
-
-      <CopilotMessageList
-        messages={copilot.messages}
-        loading={copilot.loading}
-        savingNoteId={copilot.savingNoteId}
-        creatingEntityKey={copilot.creatingEntityKey}
-        creatingRelationKey={copilot.creatingRelationKey}
-        deletingRelationKey={copilot.deletingRelationKey}
-        creatingAttributeKey={copilot.creatingAttributeKey}
-        deletingEntityKey={copilot.deletingEntityKey}
-        creatingTaskKey={copilot.creatingTaskKey}
-        executingSystemActionKey={copilot.executingSystemActionKey}
-        applyingAllMessageId={copilot.applyingAllMessageId}
-        onSaveAdr={copilot.handleSaveAdr}
-        onCreateEntity={copilot.handleCreateEntity}
-        onCreateRelation={copilot.handleCreateRelation}
-        onDeleteRelation={copilot.handleDeleteRelation}
-        onCreateAttribute={copilot.handleCreateAttribute}
-        onDeleteEntity={copilot.handleDeleteEntity}
-        onCreateTask={copilot.handleCreateTask}
-        onExecuteSystemAction={copilot.handleExecuteSystemAction}
-        onApplyAll={copilot.handleApplyAll}
-      />
-
-      {copilot.messages.length <= 1 && (
-        <CopilotQuickSuggestions
-          questions={copilot.quickQuestions}
-          onSelect={copilot.sendMessage}
-          disabled={copilot.loading}
+    <ChatShell
+      header={
+        <CopilotHeader
+          section={copilot.activeSection}
+          autoMode={copilot.autoMode}
+          onToggleAutoMode={copilot.toggleAutoMode}
+          onClear={copilot.clearChat}
+          canClear={copilot.messages.length > 0}
+        />
+      }
+      composer={<CopilotComposer section={copilot.activeSection} loading={copilot.loading} onSend={sendMessage} />}
+    >
+      {copilot.messages.length === 0 && !copilot.loading ? (
+        <ChatEmpty
+          icon={Bot}
+          title="Tu asistente del diagrama"
+          description="Lo que hablés acá lo ves solo vos. Pedile tablas, relaciones o subí la foto de un diagrama."
+          primaryAction={{ label: primera ?? "¿Qué podés hacer?", onClick: () => void sendMessage(primera ?? "¿Qué podés hacer?") }}
+        >
+          <ChatQuickActions actions={sugerencias} onSelect={(a) => void sendMessage(a.label)} ariaLabel="Sugerencias rápidas" layout="stack" />
+        </ChatEmpty>
+      ) : (
+        <CopilotMessageList
+          messages={copilot.messages}
+          loading={copilot.loading}
+          savingNoteId={copilot.savingNoteId}
+          creatingEntityKey={copilot.creatingEntityKey}
+          creatingRelationKey={copilot.creatingRelationKey}
+          deletingRelationKey={copilot.deletingRelationKey}
+          creatingAttributeKey={copilot.creatingAttributeKey}
+          deletingEntityKey={copilot.deletingEntityKey}
+          creatingTaskKey={copilot.creatingTaskKey}
+          executingSystemActionKey={copilot.executingSystemActionKey}
+          applyingAllMessageId={copilot.applyingAllMessageId}
+          onSaveAdr={copilot.handleSaveAdr}
+          onCreateEntity={copilot.handleCreateEntity}
+          onCreateRelation={copilot.handleCreateRelation}
+          onDeleteRelation={copilot.handleDeleteRelation}
+          onCreateAttribute={copilot.handleCreateAttribute}
+          onDeleteEntity={copilot.handleDeleteEntity}
+          onCreateTask={copilot.handleCreateTask}
+          onExecuteSystemAction={copilot.handleExecuteSystemAction}
+          onApplyAll={copilot.handleApplyAll}
         />
       )}
-
-      <CopilotInput section={copilot.activeSection} loading={copilot.loading} onSend={copilot.sendMessage} />
-    </>
+    </ChatShell>
   )
 }
