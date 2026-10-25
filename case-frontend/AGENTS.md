@@ -1,145 +1,235 @@
-# 🤖 Guía Técnica de Arquitectura Frontend — CASE Tool (React 19 v1.0)
+# case-frontend — Guía técnica (estado real del código)
 
-> **Documento para Agentes de IA y Desarrolladores.**  
-> Esta guía define el estado actual, la estructura real de componentes, los patrones de diseño y las reglas operativas del frontend. **Especificación técnica viva del sistema v1.0.**
+SPA del CASE Tool: modelado UML/ER colaborativo, Kanban, notas ADR, XMI, generador Spring Boot y
+Copilot IA. Producción: https://casetool-sw.duckdns.org (misma origin que la API, vía Nginx).
 
----
+## 1. Stack (versiones instaladas)
 
-## 🎯 1. Stack Tecnológico y Arquitectura
+| Pieza | Paquete | Versión |
+| --- | --- | --- |
+| UI | `react`, `react-dom` | 19.2 |
+| Lenguaje | `typescript` (strict por defecto de TS 6; `tsconfig.app.json` no lo declara) | 6.0 |
+| Bundler | `vite` + `@vitejs/plugin-react` | 8.2 |
+| Estilos | `tailwindcss` v4 (`@tailwindcss/vite`), `tw-animate-css`, `shadcn/tailwind.css` | 4.3 |
+| Componentes | shadcn estilo `base-luma` sobre `@base-ui/react` (no Radix) | 1.8 |
+| `cn()` | paquete `cn` (reemplazo de clsx + tailwind-merge; `lib/utils.ts` lo re-exporta) | 0.2 |
+| Lienzo | `@xyflow/react` (React Flow) | 12.11 |
+| Rutas | `react-router-dom` | 7.18 |
+| ZIP | `jszip` + `file-saver` | — |
+| Iconos / fuente | `lucide-react`, `@fontsource-variable/inter` | — |
+| Lint | `oxlint` (`.oxlintrc.json`: plugins react, typescript, oxc) | 1.79 |
 
-- **Librería Core:** React 19 (`react`, `react-dom`)
-- **Lenguaje:** TypeScript 5.x (modo estricto)
-- **Tooling & Bundler:** Vite 8.x
-- **Estilos:** Tailwind CSS v4 (`@import "tailwindcss"`) + animaciones semánticas
-- **Sistema de Componentes:** shadcn / Base UI (`@base-ui/react`, variante `base-luma`)
-- **Canvas / Diagramación:** React Flow (`@xyflow/react` v12.4+)
-- **Iconografía:** Lucide React (`lucide-react`)
-- **Enrutamiento:** React Router DOM v7 (`react-router-dom`)
-- **Tipografía:** Inter Variable (`@fontsource-variable/inter`)
-- **Compresión Binaria:** JSZip + FileSaver (empaquetado ZIP client-side)
+Alias `@/` → `src/` (vite.config.ts y tsconfig.app.json).
 
----
-
-## 🏗️ 2. Estructura Real del Código Fuente
+## 2. Árbol de `src/` (verificado con `find`)
 
 ```text
-case-frontend/src/
-├── App.tsx                                   # Enrutamiento principal con Code-Splitting (React.lazy + Suspense)
-├── main.tsx                                  # Entrada: importa @xyflow/react/dist/style.css antes de index.css
-├── index.css                                 # Tokens semánticos de tema en OKLCH (.dark) y estilos de React Flow
-│
+src/
+├── main.tsx                  # StrictMode > BrowserRouter > ThemeProvider > ErrorBoundary > App
+├── App.tsx                   # Rutas + React.lazy por página + TooltipProvider
+├── index.css                 # Tailwind v4, tokens OKLCH (claro/.dark), vars --visual-viewport-height/--keyboard-height
 ├── components/
-│   ├── ui/                                   # 🧩 Primitivas visuales shadcn (Base UI + Tailwind v4)
-│   │   ├── button.tsx, card.tsx, input.tsx, select.tsx, dialog.tsx, dropdown-menu.tsx,
-│   │   ├── tooltip.tsx, badge.tsx, alert.tsx, skeleton.tsx, textarea.tsx, separator.tsx, etc.
-│   └── common/                               # 🪟 Componentes de UI transversales reutilizables
-│       ├── ConfirmDialog.tsx                 # Modal de confirmación para borrado de entidades/tareas/miembros
-│       ├── UserAvatarMenu.tsx                # Avatar con menú dropdown de usuario y logout unificado
-│       └── project-nav-rail/                 # Riel de navegación lateral con enlaces, colaboradores y botón IA
-│           ├── index.ts, project-nav-rail.tsx, project-nav-rail.data.ts
-│
-├── layouts/
-│   └── ProjectLayout.tsx                     # Shell de proyecto con riel de navegación y Copilot adaptativo
-│
+│   ├── ui/                   # Primitivas shadcn (generadas): alert avatar badge button card checkbox dialog
+│   │                         #   dropdown-menu empty field input label select separator skeleton textarea tooltip
+│   └── common/
+│       ├── ConfirmDialog.tsx       # Diálogo "¿Eliminar…?" reutilizado por todos los borrados
+│       ├── ErrorBoundary.tsx       # Error de render recuperable; se resetea con `resetKey` (ruta)
+│       ├── ThemeToggle.tsx         # Botón claro/oscuro
+│       ├── UserAvatarMenu.tsx      # Menú de usuario: tema + cerrar sesión
+│       └── project-nav-rail/       # Riel lateral del proyecto (index.ts, project-nav-rail.tsx, .data.ts)
+├── contexts/ThemeContext.tsx # Tema "dark"|"light" en localStorage `casetool_theme` (index.html lo aplica antes de montar)
 ├── hooks/
-│   ├── useAuth.ts                            # Hook de sesión: consulta /api/v1/auth/me, expone login() y logout()
-│   └── useIsMobile.ts                        # Detección reactiva de pantallas móviles (< 768px)
-│
+│   ├── useAuth.ts            # Lee `user` de localStorage; `logout()` borra token+user (no llama al backend)
+│   └── useIsMobile.ts        # matchMedia < 768px
+├── layouts/ProjectLayout.tsx # Shell de /proyectos/:id (ver §4)
 ├── lib/
-│   ├── api.ts                                # Cliente apiFetch() con Bearer JWT, manejo de 401, Blob y FormData
-│   ├── avatar.ts                             # Generador determinístico de iniciales y colores de usuario
-│   ├── projectCode.ts                        # Ofuscación bidireccional determinista de IDs (prj-xxxxxx) estilo Stripe
-│   └── utils.ts                              # Helper cn() para mezclar clases con clsx y twMerge
-│
+│   ├── api.ts                # apiFetch, API_URL, parseErrorMessage, mensajeDeError
+│   ├── avatar.ts             # colorAvatar(id), iniciales(username)
+│   ├── descargarArchivo.ts   # descargarBlob(blob, nombre) — <a download> sintético
+│   ├── projectCode.ts        # encode/decodeProjectId: id numérico <-> "prj-xxxx" (afín mod 2^32, reversible)
+│   └── utils.ts              # export { cn } from "cn"
 ├── routes/
-│   ├── ProtectedRoute.tsx                    # Guarda de rutas: exige JWT, si no redirige a /login
-│   └── GuestRoute.tsx                        # Guarda para invitados: redirige a /proyectos si ya hay sesión activa
-│
-└── features/                                 # 🚀 Vertical Slices de Negocio
-    ├── auth/                                 # 🔑 Autenticación (Login y Registro)
-    │   ├── api/authApi.ts, components/login-form/, components/register-form/
-    │   ├── hooks/useLogin.ts, useRegister.ts, pages/LoginPage.tsx, RegisterPage.tsx
-    │
-    ├── projects/                             # 📁 Gestión de Proyectos y Colaboradores
-    │   ├── api/projectsApi.ts, components/create-project-dialog/, components/project-card/
-    │   ├── components/project-members-dialog/ (gestión de roles ADMIN, COLABORADOR, LECTOR)
-    │   ├── hooks/useProjects.ts, useProject.ts, useProjectMembers.ts, useMemberMutations.ts
-    │   └── pages/ProjectsDashboardPage.tsx   # Dashboard con búsqueda instantánea en memoria
-    │
-    ├── diagram/                              # 📐 Lienzo UML Interactivo (React Flow)
-    │   ├── api/diagramApi.ts
-    │   ├── components/nodes/EntityNode.tsx   # Nodo de tabla con handles, tipos SQL, PKs y badge N:M
-    │   ├── components/edges/                 # Aristas UML con marcadores visuales (Asoc, Comp, Agreg, Heren)
-    │   │   ├── UmlRelationEdge.tsx, UmlRelationToolbar.tsx, UmlRelationMarkers.tsx, MultiplicidadBadge.tsx,
-    │   │   └── PuntoControlHandle.tsx, AssociationClassOverlay.tsx, RelationCrossingOverlay.tsx
-    │   ├── components/panel/                 # Panel lateral de atributos y propiedades de tabla
-    │   │   ├── entity-properties-panel.tsx, attribute-form-dialog.tsx
-    │   ├── components/toolbar/CanvasToolbar  # Barra flotante superior (+ Entidad)
-    │   ├── hooks/useDiagramCanvas.ts, useDiagram.ts, useEntityMutations.ts, useAttributeMutations.ts,
-    │   │   useRelationMutations.ts, usePuntosControlArrastre.ts
-    │   ├── lib/floatingEdge.ts, relationPath.ts, relationCrossing.ts (algoritmo AABB), controlPoints.ts
-    │   └── pages/DiagramEditorPage.tsx       # Thin Page del lienzo UML en modo oscuro
-    │
-    ├── tasks/                                # 📋 Tablero Kanban de Tareas
-    │   ├── api/tasksApi.ts, components/create-task-dialog/, components/task-card/
-    │   ├── hooks/useTasks.ts (sincronización reactiva sin recargar), useTaskMutations.ts
-    │   └── pages/ProjectTasksPage.tsx        # Kanban en 3 columnas (Pendiente, En Proceso, Completada)
-    │
-    ├── notes/                                # 📝 Bitácora de Decisiones Arquitectónicas (ADRs)
-    │   ├── api/notesApi.ts, components/create-note-dialog/, components/note-item/
-    │   ├── hooks/useNotes.ts (sincronización reactiva en tiempo real), useNoteMutations.ts
-    │   └── pages/ProjectNotesPage.tsx        # Timeline cronológico de notas de diseño
-    │
-    ├── xmi/                                  # 🔄 Interoperabilidad con Enterprise Architect
-    │   ├── api/xmiApi.ts, components/xmi-import-dialog.tsx, hooks/useXmiExchange.ts
-    │   └── pages/ProjectXmiPage.tsx          # Exportación (.xmi 1.1 EA) e importación de modelos
-    │
-    ├── generator/                            # ⚡ Generador de Backend Spring Boot Client-Side
-    │   ├── components/generator-file-tree.tsx, generator-code-viewer.tsx
-    │   ├── hooks/useProjectGenerator.ts
-    │   ├── lib/springBootGenerator.ts        # Motor TypeScript: Model JPA, DTOs con FKs, Services con inyección foránea, Controllers y OpenAPI
-    │   ├── lib/zipExporter.ts                # Empaquetado binario cliente y descarga ZIP inmediata
-    │   └── pages/ProjectGeneratorPage.tsx    # Explorador de código, visor reactivo y descarga .ZIP
-    │
-    ├── copilot/                              # 🤖 Asistente Autónomo Copilot & Visión Híbrida IA
-    │   ├── components/copilot-panel.tsx, copilot-header.tsx, copilot-input.tsx, copilot-image-attach.tsx
-    │   ├── components/copilot-message-list.tsx, copilot-message-item.tsx, copilot-card-list.tsx
-    │   ├── components/tarjetas/              # Tarjetas interactivas (entidad, relación, ADR, tarea, atributo)
-    │   ├── hooks/useCopilot.ts, usePanelResize.ts, useCopilotActionHandlers.ts
-    │   └── lib/geminiService.ts (Router: DeepSeek texto / Gemini fotos), geminiVisionService.ts,
-    │       copilotImageUtils.ts (compresión canvas), copilotBatchExecutor.ts, copilotKnowledge.ts
-    │
-    ├── collaboration/                        # 👥 Colaboración en Tiempo Real (Presencia & Cursores)
-    │   ├── api/collaborationApi.ts
-    │   ├── components/collaborator-presence-bar.tsx, remote-cursors-layer.tsx
-    │   ├── hooks/useRealtimeCollaboration.ts (canal híbrido BroadcastChannel + HTTP Backend),
-    │   │   useHttpPresence.ts, useDiagramPolling.ts (auto-detección silenciosa de mutaciones)
-    │   └── lib/collaborationUtils.ts
-    │
-    └── voice/                                # 🎙️ Reconocimiento de Voz & Push-to-Talk
-        ├── components/voice-mic-button.tsx, voice-push-to-talk-hud.tsx (HUD fluido para celular)
-        └── hooks/useSpeechRecognition.ts (Web Speech API), usePushToTalk.ts (Modo Walkie-Talkie)
+│   ├── ProtectedRoute.tsx    # Sin token en localStorage → /login
+│   └── GuestRoute.tsx        # Con token → /proyectos
+└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, collaboration, voice
 ```
 
----
+Convención por feature: `api/` (llamadas HTTP), `hooks/` (estado + mutaciones), `components/`,
+`lib/` (lógica pura), `pages/` (página delgada), `types/`.
 
-## 📐 3. Principios y Convenciones de Arquitectura
+## 3. Enrutamiento (`App.tsx`)
 
-1. **Regla Anti-1k-Lines (Límite estricto de líneas):**
-   - Ningún archivo de código debe exceder las **150 líneas**. Todo componente grande debe dividirse en subcomponentes, custom hooks (`use*.ts`) o configuraciones (`*.data.ts`).
-   - Las páginas en `pages/` son "Thin Pages": orquestan el layout sin incluir lógica pesada ni llamadas `fetch` directas.
+| Ruta | Guarda | Elemento |
+| --- | --- | --- |
+| `/` y `*` | — | Redirige a `/proyectos` o `/login` según haya `token` |
+| `/login`, `/register` | GuestRoute | LoginPage, RegisterPage |
+| `/proyectos` | ProtectedRoute | ProjectsDashboardPage |
+| `/proyectos/:id` | ProtectedRoute | ProjectLayout; index → `diagrama` |
+| `/proyectos/:id/{diagrama,tareas,notas,xmi,generador}` | ProtectedRoute | DiagramEditorPage, ProjectTasksPage, ProjectNotesPage, ProjectXmiPage, ProjectGeneratorPage |
 
-2. **Diseño Responsivo Inteligente:**
-   - **En escritorio (`>= 768px`):** El panel Copilot está acoplado lateralmente a la derecha y permite redimensionar su ancho arrastrando el divisor.
-   - **En celulares y tablets (`< 768px`):** Inicia cerrado por defecto. Al abrirse, se comporta como un **Drawer flotante deslizante (`fixed inset-y-0 right-0 z-50`) con fondo oscuro translúcido**, garantizando que el lienzo de diagramas no se aplaste ni se desborde.
+`:id` es el código ofuscado `prj-…`; un id numérico también se acepta y `ProjectLayout` reescribe la
+URL al código. Todas las páginas se cargan con `React.lazy` + `Suspense`.
 
-3. **Prevención de Errores de API y Fallback:**
-   - En [`lib/api.ts`](file:///home/lmc/projects/sw-case/case-frontend/src/lib/api.ts), `API_URL` utiliza fallback seguro a string vacío (`import.meta.env.VITE_API_URL ?? ""`), asegurando que en producción con Nginx las peticiones viajen de forma relativa hacia `/api/...` sin errores de CORS.
+## 4. Layout del proyecto (`layouts/ProjectLayout.tsx`)
 
-4. **Verificación de Compilación Obligatoria:**
-   - Todo cambio en el frontend debe ser verificado ejecutando:
-     ```bash
-     npm run build
-     ```
-     asegurando 0 errores de TypeScript (`tsc -b`) y empaquetado de Vite.
-5. **Cero Git Push:** NUNCA ejecutar `git push`. La sincronización remota corresponde al usuario.
+- `ProjectNavRail` (izquierda): volver, 5 secciones (`project-nav-rail.data.ts`), diálogo de
+  colaboradores (`ProjectMembersDialog`), avatares de miembros, tema y menú de usuario.
+- `<main>`: `<Outlet/>` dentro de `ErrorBoundary resetKey={pathname}`; si `getProject` falla muestra Alert.
+- `CopilotPanel` (derecha). Abierto/cerrado en localStorage `sw_case_copilot_open` (solo escritorio).
+  Escritorio (>= 768px): acoplado y redimensionable 280–720px (`usePanelResize`, localStorage
+  `sw_case_copilot_width`, doble clic resetea a 350). Móvil: inicia cerrado; drawer `fixed` con backdrop.
+- `usePushToTalk` + `VoicePushToTalkHud`: el texto dictado se envía al Copilot con el evento de
+  ventana `copilot:voice-submit`.
+
+## 5. Cliente HTTP (`lib/api.ts`)
+
+- `API_URL = import.meta.env.VITE_API_URL ?? ""`. Vacío en producción → rutas relativas `/api/...`.
+- `apiFetch<T>(path, { errorFallback, raw, ...RequestInit })`: agrega `Authorization: Bearer <token>`
+  (localStorage `token`), `Content-Type: application/json` si hay body y no es `FormData`.
+  401 → borra `token`/`user` y redirige a `/login`. Error → `Error(body.message ?? errorFallback)`.
+  204 → `undefined`. `raw: true` devuelve el `Response` (descarga de XMI).
+- `mensajeDeError(err, fallback?)`: texto para `setError` en los `catch` (fallback por defecto
+  "No se pudo conectar con el servidor").
+- `features/auth/api/authApi.ts` usa `fetch` directo (sin token ni manejo de 401).
+
+## 6. Features
+
+Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de la URL).
+
+### auth
+- `useLogin` / `useRegister`: `POST /auth/login` (`{usernameOrEmail, password}`) y `POST /auth/register`
+  (`{username, email, password}`) → guardan `token` y `user {id, username, email}` en localStorage y navegan a `/`.
+- Textos de formularios en `*.data.ts`.
+
+### projects
+- `useProjects` → `GET /proyectos` (lista con `miRol`). Dashboard con búsqueda en memoria por nombre.
+- `useProject(id)` → `GET /proyectos/{id}`. `useProjectMutations` → `POST /proyectos`, `PUT /proyectos/{id}`, `DELETE /proyectos/{id}`.
+- `useProjectMembers` → `GET /proyectos/{p}/miembros`. `useMemberMutations` → `POST /proyectos/{p}/miembros`
+  (`{usernameOrEmail, rol}`), `PATCH .../miembros/{usuarioId}/rol` (`{rol}`), `DELETE .../miembros/{usuarioId}`.
+- Roles `ADMIN | COLABORADOR | LECTOR`. Editar/eliminar proyecto y gestionar miembros solo se muestra a ADMIN.
+
+### diagram (React Flow)
+- `useDiagram` → `GET /proyectos/{p}/diagrama` (`{entidades, relaciones}`). `loading` solo en la carga
+  inicial; `refetch()` actualiza en silencio. Escucha el evento `project:diagram-updated`.
+- `useDiagramCanvas`: orquesta nodos/aristas (`diagramMappers.ts`), selección y mutaciones;
+  `useDiagramEntityActions` (crear en posición libre, mover al soltar, renombrar, borrar).
+- Mutaciones (`diagramApi.ts`): entidades `POST/PUT/DELETE /proyectos/{p}/entidades[/{id}]`; atributos
+  `POST/PUT/DELETE /proyectos/{p}/entidades/{e}/atributos[/{id}]`; relaciones `POST/PUT/DELETE
+  /proyectos/{p}/relaciones[/{id}]`; puntos de control `PATCH /proyectos/{p}/relaciones/{id}/puntos` (`{puntos}`).
+- Relación: `multiplicidadOrigen/Destino` ∈ `UNO | CERO_O_UNO | UNO_O_MAS | CERO_O_MAS`, `tipo` ∈
+  `ASOCIACION | COMPOSICION | AGREGACION | HERENCIA`. Conectar dos tablas crea `UNO`–`UNO` ASOCIACION.
+- Tablas: nodos `deletable: false` (se borran solo con el botón y confirmación). Relaciones: se borran
+  con Supr/Backspace o desde su toolbar.
+- `lib/`: `floatingEdge.ts` (punto de salida sobre el borde de cada tabla), `relationPath.ts` (trazado
+  con quiebres y puntos de control), `controlPoints.ts`, `relacionesDerivadas.ts` (detecta tabla
+  intermedia N:M → `AssociationClassOverlay`; offsets de relaciones paralelas), `relationCrossing.ts`
+  (muestrea los `<path>` del DOM y dibuja "saltos" en cruces), `positionGuide.ts` (grilla anti-colisión
+  de 3 columnas, también usada por el Copilot), `multiplicidad.ts`, `relationStyle.ts`.
+- `usePuntosControlArrastre`: Ctrl+arrastrar la línea agrega punto, arrastrar lo mueve, Ctrl+click lo
+  quita; estado local hasta soltar, luego persiste.
+- Panel de propiedades: renombrar tabla y CRUD de atributos (`AttributeFormDialog` + `useAttributeForm`).
+
+### tasks
+- `useTasks` → `GET /proyectos/{p}/tareas`; escucha `project:task-created|updated|deleted`.
+- `useTaskMutations` → `POST /proyectos/{p}/tareas` (`{titulo, descripcion, prioridad, usuarioId}`),
+  `PATCH .../tareas/{id}/estado` (`{estado}`), `DELETE .../tareas/{id}`; emite los eventos anteriores.
+- Kanban de 3 columnas: `PENDIENTE` (Pendiente), `EN_PROGRESO` (En progreso), `HECHO` (Hecho); se
+  avanza/retrocede con flechas. Prioridad `ALTA | MEDIA | BAJA`.
+
+### notes
+- `useNotes` → `GET /proyectos/{p}/notas`; escucha `project:note-created`. `useNoteMutations` →
+  `POST /proyectos/{p}/notas` (`{accion, motivo}`). Solo alta y lectura (sin editar/borrar en la UI).
+
+### xmi
+- `useXmiExchange`: exportar `GET /proyectos/{p}/xmi/exportar` (blob → `proyecto-{p}.xmi`); importar en
+  dos pasos: `POST .../xmi/previsualizar` (multipart `archivo`) y `POST .../xmi/importar?modo=FUSIONAR|REEMPLAZAR`,
+  luego navega a `diagrama`. El botón Importar solo se muestra a ADMIN.
+
+### generator (100% en el cliente)
+- `useProjectGenerator`: `GET` diagrama + proyecto → `generarProyectoSpringBoot(nombre, diagrama)` →
+  vista previa (árbol + visor) → `descargarProyectoZip` (JSZip, `mvnw` con permisos 755, `backend-{p}.zip`).
+- `lib/springBootGenerator.ts` orquesta; plantillas en `lib/springboot/`: `nombres.ts` (casing, tipos
+  SQL→Java, `BASE_PACKAGE com.casetool.generated`), `entidadJpa.ts` (normaliza PK), `relacionesJpa.ts`
+  (@ManyToOne/@OneToMany desde FKs y relaciones), `pomXml.ts`, `archivosConfig.ts`, `archivosCore.ts`,
+  `capaModelo|capaRepositorio|capaDto|capaServicio|capaControlador.ts`. Maven Wrapper desde
+  `templates/*.template` (`?raw`, `mavenWrapperLoader.ts`).
+
+### copilot
+- `useCopilot(proyectoId)`: historial en memoria (se pierde al recargar), sección activa según la URL,
+  "Modo Autónomo" (localStorage `sw_case_copilot_auto_mode`: aplica todas las sugerencias sin clic).
+- Flujo de `sendMessage(texto, imagen?)`: `GET` diagrama → `askCopilot` (`lib/geminiService.ts`):
+  1. Con imagen → Gemini Vision (`geminiVisionService.ts`), modelos en orden `gemini-3.5-flash-lite`,
+     `gemini-3.5-flash`, `gemini-2.0-flash`; clave `VITE_GEMINI_API_KEY` en la query `?key=`.
+  2. Solo texto → DeepSeek `https://api.deepseek.com/chat/completions`, modelo `deepseek-chat`,
+     temperature 0.3, system prompt de `copilotSystemPrompt.ts` (tablas/relaciones actuales + sintaxis
+     de comandos); clave `VITE_DEEPSEEK_API_KEY` (también acepta la variante mal escrita `VITE_DEEPSEEk_API_KEY`).
+  3. Sin clave o si DeepSeek falla → respuesta local por palabras clave (`copilotKnowledge*.ts`).
+- Las llamadas a DeepSeek/Gemini salen **directo del navegador**; las claves `VITE_*` quedan embebidas
+  en el bundle JS (ver §8).
+- La respuesta se parsea a sugerencias (`copilotParsers.ts` → `copilotDiagramParsers.ts`,
+  `copilotUmlParsers.ts`, `copilotSystemParsers.ts`): `CREAR_TABLA`/`ATRIBUTOS`, `CREAR_RELACION`,
+  `AGREGAR_ATRIBUTO`, `ELIMINAR_TABLA` (solo si el usuario pidió borrar), `ELIMINAR_RELACION`,
+  `CREAR_TAREA`, `ADR_SUGERIDA`/`MOTIVO`, `EXPORTAR_XMI`, `GENERAR_BACKEND`, `IR_A`. Cada una se
+  muestra como tarjeta aplicable (`copilot-*-card.tsx`) o en lote ("Aplicar todos", `copilotBatchExecutor.ts`).
+- Las acciones (`copilotDiagramActions.ts`, `copilotSystemActions.ts`) usan las mismas APIs de las
+  features (diagrama, tareas, notas, xmi, generador) y emiten `project:*` para refrescar las vistas.
+- Entrada: texto, dictado (`useSpeechRecognition`, comandos de voz "enviar"/"detener") y foto
+  (`copilotImageUtils.ts`: redimensiona a 1200px, JPEG 0.8, base64).
+
+### collaboration (solo en DiagramEditorPage)
+- `useRealtimeCollaboration(p)` combina tres mecanismos:
+  1. `BroadcastChannel("sw-case-collab-{p}")`: pestañas del mismo navegador; cursor cada >= 40ms,
+     ping `USER_JOIN` cada 3s, `USER_LEAVE` al desmontar.
+  2. `useHttpPresence`: `POST /proyectos/{p}/colaboracion/presencia` (`{clientId, username, color, cursor}`
+     → lista de presentes) cada 800ms y al mover el cursor (throttle 250ms);
+     `POST .../colaboracion/desconectar` (`{clientId}`) al desmontar y en `beforeunload`.
+  3. `useDiagramPolling`: `GET` diagrama cada 7s; si el JSON cambió emite `project:diagram-updated`.
+- `clientId` estable por pestaña en sessionStorage (`sw_case_client_id_{userId}`); color derivado del username.
+- UI: `CollaboratorPresenceBar` (avatares) y `RemoteCursorsLayer` (coordenadas relativas al contenedor, no al viewport del lienzo).
+
+### voice
+- `useSpeechRecognition`: Web Speech API (`SpeechRecognition`/`webkitSpeechRecognition`), `es-ES`.
+- `usePushToTalk`: mantener Espacio o V (fuera de inputs) o Ctrl+Espacio/Alt+V (dentro de inputs);
+  al soltar envía el texto (sin la palabra final "enviar/detener") y muestra el HUD.
+
+## 7. Eventos de ventana (comunicación entre features)
+
+| Evento | Emisor | Oyente |
+| --- | --- | --- |
+| `project:diagram-updated` `{proyectoId}` | acciones del Copilot, `useDiagramPolling` | `useDiagram` (refetch) |
+| `project:task-created/updated/deleted` | `useTaskMutations`, Copilot | `useTasks` |
+| `project:note-created` | Copilot | `useNotes` |
+| `copilot:voice-submit` `{text}` | `ProjectLayout` (push-to-talk) | `CopilotPanel` |
+
+## 8. Variables de entorno (Vite, se hornean en el build)
+
+| Variable | Uso | Dev (`.env`) | Prod (`.env.production`) |
+| --- | --- | --- | --- |
+| `VITE_API_URL` | Prefijo de la API | `http://localhost:8081` | vacío (rutas relativas por Nginx) |
+| `VITE_DEEPSEEK_API_KEY` | Copilot texto | clave | clave |
+| `VITE_GEMINI_API_KEY` | Copilot visión | clave | clave |
+
+Plantillas versionadas: `.env.example`, `.env.production.example`. `.env` y `.env.production` están
+en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.js`.
+
+## 9. Build y despliegue
+
+- `npm run dev` (Vite :5173) · `npm run build` (`tsc -b && vite build`) · `npm run lint` (oxlint) · `npm run preview`.
+- `Dockerfile` (dev, `docker-compose.yml` → `case_frontend` en :5173→80): build con Node 22 dentro de
+  la imagen + `nginx.dev.conf` (HTTP; `/api/` → `http://backend-app:8081/api/`; SPA con `try_files`).
+- `Dockerfile.prod` (`docker-compose.prod.yml`): **copia `dist/` ya compilado** (hay que correr
+  `npm run build` con `.env.production` antes) + `nginx.conf` (80 → 301 HTTPS; 443 con certificados
+  Let's Encrypt montados desde `/etc/letsencrypt`; `/api/` → `backend-app:8081`).
+- `deploy-aws.sh` (raíz): instala Docker si falta, crea swap y ejecuta `docker compose -f docker-compose.prod.yml up -d --build`.
+
+## 10. Reglas para agentes
+
+1. Ningún archivo de código > 150 líneas (componentes idealmente < 120). Excepciones actuales:
+   `components/ui/{select,field,dropdown-menu}.tsx` (generados por shadcn) y
+   `generator/lib/springboot/{relacionesJpa,capaServicio}.ts` (pendientes de dividir).
+2. Páginas delgadas: la lógica va en hooks/lib; HTTP siempre vía `apiFetch` (salvo auth).
+3. No cambiar contratos con el backend (paths, DTOs, enums) sin cambiar el backend y su `Endpoints.md`.
+4. `catch (err)` + `mensajeDeError(err)`; no usar `any`.
+5. Primitivas UI: shadcn sobre Base UI (`npx shadcn add <x>`), no Radix.
+6. Verificar con `npm run build` (0 errores) y `npm run lint`.
+7. Nunca `git push`.

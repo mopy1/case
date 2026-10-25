@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import type { DiagramaResponse } from "../types/diagram.types"
 import { getDiagram } from "../api/diagramApi"
+import { mensajeDeError } from "@/lib/api"
 
 const VACIO: DiagramaResponse = { entidades: [], relaciones: [] }
 
@@ -22,7 +23,7 @@ export function useDiagram(proyectoId: number) {
     setError(null)
     return getDiagram(proyectoId)
       .then((data) => setDiagrama(data))
-      .catch((err) => setError(err.message || "No se pudo conectar con el servidor"))
+      .catch((err) => setError(mensajeDeError(err)))
   }, [proyectoId])
 
   useEffect(() => {

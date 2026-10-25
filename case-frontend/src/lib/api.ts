@@ -1,8 +1,14 @@
 export const API_URL = import.meta.env.VITE_API_URL ?? ""
 
-async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
+export async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   const error = await response.json().catch(() => null)
   return error?.message ?? fallback
+}
+
+/** Texto para mostrar de un error atrapado en un `catch` (tipado `unknown`): su `message` si es un
+ * `Error` con texto, si no el `fallback`. Reemplaza al patrón `catch (err: any) { err.message || ... }`. */
+export function mensajeDeError(err: unknown, fallback = "No se pudo conectar con el servidor"): string {
+  return err instanceof Error && err.message ? err.message : fallback
 }
 
 interface ApiFetchOptions extends RequestInit {

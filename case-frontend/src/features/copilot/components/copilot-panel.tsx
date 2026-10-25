@@ -18,17 +18,20 @@ export function CopilotPanel({ proyectoId, isOpen, onClose }: CopilotPanelProps)
   const copilot = useCopilot(proyectoId)
   const isMobile = useIsMobile()
   const { width, isDragging, setIsDragging, resetWidth } = usePanelResize()
+  const { sendMessage } = copilot
 
+  // Texto dictado con Push-to-Talk (ver `ProjectLayout`) — depende de `sendMessage` (memoizada con
+  // useCallback) y no del objeto `copilot` entero, que es nuevo en cada render.
   useEffect(() => {
     const onVoiceSubmit = (e: Event) => {
       const custom = e as CustomEvent<{ text: string }>
       if (custom.detail?.text) {
-        copilot.sendMessage(custom.detail.text)
+        sendMessage(custom.detail.text)
       }
     }
     window.addEventListener("copilot:voice-submit", onVoiceSubmit)
     return () => window.removeEventListener("copilot:voice-submit", onVoiceSubmit)
-  }, [copilot])
+  }, [sendMessage])
 
   return (
     <>

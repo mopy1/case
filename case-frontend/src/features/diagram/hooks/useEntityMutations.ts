@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { EntidadDiagramaRequest } from "../types/diagram.types"
 import { createEntity, deleteEntity, updateEntity } from "../api/diagramApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useEntityMutations(proyectoId: number) {
   const [loading, setLoading] = useState(false)
@@ -11,8 +12,8 @@ export function useEntityMutations(proyectoId: number) {
     setError(null)
     try {
       return await action()
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)

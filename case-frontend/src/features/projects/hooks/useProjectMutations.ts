@@ -5,6 +5,7 @@ import {
   updateProject as updateProjectRequest,
   deleteProject as deleteProjectRequest,
 } from "../api/projectsApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useProjectMutations() {
   const [loading, setLoading] = useState(false)
@@ -15,8 +16,8 @@ export function useProjectMutations() {
     setError(null)
     try {
       return await createProjectRequest(proyecto)
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)
@@ -28,8 +29,8 @@ export function useProjectMutations() {
     setError(null)
     try {
       return await updateProjectRequest(id, proyecto)
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)
@@ -42,8 +43,8 @@ export function useProjectMutations() {
     try {
       await deleteProjectRequest(id)
       return true
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return false
     } finally {
       setLoading(false)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import type { ProyectoResponse } from "../types/projects.type"
 import { getProject } from "../api/projectsApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useProject(id: number) {
   const [proyecto, setProyecto] = useState<ProyectoResponse | null>(null)
@@ -16,7 +17,7 @@ export function useProject(id: number) {
         if (!cancelado) setProyecto(data)
       })
       .catch((err) => {
-        if (!cancelado) setError(err.message || "No se pudo conectar con el servidor")
+        if (!cancelado) setError(mensajeDeError(err))
       })
       .finally(() => {
         if (!cancelado) setLoading(false)

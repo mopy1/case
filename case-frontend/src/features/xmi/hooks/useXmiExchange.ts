@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { encodeProjectId } from "@/lib/projectCode"
 import { exportXmi, importXmi, previewXmi } from "../api/xmiApi"
 import type { ModoImportacionXmi, XmiPreviewResponse } from "../types/xmi.type"
+import { mensajeDeError } from "@/lib/api"
+import { descargarBlob } from "@/lib/descargarArchivo"
 
 /** Exportar dispara la descarga del archivo directo en el navegador (sin pasos intermedios,
  * `URL.createObjectURL` + un `<a download>` sintético). Importar es en dos pasos — primero
@@ -26,16 +28,9 @@ export function useXmiExchange(proyectoId: number) {
     setErrorExportar(null)
     try {
       const blob = await exportXmi(proyectoId)
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `proyecto-${proyectoId}.xmi`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err: any) {
-      setErrorExportar(err.message || "No se pudo exportar el XMI")
+      descargarBlob(blob, `proyecto-${proyectoId}.xmi`)
+    } catch (err) {
+      setErrorExportar(mensajeDeError(err, "No se pudo exportar el XMI"))
     } finally {
       setExportando(false)
     }
@@ -49,8 +44,8 @@ export function useXmiExchange(proyectoId: number) {
       const resultado = await previewXmi(proyectoId, archivo)
       setPreview(resultado)
       return true
-    } catch (err: any) {
-      setErrorImportar(err.message || "No se pudo leer el XMI")
+    } catch (err) {
+      setErrorImportar(mensajeDeError(err, "No se pudo leer el XMI"))
       return false
     } finally {
       setPrevisualizando(false)
@@ -64,8 +59,8 @@ export function useXmiExchange(proyectoId: number) {
       await importXmi(proyectoId, archivo, modo)
       navigate(`/proyectos/${encodeProjectId(proyectoId)}/diagrama`)
       return true
-    } catch (err: any) {
-      setErrorImportar(err.message || "No se pudo importar el XMI")
+    } catch (err) {
+      setErrorImportar(mensajeDeError(err, "No se pudo importar el XMI"))
       return false
     } finally {
       setImportando(false)

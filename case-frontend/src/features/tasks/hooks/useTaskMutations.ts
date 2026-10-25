@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { CambiarEstadoRequest, TareaRequest } from "../types/tasks.type"
 import { changeTaskStatus, createTask, deleteTask } from "../api/tasksApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useTaskMutations(proyectoId: number) {
   const [loading, setLoading] = useState(false)
@@ -11,8 +12,8 @@ export function useTaskMutations(proyectoId: number) {
     setError(null)
     try {
       return await fn()
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)

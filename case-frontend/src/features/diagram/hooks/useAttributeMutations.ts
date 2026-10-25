@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { AtributoEntidadRequest } from "../types/diagram.types"
 import { createAttribute, deleteAttribute, updateAttribute } from "../api/diagramApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useAttributeMutations(proyectoId: number, entidadId: number) {
   const [loading, setLoading] = useState(false)
@@ -11,8 +12,8 @@ export function useAttributeMutations(proyectoId: number, entidadId: number) {
     setError(null)
     try {
       return await action()
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)

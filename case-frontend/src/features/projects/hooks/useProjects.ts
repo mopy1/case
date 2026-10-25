@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import type { listarProyectosResponse } from "../types/projects.type"
 import { getMyProjects as getMyProjectsRequest } from "../api/projectsApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useProjects() {
   const [loading, setLoading] = useState(false)
@@ -13,8 +14,8 @@ export function useProjects() {
     try {
       const data = await getMyProjectsRequest()
       setProjects(data)
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
     } finally {
       setLoading(false)
     }

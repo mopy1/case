@@ -1,12 +1,9 @@
 import type { LoginRequest, RegisterRequest, AuthResponse } from "../types/auth.types"
-import { API_URL } from "@/lib/api"
+import { API_URL, parseErrorMessage } from "@/lib/api"
 
+// No usa `apiFetch`: login/registro van sin token, así que un 401 acá no es "sesión vencida" — no
+// debe limpiar la sesión ni redirigir a /login como hace `apiFetch` ante un 401.
 const AUTH_URL = `${API_URL}/api/auth`
-
-async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
-  const error = await response.json().catch(() => null)
-  return error?.message ?? fallback
-}
 
 export async function login(credentials: LoginRequest): Promise<AuthResponse> {
   const response = await fetch(`${AUTH_URL}/login`, {

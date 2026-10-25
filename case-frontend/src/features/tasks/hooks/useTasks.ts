@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import type { TareaResponse } from "../types/tasks.type"
 import { getTasks } from "../api/tasksApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useTasks(proyectoId: number) {
   const [tareas, setTareas] = useState<TareaResponse[]>([])
@@ -12,7 +13,7 @@ export function useTasks(proyectoId: number) {
     setError(null)
     getTasks(proyectoId)
       .then(setTareas)
-      .catch((err) => setError(err.message || "No se pudo conectar con el servidor"))
+      .catch((err) => setError(mensajeDeError(err)))
       .finally(() => setLoading(false))
   }, [proyectoId])
 

@@ -122,7 +122,6 @@ export function calcularSaltos(edges: Edge[]): Salto[] {
       const [m1, m2] = [muestras[i], muestras[j]]
       // Descarte rápido si las cajas contenedoras de ambas aristas ni siquiera se solapan
       if (!cajasSolapan(m1.box, m2.box)) continue
-
       // La que "salta" es siempre la de id numéricamente mayor — determinístico, no depende del
       // orden de iteración ni de cuál se dibujó encima.
       const cedeEsM1 = Number(m1.edge.id) > Number(m2.edge.id)

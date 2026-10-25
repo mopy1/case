@@ -9,7 +9,7 @@ import { createWelcomeMessage, detectActiveSection } from "../lib/copilotSection
 import { useCopilotActionHandlers } from "./useCopilotActionHandlers"
 import { executeAllMessageChanges } from "../lib/copilotBatchExecutor"
 import { markAllAppliedInMessage } from "../lib/copilotMessageUpdaters"
-import { hasAnyActions } from "../components/copilot-apply-all-button"
+import { hasAnyActions } from "../lib/copilotPendingActions"
 
 const AUTO_MODE_KEY = "sw_case_copilot_auto_mode"
 

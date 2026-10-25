@@ -4,10 +4,8 @@ import { Position, type InternalNode, type Node } from "@xyflow/react"
  * "Floating edge" — en vez de una relación siempre saliendo del mismo lado fijo (antes: derecha
  * del origen, izquierda del destino, sin importar dónde estuviera la otra tabla), el punto de
  * enganche se recalcula solo cada vez según la posición real de ambas tablas. Es la técnica que
- * recomienda la propia documentación de React Flow para esto. Usado como *fallback* por
- * `lib/relationPath.ts` cuando no hay una fila de atributo específica a la cual anclar la línea
- * (ver esa nota — 2026-09-20, "que se maneje como dbdiagram.io": ahí es donde vive el anclaje a
- * fila real, esto solo cubre el caso sin atributo FK/PK identificable).
+ * recomienda la propia documentación de React Flow para esto. Lo usa `lib/relationPath.ts` para
+ * los dos extremos de cada relación (siempre se ancla al borde de la tabla, no a una fila de atributo).
  */
 
 interface Rect {

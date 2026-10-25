@@ -3,6 +3,7 @@ import { deleteRelation, getDiagram } from "@/features/diagram/api/diagramApi"
 import { exportXmi } from "@/features/xmi/api/xmiApi"
 import { generarProyectoSpringBoot } from "@/features/generator/lib/springBootGenerator"
 import { descargarProyectoZip } from "@/features/generator/lib/zipExporter"
+import { descargarBlob } from "@/lib/descargarArchivo"
 import type { TaskSuggestion } from "../types/copilot.types"
 
 export async function executeCreateTaskAction(
@@ -47,12 +48,7 @@ export async function executeDeleteRelationByName(
 
 export async function executeExportXmiAction(proyectoId: number): Promise<void> {
   const blob = await exportXmi(proyectoId)
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `diagrama-${proyectoId}.xmi`
-  a.click()
-  URL.revokeObjectURL(url)
+  descargarBlob(blob, `diagrama-${proyectoId}.xmi`)
 }
 
 export async function executeGenerateBackendAction(proyectoId: number): Promise<void> {

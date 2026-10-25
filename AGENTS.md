@@ -1,89 +1,95 @@
-# 🛠️ CASE Tool — Guía Técnica Global del Repositorio (v1.0)
+# CASE Tool — Guía global del monorepo
 
-> **Herramienta CASE Colaborativa (Ingeniería de Software - Parcial 1)**  
-> Plataforma web integral para modelado visual de bases de datos relacionales (UML), colaboración en tiempo real, interacción por voz y Copilot IA, interoperabilidad XMI con Enterprise Architect y generación automatizada de proyectos backend en Spring Boot 3.4 (Java 21).
+Herramienta CASE colaborativa (Ingeniería de Software, semestre 2-2026): modelado visual de diagramas de
+clases/tablas, proyectos con miembros y roles, Kanban, notas de diseño, Copilot IA, colaboración en
+vivo, interoperabilidad XMI con Enterprise Architect y generación de un backend Spring Boot en ZIP.
 
----
+Producción: **https://casetool-sw.duckdns.org** (AWS EC2). Detalle técnico de cada paquete:
+[`case-backend/AGENTS.md`](case-backend/AGENTS.md) y [`case-frontend/AGENTS.md`](case-frontend/AGENTS.md).
+Esta guía solo cubre lo transversal; si algo cambia, se actualiza en el mismo commit.
 
-## 🗂️ 1. Estructura Real del Monorepo
+## 1. Estructura
 
 ```text
-/home/lmc/projects/sw-case/
-├── docker-compose.yml          # Orquestación de desarrollo local (Postgres 5434, Backend 8081, Frontend 5173)
-├── docker-compose.prod.yml     # Orquestación de producción para AWS EC2 (Nginx con SSL Let's Encrypt puertos 80 y 443)
-├── deploy-aws.sh               # Script automatizado de despliegue en servidor AWS EC2
-├── .env                        # Variables de entorno locales
-├── .env.example                # Plantilla de variables de entorno
-├── AGENTS.md                   # 📌 Esta guía técnica global v1.0
-│
-├── case-backend/               # ☕ Backend Monolito Modular Spring Boot (Java 21)
-│   ├── src/main/java/com/casetool/backend/
-│   │   ├── core/               # Seguridad JWT, configuración CORS y manejador global de excepciones
-│   │   └── modules/            # Módulos de negocio: seguridad, proyecto, diagrama, xmi
-│   ├── Dockerfile              # Construcción multi-etapa con Maven y Eclipse Temurin 21 JRE
-│   ├── pom.xml                 # Dependencias Spring Boot, JPA, Postgres, JJWT, SpringDoc OpenAPI
-│   └── AGENTS.md               # 📖 Especificación técnica completa del backend
-│
-└── case-frontend/              # ⚛️ Frontend SPA React 19 + Vite + Tailwind CSS v4
-    ├── src/
-    │   ├── components/         # Primitivas UI (shadcn / Base UI) y componentes compartidos
-    │   ├── features/           # 10 Vertical slices: auth, projects, diagram, tasks, notes,
-    │   │                       # xmi, generator, copilot, collaboration, voice
-    │   ├── layouts/            # ProjectLayout con riel lateral y Copilot responsivo
-    │   ├── lib/                # Cliente apiFetch, avatar y utilidades
-    │   └── routes/             # Enrutamiento protegido y público (React Router DOM v7)
-    ├── Dockerfile              # Construcción con Node 22 y servicio estático con Nginx Alpine
-    ├── nginx.conf              # Configuración de Nginx con Reverse Proxy para /api/ y SSL Let's Encrypt
-    └── AGENTS.md               # 📖 Especificación técnica completa del frontend
+sw-case/
+├── AGENTS.md                 # esta guía
+├── docker-compose.yml        # dev local: case_postgres (5434), case_backend (8081), case_frontend (5173→80)
+├── docker-compose.prod.yml   # prod EC2: red interna case_network, solo case_frontend expone 80/443
+├── deploy-aws.sh             # en el EC2: instala Docker, crea swap 2 GB, `docker compose -f docker-compose.prod.yml up -d --build`
+├── .env.example              # POSTGRES_PASSWORD, CORS_ALLOWED_ORIGINS (copiar a .env, nunca commitear)
+├── case-backend/             # API REST — Java 21 + Spring Boot 4.1 (Spring 7, Hibernate 7) + PostgreSQL 16
+└── case-frontend/            # SPA — React 19 + TypeScript 6 + Vite 8 + Tailwind v4 + shadcn (Base UI) + @xyflow/react
 ```
 
----
+El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descartado**: no es parte del sistema.
 
-## 🐳 2. Infraestructura y Modos de Despliegue
+## 2. Arquitectura
 
-### 🏠 Modo Desarrollo Local
-* **Base de Datos:** PostgreSQL 16 (`case_postgres`) en puerto host `5434` (base `case_db`).
-* **Backend API:** Spring Boot en puerto host `8081`.
-* **Frontend Web:** Vite Dev Server en puerto `5173` con HMR o contenedor Nginx.
+- **Backend:** monolito modular (`core/` transversal + `modules/{seguridad,proyecto,diagrama,xmi}`,
+  cada uno con controller/dto/exception/model/repository/service). Autenticación JWT stateless;
+  autorización por rol de proyecto (`ADMIN`, `COLABORADOR`, `LECTOR`) en `ProyectoAccesoService`.
+  Esquema gestionado por Hibernate `ddl-auto=update` (8 tablas, sin migraciones). 37 endpoints bajo `/api`.
+- **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,collaboration,voice}`).
+  Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
+- **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip), Copilot IA (llamadas
+  directas a DeepSeek / Gemini) y voz (Web Speech API).
+- **Colaboración:** sin WebSockets. Presencia y cursores por HTTP (`/api/proyectos/{id}/colaboracion`,
+  heartbeat ~800 ms, mapa en memoria del backend), refresco del diagrama por polling cada 7 s y
+  `BroadcastChannel` entre pestañas del mismo navegador.
 
-```bash
-# Levantar servicios en Docker local
-docker compose up -d
+## 3. Entornos
 
-# Desarrollo con Hot Reload en Frontend
-cd case-frontend && npm run dev
-```
+| | Dev local | Producción (EC2 `t3.micro`, `sa-east-1`) |
+| :--- | :--- | :--- |
+| BD | `case_postgres` en host `5434`, base `case_db` | `case_postgres`, solo red interna |
+| Backend | `case_backend` en `8081` (Dockerfile compila con Maven) | `Dockerfile.prod` copia `target/*.jar` **ya compilado** |
+| Frontend | Vite `npm run dev` (5173) o contenedor Nginx (`nginx.dev.conf`) | `Dockerfile.prod` copia `dist/` **ya compilado**; `nginx.conf` con SSL Let's Encrypt (`/etc/letsencrypt` montado), 80→301→443, `/api/` → `backend-app:8081` |
+| Restart | sin política (encendido manual, regla del entorno) | `restart: always` (debe seguir arriba hasta fin de semestre) |
 
-### ☁️ Modo Producción en la Nube (AWS EC2 - HTTPS)
-* **Dominio Oficial:** [https://casetool-sw.duckdns.org](https://casetool-sw.duckdns.org)
-* **Arquitectura:** Nginx Reverse Proxy con SSL/TLS Let's Encrypt (puerto 443 HTTPS, redirección 301 desde puerto 80 HTTP).
-  * `/` $\rightarrow$ Sirve la SPA de React 19 compilada.
-  * `/api/` $\rightarrow$ Reverse Proxy interno hacia `case_backend:8081`.
-* **Despliegue automatizado en 1 comando:**
-  ```bash
-  ./deploy-aws.sh
-  ```
+Antes de desplegar: `./mvnw -DskipTests package` en `case-backend` y `npm run build` en
+`case-frontend` (con `.env.production`), porque `deploy-aws.sh` **no** compila. Variables `VITE_*`
+se hornean en el bundle.
 
----
+## 4. Estado de módulos (verificado contra el código, 2026-10-24)
 
-## 🚦 3. Estado de Módulos del Sistema (v1.0 Listo para Producción)
+| Módulo | Qué hace hoy |
+| :--- | :--- |
+| Seguridad | Registro, login por username o email, JWT 24 h, roles por proyecto |
+| Proyectos | CRUD de proyectos, miembros y roles (protege al último ADMIN), Kanban `PENDIENTE/EN_PROGRESO/HECHO`, notas de diseño |
+| Diagramador | Tablas, atributos (PK/FK/tipo/nullable), relaciones con multiplicidad, herencia/composición/agregación, tabla intermedia N:M automática, puntos de quiebre |
+| XMI | Exporta XMI 1.1 (EA); importa dialecto EA (1.1/2.1) y el propio, modo FUSIONAR o REEMPLAZAR (solo ADMIN) |
+| Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente |
+| Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo |
+| Colaboración | Presencia, cursores remotos, refresco por polling |
+| Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
-| Módulo | Alcance Funcional | Estado | Tecnologías Clave |
-| :--- | :--- | :---: | :--- |
-| **Seguridad & Acceso** | Registro, login, JWT stateless, control de roles (`ADMIN`, `COLABORADOR`, `LECTOR`). | ✅ **1.0** | Spring Security 7, JJWT 0.12.6, BCrypt. |
-| **Gestión de Proyectos** | Proyectos, miembros, tareas Kanban (3 columnas) y notas de diseño ADR inmutables. | ✅ **1.0** | PostgreSQL, React Flow, Base UI. |
-| **Diagramador UML** | Lienzo de tablas, atributos (PK, FK, tipos SQL), multiplicidades (1:1, 1:N, N:M con tabla intermedia automática), puntos de control ortogonales y salto visual de líneas. | ✅ **1.0** | `@xyflow/react` v12, Floating Edges AABB. |
-| **Interoperabilidad XMI**| Exportación e importación compatible con Enterprise Architect (dialectos 1.1 y 2.1). | ✅ **1.0** | DOM XML Parser con blindaje anti-XXE. |
-| **Generador Spring Boot** | Generación en cliente de proyectos completos Spring Boot 3.4 (Java 21) empaquetados en ZIP, con JPA, DTOs, Services con inyección foránea, Controllers y Swagger. | ✅ **1.0** | TypeScript, JSZip, FileSaver. |
-| **Copilot IA & Visión** | Asistente multimodal híbrido (DeepSeek para texto y Gemini 3.5 Flash Lite para fotos de diagramas y bocetos con cámara), control del lienzo, sugerencias ADR y Drawer responsivo. | ✅ **1.0** | DeepSeek Chat, Gemini Vision, HTML5 Canvas. |
-| **Colaboración Realtime**| Sincronización multi-usuario, cursores remotos con avatares de color, presencia en vivo y auto-polling silencioso de mutaciones del diagrama. | ✅ **1.0** | `BroadcastChannel` + HTTP Presence API. |
-| **Interacción por Voz** | Dictado por voz en español y modo Walkie-Talkie Push-to-Talk con atajo de teclado (`[Espacio]` / `[V]`) y HUD flotante reactivo. | ✅ **1.0** | Web Speech API nativa. |
+## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
 
----
+1. **Claves de IA públicas:** `VITE_DEEPSEEK_API_KEY` / `VITE_GEMINI_API_KEY` quedan en `dist/assets/*.js`
+   (y la imagen dev las copia porque no hay `.dockerignore`). Rotarlas y mover las llamadas IA al backend.
+2. **JWT falsificable en prod:** ningún compose pasa `JWT_SECRET`, así que producción firma con la clave
+   de desarrollo commiteada en `application.properties`. Definir `JWT_SECRET` en el `.env` del EC2 y en
+   `docker-compose.prod.yml`.
+3. `docker-compose.prod.yml` tiene una contraseña de Postgres por defecto en texto plano y `CORS_ALLOWED_ORIGINS: "*"`.
+4. Presencia (`ColaboracionController`) no verifica membresía del proyecto.
+5. Import EA con herencia (`UML:Class xmi.idref` anidado) crea entidades sin nombre → 409.
+6. Disco del EC2 estuvo al 98 % (2026-09-21); revisar antes de cada `up --build`.
 
-## 💡 4. Reglas Mandatorias para Agentes de IA
+## 6. Próximo ciclo (Parcial 2)
 
-1. **Anti-1k-Lines (Límite de líneas):** Ningún archivo de código debe exceder las 150 líneas. Mantener división atómica en componentes, hooks (`use*.ts`) o archivos de configuración (`*.data.ts`).
-2. **Integridad de Base de Datos y Modelos JPA:** No modificar esquemas ni entidades JPA sin requerimiento explícito del usuario.
-3. **Verificación de Compilación:** Todo cambio en backend debe verificarse con `./mvnw test` o `mvn clean compile`, y en frontend con `npm run build` (0 errores de TypeScript y bundle).
-4. **Política de Git:** NUNCA ejecutar `git push`. Realizar únicamente commits locales claros y descriptivos.
+Enunciado en el vault: `U/2-2026/SW/Parcial2/Enunciado.md`. Requisito central: una IA "Senior Dev"
+en un **chat grupal por proyecto** (respuestas visibles para todo el equipo, sabe a quién responde y
+mantiene el hilo), con el modelo desplegado en Colab o superior. Además, un agente de inducción para
+nuevos usuarios. Implica persistir mensajes en el backend y, probablemente, reemplazar el polling por
+WebSocket/SSE y mover la IA al servidor (resuelve el riesgo 1).
+
+## 7. Reglas para agentes
+
+1. Leer el `AGENTS.md` del paquete antes de tocarlo y actualizarlo en el mismo cambio.
+2. Ningún archivo de código > 150 líneas (componentes React idealmente < 120); dividir por responsabilidad.
+3. No cambiar entidades JPA ni el contrato REST sin pedido explícito; endpoint nuevo o modificado →
+   tabla de `case-backend/AGENTS.md` + `U/2-2026/SW/Parcial1/App/Endpoints.md` del vault + sync de Qdrant.
+4. El código debe poder defenderse línea por línea en el examen: simple, sin abstracciones de más.
+5. Verificar: `./mvnw -q -DskipTests compile` (backend) y `npm run build` + `npm run lint` (frontend).
+6. Contenedores `case_<parte>`; en compose local nunca `restart: always` / `unless-stopped`.
+7. Commits locales descriptivos; **nunca `git push`** sin que el usuario lo pida.

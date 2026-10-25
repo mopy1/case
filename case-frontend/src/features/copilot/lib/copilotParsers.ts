@@ -1,8 +1,8 @@
 import type { AdrSuggestion } from "../types/copilot.types"
 
+export { parseLadoMultiplicidad, parseTipoRelacionUml } from "./copilotUmlParsers"
+
 export {
-  parseLadoMultiplicidad,
-  parseTipoRelacionUml,
   parseEntitySuggestions,
   parseRelationSuggestions,
   parseAttributeSuggestions,
@@ -17,7 +17,7 @@ export {
 
 export function parseAdrListFromText(text: string): AdrSuggestion[] {
   const results: AdrSuggestion[] = []
-  const regex = /(?:ADR_SUGERIDA|Acci[oó]n):\s*\[?([^\]\n]+?)(?:\s+MOTIVO:|\s*\n+[\s•\-\*]*(?:MOTIVO|Motivo(?: T[eé]cnico)?):?)\s*\[?([^\]\n]+)\]?/gi
+  const regex = /(?:ADR_SUGERIDA|Acci[oó]n):\s*\[?([^\]\n]+?)(?:\s+MOTIVO:|\s*\n+[\s•\-*]*(?:MOTIVO|Motivo(?: T[eé]cnico)?):?)\s*\[?([^\]\n]+)\]?/gi
   const matches = [...text.matchAll(regex)]
 
   for (const m of matches) {
@@ -29,11 +29,6 @@ export function parseAdrListFromText(text: string): AdrSuggestion[] {
   }
 
   return results
-}
-
-export function parseAdrFromText(text: string): AdrSuggestion | undefined {
-  const list = parseAdrListFromText(text)
-  return list[0]
 }
 
 export function cleanResponseText(rawText: string): string {

@@ -15,10 +15,11 @@ export function CollaboratorPresenceBar({
   myPresence,
   className,
 }: CollaboratorPresenceBarProps) {
+  const myUsername = myPresence?.username
   const uniqueCollaborators = useMemo(() => {
     const seen = new Set<string>()
-    if (myPresence?.username) {
-      seen.add(myPresence.username.toLowerCase())
+    if (myUsername) {
+      seen.add(myUsername.toLowerCase())
     }
     return collaborators.filter((c) => {
       const key = (c.username || "colaborador").toLowerCase()
@@ -26,7 +27,7 @@ export function CollaboratorPresenceBar({
       seen.add(key)
       return true
     })
-  }, [collaborators, myPresence?.username])
+  }, [collaborators, myUsername])
 
   return (
     <TooltipProvider delay={100}>

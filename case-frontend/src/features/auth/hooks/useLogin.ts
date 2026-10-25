@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import type { LoginRequest } from "../types/auth.types"
 import { login as loginRequest } from "../api/authApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useLogin() {
   const [loading, setLoading] = useState(false)
@@ -21,8 +22,8 @@ export function useLogin() {
 
       navigate("/")
 
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
     } finally {
 
       setLoading(false)

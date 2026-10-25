@@ -5,6 +5,7 @@ import {
   changeMemberRole as changeMemberRoleRequest,
   removeMember as removeMemberRequest,
 } from "../api/projectsApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useMemberMutations(proyectoId: number) {
   const [loading, setLoading] = useState(false)
@@ -15,8 +16,8 @@ export function useMemberMutations(proyectoId: number) {
     setError(null)
     try {
       return await action()
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)

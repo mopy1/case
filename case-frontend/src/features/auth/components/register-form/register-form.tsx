@@ -64,6 +64,7 @@ export function RegisterForm() {
                 id="password"
                 type={registerFormData.fields.password.type}
                 placeholder={registerFormData.fields.password.placeholder}
+                value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </Field>

@@ -40,6 +40,9 @@ export function usePuntosControlArrastre({
   const ctrlAlInicioRef = useRef(false)
   const fueDragRef = useRef(false)
   const inicioClienteRef = useRef({ x: 0, y: 0 })
+  // Los listeners registrados en `window` al empezar el arrastre: cada render crea funciones nuevas,
+  // así que para quitarlos (al soltar o al desmontar) hay que usar exactamente las mismas referencias.
+  const listenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null)
 
   useEffect(() => {
     puntosLocalRef.current = puntosLocal
@@ -65,8 +68,11 @@ export function usePuntosControlArrastre({
   }, [puntosServidor, offsetParalelo])
 
   function terminarArrastre() {
-    window.removeEventListener("pointermove", handlePointerMove)
-    window.removeEventListener("pointerup", handlePointerUp)
+    if (listenersRef.current) {
+      window.removeEventListener("pointermove", listenersRef.current.move)
+      window.removeEventListener("pointerup", listenersRef.current.up)
+      listenersRef.current = null
+    }
     arrastrandoRef.current = false
   }
 
@@ -102,6 +108,7 @@ export function usePuntosControlArrastre({
     fueDragRef.current = false
     indiceArrastreRef.current = indice
     arrastrandoRef.current = true
+    listenersRef.current = { move: handlePointerMove, up: handlePointerUp }
     window.addEventListener("pointermove", handlePointerMove)
     window.addEventListener("pointerup", handlePointerUp)
   }

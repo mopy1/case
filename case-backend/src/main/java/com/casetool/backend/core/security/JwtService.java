@@ -41,18 +41,6 @@ public class JwtService {
                 .compact();
     }
 
-    public String extractUsername(String token) {
-        return parseClaims(token).getSubject();
-    }
-
-    public boolean isTokenValid(String token) {
-        try {
-            return parseClaims(token).getExpiration().after(new Date());
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     /**
      * Valida la firma y expiración del token en una sola pasada y retorna los Claims si es válido.
      * Evita parsear y validar la firma criptográfica múltiples veces por request.

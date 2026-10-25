@@ -12,6 +12,11 @@ export function entidadANodo(entidad: EntidadDiagramaResponse, onDelete: () => v
     id: String(entidad.id),
     type: "entidad",
     position: { x: entidad.posX, y: entidad.posY },
+    // Borrar una tabla solo desde su botón (con confirmación y DELETE al backend). Con la tecla
+    // Supr/Backspace React Flow la quitaba solo del estado local y además emitía el "remove" de sus
+    // relaciones conectadas, que `useDiagramCanvas` sí borra en el backend: la tabla volvía en el
+    // próximo refetch, pero sin sus relaciones.
+    deletable: false,
     data: { entidad, onDelete, esTablaIntermedia },
   }
 }

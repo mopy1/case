@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import type { NotaResponse } from "../types/notes.type"
 import { getNotes } from "../api/notesApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useNotes(proyectoId: number) {
   const [notas, setNotas] = useState<NotaResponse[]>([])
@@ -12,7 +13,7 @@ export function useNotes(proyectoId: number) {
     setError(null)
     getNotes(proyectoId)
       .then(setNotas)
-      .catch((err) => setError(err.message || "No se pudo conectar con el servidor"))
+      .catch((err) => setError(mensajeDeError(err)))
       .finally(() => setLoading(false))
   }, [proyectoId])
 

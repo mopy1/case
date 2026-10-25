@@ -38,9 +38,7 @@ public class AuthService {
             throw new CredencialesInvalidasException("Credenciales incorrectas");
         }
 
-        String token = jwtService.generateToken(usuario.getId(), usuario.getUsername());
-
-        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
+        return respuestaConToken(usuario);
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -57,9 +55,7 @@ public class AuthService {
         usuario.setPassword(passwordEncoder.encode(request.password()));
         usuarioRepository.save(usuario);
 
-        String token = jwtService.generateToken(usuario.getId(), usuario.getUsername());
-
-        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
+        return respuestaConToken(usuario);
     }
 
     @Transactional(readOnly = true)
@@ -67,5 +63,11 @@ public class AuthService {
         Usuario usuario = usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + username));
         return UsuarioResponse.from(usuario);
+    }
+
+    /** Login y registro responden lo mismo: datos basicos del usuario + un JWT nuevo. */
+    private AuthResponse respuestaConToken(Usuario usuario) {
+        String token = jwtService.generateToken(usuario.getId(), usuario.getUsername());
+        return new AuthResponse(usuario.getId(), usuario.getUsername(), usuario.getEmail(), token);
     }
 }

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import type { PuntoControl, RelacionDiagramaRequest } from "../types/diagram.types"
 import { createRelation, deleteRelation, updateRelation, updateRelationPuntosControl } from "../api/diagramApi"
+import { mensajeDeError } from "@/lib/api"
 
 export function useRelationMutations(proyectoId: number) {
   const [loading, setLoading] = useState(false)
@@ -11,8 +12,8 @@ export function useRelationMutations(proyectoId: number) {
     setError(null)
     try {
       return await action()
-    } catch (err: any) {
-      setError(err.message || "No se pudo conectar con el servidor")
+    } catch (err) {
+      setError(mensajeDeError(err))
       return null
     } finally {
       setLoading(false)

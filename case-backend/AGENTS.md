@@ -1,129 +1,237 @@
-# 🤖 Guía Técnica de Arquitectura Backend — CASE Tool (Spring Boot v1.0)
+# case-backend — Guía técnica (estado real del código)
 
-> **Documento para Agentes de IA y Desarrolladores.**  
-> Esta guía define el estado actual, la estructura real de archivos, el contrato de endpoints REST y las reglas operativas del backend. **Especificación técnica viva del sistema v1.0.**
+API REST de la CASE Tool: usuarios + JWT, proyectos colaborativos (miembros con rol, tareas Kanban,
+notas de diseño), diagramador de tablas/relaciones y exportación/importación XMI (Enterprise
+Architect). Todo lo de abajo está verificado contra el código fuente; si cambiás el código,
+actualizá esta guía en el mismo cambio.
 
----
+## 1. Stack (versiones reales del `pom.xml`)
 
-## 🎯 1. Stack Tecnológico y Arquitectura
+| Pieza | Versión |
+| :--- | :--- |
+| Java | 21 |
+| Spring Boot (parent) | **4.1.1** (Spring Framework 7.0.x, Spring Security 7.1.x, Tomcat 11) |
+| Persistencia | Spring Data JPA + Hibernate 7.4 + PostgreSQL (driver 42.7) |
+| Seguridad | JWT HMAC con JJWT 0.12.6, BCrypt, sesión `STATELESS` |
+| Otros | Lombok (solo en `model/`), Bean Validation, DOM XML del JDK para XMI |
+| Build | Maven Wrapper `./mvnw` (Maven 3.9.16) |
 
-- **Lenguaje:** Java 21 (LTS)
-- **Framework:** Spring Boot 3.4.x / Spring Framework 6.x
-- **Persistencia:** Spring Data JPA + Hibernate ORM (Dialecto PostgreSQL)
-- **Base de Datos:** PostgreSQL 16 (contenedor `case_postgres` en puerto `5434`, base `case_db`)
-- **Seguridad:** Spring Security + JWT (JJWT `0.12.6`) sin estado (`STATELESS`) y contraseñas cifradas con BCrypt
-- **Procesamiento XML:** DOM Parser con protección contra inyección XXE (`disallow-doctype-decl`)
-- **Documentación API:** SpringDoc OpenAPI 3.0 / Swagger UI (`/swagger-ui.html`)
-- **Herramienta de Construcción:** Apache Maven con wrapper `./mvnw`
+No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
----
-
-## 🏗️ 2. Estructura Real del Código Fuente
+## 2. Árbol de carpetas (92 archivos `.java`: 91 en main + 1 test)
 
 ```text
-case-backend/src/main/java/com/casetool/backend/
-├── CaseBackendApplication.java               # Clase principal de arranque Spring Boot
-│
-├── core/                                     # 🌐 Infraestructura transversal compartida
-│   ├── config/
-│   │   └── CorsConfig.java                   # Configuración CORS permisiva para dev y producción
-│   ├── exception/
-│   │   ├── GlobalExceptionHandler.java       # Manejador global @RestControllerAdvice (400, 401, 403, 404, 409, 500)
-│   │   └── ResourceNotFoundException.java    # Excepción estándar para recursos 404
-│   └── security/
-│       ├── JwtAuthenticationEntryPoint.java  # Retorno 401 Unauthorized unificado en token ausente o inválido
-│       ├── JwtAuthenticationFilter.java      # Filtro OncePerRequest con validación criptográfica de firma
-│       ├── JwtService.java                   # Extracción de claims, generación y validación de tokens HMAC
-│       └── SecurityConfig.java               # Configuración de SecurityFilterChain, filtros y BCryptPasswordEncoder
-│
-└── modules/                                  # 🚀 Módulos de Negocio (Monolito Modular)
-    ├── seguridad/                            # 🔑 Autenticación y Cuentas de Usuario
-    │   ├── controller/   AuthController.java (/api/v1/auth/register, /login, /me)
-    │   ├── dto/          AuthResponse, LoginRequest, RegisterRequest, UsuarioResponse
-    │   ├── exception/    CredencialesInvalidasException (401), RecursoDuplicadoException (409)
-    │   ├── model/        Usuario, UsuarioPrincipal (implementa UserDetails, expone getId())
-    │   ├── repository/   UsuarioRepository (búsqueda por username, email)
-    │   └── service/      AuthService, UsuarioDetailsService
-    │
-    ├── proyecto/                             # 📁 Proyectos, Miembros, Tareas, Notas y Colaboración
-    │   ├── controller/   ProyectoController, MiembroProyectoController, TareaProyectoController,
-    │   │                 NotaProyectoController, ColaboracionController
-    │   ├── dto/          ProyectoRequest/Response, MiembroProyectoRequest/Response,
-    │   │                 TareaProyectoRequest/Response, CambiarEstadoTareaRequest,
-    │   │                 NotaProyectoRequest/Response, CambiarRolMiembroRequest
-    │   ├── exception/    AccesoDenegadoProyectoException (403), RolInsuficienteProyectoException (403),
-    │   │                 MiembroYaExisteException (409)
-    │   ├── model/        Proyecto, MiembroProyecto (ADMIN, COLABORADOR, LECTOR), TareaProyecto, NotaProyecto
-    │   ├── repository/   ProyectoRepository, MiembroProyectoRepository (@EntityGraph),
-    │   │                 TareaProyectoRepository, NotaProyectoRepository
-    │   └── service/      ProyectoService, MiembroProyectoService, TareaProyectoService,
-    │                     NotaProyectoService, ProyectoAccesoService (validación jerárquica de roles)
-    │
-    ├── diagrama/                             # 📐 Lienzo UML (Tablas, Atributos, Relaciones)
-    │   ├── controller/   DiagramaController, EntidadDiagramaController, AtributoEntidadController,
-    │   │                 RelacionDiagramaController
-    │   ├── dto/          DiagramaResponse, EntidadDiagramaRequest/Response, AtributoEntidadRequest/Response,
-    │   │                 RelacionDiagramaRequest/Response, ActualizarPuntosControlRequest, PuntoControlDto
-    │   ├── exception/    NombreDuplicadoDiagramaException (409)
-    │   ├── model/        EntidadDiagrama, AtributoEntidad, RelacionDiagrama, PuntoControl
-    │   ├── repository/   EntidadDiagramaRepository, AtributoEntidadRepository, RelacionDiagramaRepository
-    │   └── service/      DiagramaService (carga optimizada O(1)), EntidadDiagramaService,
-    │                     AtributoEntidadService, RelacionDiagramaService
-    │
-    └── xmi/                                  # 🔄 Interoperabilidad con Enterprise Architect
-        ├── controller/   XmiController (/api/proyectos/{id}/xmi/exportar, /importar)
-        └── service/      XmiExportService (emite XMI 1.1 con AssociationClass),
-                          XmiImportService (parser dual para dialectos EA y XMI 2.1)
+case-backend/
+├── pom.xml · mvnw · mvnw.cmd · .mvn/wrapper/
+├── Dockerfile          # dev: compila con Maven dentro de la imagen y corre el jar (puerto 8081)
+├── Dockerfile.prod     # prod: copia un target/*.jar YA compilado (deploy-aws.sh no lo compila)
+├── src/main/resources/application.properties   # única configuración (static/ y templates/ vacíos)
+├── src/test/java/com/casetool/backend/CaseBackendApplicationTests.java   # contextLoads (necesita BD)
+└── src/main/java/com/casetool/backend/
+    ├── CaseBackendApplication.java
+    ├── core/
+    │   ├── config/      CorsConfig
+    │   ├── exception/   GlobalExceptionHandler, ResourceNotFoundException
+    │   └── security/    SecurityConfig, JwtService, JwtAuthenticationFilter, JwtAuthenticationEntryPoint
+    └── modules/
+        ├── seguridad/
+        │   ├── controller/  AuthController
+        │   ├── dto/         LoginRequest, RegisterRequest, AuthResponse, UsuarioResponse
+        │   ├── exception/   CredencialesInvalidasException, RecursoDuplicadoException
+        │   ├── model/       Usuario (@Entity), UsuarioPrincipal (UserDetails, expone getId())
+        │   ├── repository/  UsuarioRepository
+        │   └── service/     AuthService, UsuarioDetailsService
+        ├── proyecto/
+        │   ├── controller/  ProyectoController, MiembroProyectoController, TareaProyectoController,
+        │   │                NotaProyectoController, ColaboracionController
+        │   ├── dto/         ProyectoRequest/Response, MiembroProyectoRequest/Response, CambiarRolMiembroRequest,
+        │   │                TareaProyectoRequest/Response, CambiarEstadoTareaRequest, NotaProyectoRequest/Response
+        │   ├── exception/   AccesoDenegadoProyectoException, RolInsuficienteProyectoException, MiembroYaExisteException
+        │   ├── model/       Proyecto, MiembroProyecto (enum Rol), TareaProyecto (enums Estado, Prioridad), NotaProyecto
+        │   ├── repository/  ProyectoRepository, MiembroProyectoRepository, TareaProyectoRepository, NotaProyectoRepository
+        │   └── service/     ProyectoService, MiembroProyectoService, TareaProyectoService, NotaProyectoService,
+        │                    ProyectoAccesoService
+        ├── diagrama/
+        │   ├── controller/  DiagramaController, EntidadDiagramaController, AtributoEntidadController,
+        │   │                RelacionDiagramaController
+        │   ├── dto/         DiagramaResponse, EntidadDiagramaRequest/Response, AtributoEntidadRequest/Response,
+        │   │                RelacionDiagramaRequest/Response, ActualizarPuntosControlRequest, PuntoControlDto
+        │   ├── exception/   NombreDuplicadoDiagramaException
+        │   ├── model/       EntidadDiagrama, AtributoEntidad, RelacionDiagrama (enums Multiplicidad,
+        │   │                TipoRelacionUml), PuntoControl (POJO guardado como JSON, no es @Entity)
+        │   ├── repository/  EntidadDiagramaRepository, AtributoEntidadRepository, RelacionDiagramaRepository
+        │   └── service/     DiagramaService, EntidadDiagramaService, AtributoEntidadService,
+        │                    RelacionDiagramaService, TablaIntermediaService
+        └── xmi/             (sin model/repository propios: usa los services de diagrama)
+            ├── controller/  XmiController
+            ├── dto/         ModoImportacionXmi (FUSIONAR | REEMPLAZAR), XmiPreviewResponse
+            └── service/     XmiExportService, XmiAsociacionesClase, XmiClasesUml, XmiRelacionesUml, XmiDiagramaUml,
+                             XmiImportService, XmiImportEA, XmiImportPropio, XmiCreadorEntidades, XmiMapeoEA, XmiDom
 ```
 
----
+## 3. Lógica por módulo
 
-## 📡 3. Contrato de API REST (Endpoints v1.0)
+**core**
+- `SecurityConfig`: CSRF off, CORS on, `STATELESS`. Públicos solo `POST /api/auth/login` y
+  `POST /api/auth/register`, más el dispatch interno de `/error` (`DispatcherType.ERROR`, para que
+  un 400/404/500 no manejado no se convierta en 401 y cierre la sesión del frontend); todo lo demás
+  exige JWT. `BCryptPasswordEncoder` como bean.
+- `JwtAuthenticationFilter`: lee `Authorization: Bearer <token>`, valida firma+expiración
+  (`JwtService.validateAndExtractClaims`) y carga el usuario por `sub` (username). Token inválido →
+  la request sigue sin autenticar (no lanza).
+- `JwtService`: genera tokens con `sub=username`, claim `userId`, expiración `jwt.expiration-ms`.
+- `JwtAuthenticationEntryPoint`: sin autenticación → **401** JSON (distinto del 403 de rol).
+- `CorsConfig`: `/api/**`, orígenes desde `cors.allowed-origins` (lista separada por comas).
+- `GlobalExceptionHandler`: cuerpo `{timestamp, status, error, message}` (el frontend lee `message`).
 
-Todos los endpoints requieren el encabezado `Authorization: Bearer <token>` salvo `/auth/register` y `/auth/login`.
+**seguridad**: registro (username/email únicos → 409), login por username **o** email (falla → 401
+"Credenciales incorrectas"), `/me` con el perfil. `UsuarioPrincipal` permite usar
+`@AuthenticationPrincipal UsuarioPrincipal principal` y `principal.getId()` en los controllers.
 
-| Módulo | Método | Endpoint | Rol Requerido | Descripción |
+**proyecto**
+- Autorización centralizada en `ProyectoAccesoService`: `verificarMiembro` (403 si no es miembro),
+  `verificarPuedeEscribir` (403 si es LECTOR), `verificarRolAdmin` (403 si no es ADMIN),
+  `verificarNoEsUltimoAdmin` (403 al quitar/degradar al único ADMIN).
+- Crear proyecto agrega al creador como ADMIN. Borrar proyecto primero anula las FK
+  `referencia_entidad_id` del diagrama (son RESTRICT) y luego confía en el `ON DELETE CASCADE` de BD.
+- `ColaboracionController`: presencia en memoria (`ConcurrentHashMap` estático, no BD). Cada
+  heartbeat guarda cursor/selección, purga sesiones con > 3,5 s sin actividad y devuelve a los
+  demás. Se pierde al reiniciar y no escala a más de una instancia.
+
+**diagrama**
+- `DiagramaService.obtenerDiagrama`: 3 consultas fijas (entidades, atributos del proyecto,
+  relaciones con `@EntityGraph`) y agrupa atributos en memoria — sin N+1.
+- Nombres únicos: entidad por proyecto, atributo por entidad (409 si se repite).
+- Atributo FK: exige `referenciaEntidadId` de una entidad del mismo proyecto (400 si no).
+- Relación: `multiplicidadOrigen/Destino` ∈ `UNO, CERO_O_UNO, UNO_O_MAS, CERO_O_MAS`;
+  `tipo` ∈ `ASOCIACION, COMPOSICION, AGREGACION, HERENCIA` (default ASOCIACION).
+- N:M (ambos lados "muchos") → `TablaIntermediaService` crea sola la tabla `origen_destino` con 2
+  atributos PK+FK `BIGINT` y 2 relaciones físicas `UNO → UNO_O_MAS`. También al editar una relación
+  que pasa a ser N:M. Caso recursivo: columnas `_origen_id` / `_destino_id`.
+- Puntos de control: `PATCH .../puntos` reemplaza la lista completa (jsonb).
+
+**xmi**
+- Export (`GET`): XMI 1.1 estilo Enterprise Architect, plano (sin `UML:Package`). Cada N:M con
+  tabla intermedia sale como un `UML:AssociationClass` (`XmiAsociacionesClase`); herencia como
+  `UML:Generalization`; posiciones del lienzo en `UML:Diagram` (`XmiDiagramaUml`).
+- Import: solo ADMIN, todo en una transacción. Parsea con DOCTYPE deshabilitado (anti-XXE,
+  `XmiDom.parsear`) **antes** de borrar nada. Detecta dialecto: EA/XMI 1.1 (`XmiImportEA`) o
+  propio XMI 2.1 viejo (`XmiImportPropio`). `FUSIONAR` reusa entidades con el mismo nombre sin
+  tocarlas; `REEMPLAZAR` vacía el diagrama primero. Las relaciones importadas usan
+  `crearSinTablaIntermedia` (el archivo ya trae la intermedia). Heurística EA: PK = atributo "id"
+  (o todos los `*_id` si no hay "id"); FK de columna no se infiere.
+- `previsualizar`: no escribe nada; devuelve tablas del archivo, cuáles ya existen y totales.
+
+## 4. Endpoints (todos bajo `/api`, JSON salvo XMI)
+
+Rol: **Público** = sin token · **Auth** = cualquier usuario con JWT · **Miembro** = cualquier rol
+del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
+
+| Método | Ruta | Rol | Éxito | Notas |
 | :--- | :--- | :--- | :--- | :--- |
-| **Auth** | `POST` | `/api/v1/auth/register` | Público | Registro de nueva cuenta de usuario |
-| **Auth** | `POST` | `/api/v1/auth/login` | Público | Login de usuario; retorna JWT token |
-| **Auth** | `GET` | `/api/v1/auth/me` | Autenticado | Perfil y datos del usuario en sesión actual |
-| **Proyectos** | `GET` | `/api/v1/proyectos` | Autenticado | Listado de proyectos en los que participa el usuario |
-| **Proyectos** | `POST` | `/api/v1/proyectos` | Autenticado | Crea proyecto (el creador se asigna como `ADMIN`) |
-| **Proyectos** | `GET` | `/api/v1/proyectos/{id}` | LECTOR | Detalle de un proyecto específico |
-| **Proyectos** | `PUT` | `/api/v1/proyectos/{id}` | ADMIN | Edita nombre o descripción del proyecto |
-| **Proyectos** | `DELETE`| `/api/v1/proyectos/{id}` | ADMIN | Elimina proyecto completo (cascada en BD) |
-| **Miembros** | `GET` | `/api/v1/proyectos/{id}/miembros` | LECTOR | Lista los colaboradores y sus roles asignados |
-| **Miembros** | `POST` | `/api/v1/proyectos/{id}/miembros` | ADMIN | Agrega colaborador por username o email |
-| **Miembros** | `PUT` | `/api/v1/proyectos/{id}/miembros/{usuarioId}/rol` | ADMIN | Modifica rol (`ADMIN`, `COLABORADOR`, `LECTOR`) |
-| **Miembros** | `DELETE`| `/api/v1/proyectos/{id}/miembros/{usuarioId}` | ADMIN | Desvincula colaborador (protege al último admin) |
-| **Tareas** | `GET` | `/api/v1/proyectos/{id}/tareas` | LECTOR | Lista tareas del tablero Kanban |
-| **Tareas** | `POST` | `/api/v1/proyectos/{id}/tareas` | COLABORADOR | Crea tarea (`PENDIENTE`, `EN_PROCESO`, `COMPLETADA`) |
-| **Tareas** | `PATCH`| `/api/v1/proyectos/{id}/tareas/{id}/estado` | COLABORADOR | Transición rápida de estado en el Kanban |
-| **Tareas** | `DELETE`| `/api/v1/proyectos/{id}/tareas/{id}` | COLABORADOR | Elimina tarea del tablero |
-| **Notas** | `GET` | `/api/v1/proyectos/{id}/notas` | LECTOR | Timeline de decisiones arquitectónicas (ADRs) |
-| **Notas** | `POST` | `/api/v1/proyectos/{id}/notas` | COLABORADOR | Registra nota de diseño inmutable con motivo |
-| **Diagrama** | `GET` | `/api/v1/proyectos/{id}/diagrama` | LECTOR | Retorna entidades, atributos y relaciones juntas |
-| **Diagrama** | `POST` | `/api/v1/proyectos/{id}/entidades` | COLABORADOR | Crea tabla en el lienzo |
-| **Diagrama** | `PUT` | `/api/v1/proyectos/{id}/entidades/{id}` | COLABORADOR | Modifica nombre y coordenadas `pos_x`/`pos_y` |
-| **Diagrama** | `DELETE`| `/api/v1/proyectos/{id}/entidades/{id}` | COLABORADOR | Elimina tabla (si no está referenciada por FK) |
-| **Diagrama** | `POST` | `/api/v1/proyectos/{id}/entidades/{id}/atributos` | COLABORADOR | Añade atributo (PK, FK, tipo SQL, nullable) |
-| **Diagrama** | `PUT` | `/api/v1/proyectos/{id}/entidades/{id}/atributos/{atId}` | COLABORADOR | Actualiza definición de atributo |
-| **Diagrama** | `DELETE`| `/api/v1/proyectos/{id}/entidades/{id}/atributos/{atId}` | COLABORADOR | Elimina atributo de una tabla |
-| **Diagrama** | `POST` | `/api/v1/proyectos/{id}/relaciones` | COLABORADOR | Crea relación con multiplicidad en ambos extremos |
-| **Diagrama** | `PATCH`| `/api/v1/proyectos/{id}/relaciones/{id}/puntos` | COLABORADOR | Guarda puntos de quiebre de la polilínea |
-| **Diagrama** | `DELETE`| `/api/v1/proyectos/{id}/relaciones/{id}` | COLABORADOR | Elimina relación |
-| **Colaboración**| `POST`| `/api/proyectos/{id}/colaboracion/presencia` | Autenticado | Heartbeat y presencia de colaboradores en tiempo real |
-| **XMI** | `GET` | `/api/proyectos/{id}/xmi/exportar` | LECTOR | Descarga XML en formato XMI 1.1 Enterprise Architect |
-| **XMI** | `POST` | `/api/proyectos/{id}/xmi/importar` | COLABORADOR | Sube archivo XMI para auto-generar el diagrama |
+| POST | `/api/auth/register` | Público | 201 `AuthResponse` | `{username, email, password}` (password 6..255) |
+| POST | `/api/auth/login` | Público | 200 `AuthResponse` | `{usernameOrEmail, password}` → `{id, username, email, token}` |
+| GET | `/api/auth/me` | Auth | 200 `UsuarioResponse` | `{id, username, email, createdAt}` |
+| GET | `/api/proyectos` | Auth | 200 lista | Proyectos donde el usuario es miembro, con `miRol` |
+| POST | `/api/proyectos` | Auth | 201 | `{nombre, descripcion}`; el creador queda ADMIN |
+| GET | `/api/proyectos/{proyectoId}` | Miembro | 200 | `{id, nombre, descripcion, miRol, createdAt}` |
+| PUT | `/api/proyectos/{proyectoId}` | ADMIN | 200 | `{nombre, descripcion}` |
+| DELETE | `/api/proyectos/{proyectoId}` | ADMIN | 204 | Cascada en BD |
+| GET | `/api/proyectos/{proyectoId}/miembros` | Miembro | 200 lista | `{id, usuarioId, username, email, rol, createdAt}` |
+| POST | `/api/proyectos/{proyectoId}/miembros` | ADMIN | 201 | `{usernameOrEmail, rol}`; 409 si ya es miembro |
+| PATCH | `/api/proyectos/{proyectoId}/miembros/{usuarioObjetivoId}/rol` | ADMIN | 200 | `{rol}`; protege al último ADMIN |
+| DELETE | `/api/proyectos/{proyectoId}/miembros/{usuarioObjetivoId}` | ADMIN | 204 | Protege al último ADMIN |
+| GET | `/api/proyectos/{proyectoId}/tareas` | Miembro | 200 lista | Orden `createdAt` desc |
+| POST | `/api/proyectos/{proyectoId}/tareas` | Escritor | 201 | `{titulo, descripcion, usuarioId?, prioridad}`; nace `PENDIENTE` |
+| GET | `/api/proyectos/{proyectoId}/tareas/{tareaId}` | Miembro | 200 | |
+| PUT | `/api/proyectos/{proyectoId}/tareas/{tareaId}` | Escritor | 200 | Mismo body que POST (no cambia estado) |
+| PATCH | `/api/proyectos/{proyectoId}/tareas/{tareaId}/estado` | Escritor | 200 | `{estado}`: `PENDIENTE`, `EN_PROGRESO`, `HECHO` |
+| DELETE | `/api/proyectos/{proyectoId}/tareas/{tareaId}` | Escritor | 204 | |
+| GET | `/api/proyectos/{proyectoId}/notas` | Miembro | 200 lista | Orden `createdAt` desc |
+| POST | `/api/proyectos/{proyectoId}/notas` | Escritor | 201 | `{accion (≤100), motivo}`; no hay editar/borrar |
+| POST | `/api/proyectos/{proyectoId}/colaboracion/presencia` | Auth | 200 lista | Body libre: `clientId` (obligatorio, si falta 400), `username`, `color`, `cursor{x,y}`, `selectedEntityId` |
+| POST | `/api/proyectos/{proyectoId}/colaboracion/desconectar` | Auth | 200 vacío | `{clientId}` |
+| GET | `/api/proyectos/{proyectoId}/diagrama` | Miembro | 200 | `{entidades[ {.., atributos[]} ], relaciones[]}` |
+| POST | `/api/proyectos/{proyectoId}/entidades` | Escritor | 201 | `{nombre, posX, posY}` |
+| PUT | `/api/proyectos/{proyectoId}/entidades/{entidadId}` | Escritor | 200 | Nombre y posición |
+| DELETE | `/api/proyectos/{proyectoId}/entidades/{entidadId}` | Escritor | 204 | 409 si otra entidad la referencia por FK |
+| POST | `/api/proyectos/{proyectoId}/entidades/{entidadId}/atributos` | Escritor | 201 | `{nombre, tipoSql, esPk, esFk, referenciaEntidadId?, nullable}` |
+| PUT | `/api/proyectos/{proyectoId}/entidades/{entidadId}/atributos/{atributoId}` | Escritor | 200 | Mismo body |
+| DELETE | `/api/proyectos/{proyectoId}/entidades/{entidadId}/atributos/{atributoId}` | Escritor | 204 | |
+| POST | `/api/proyectos/{proyectoId}/relaciones` | Escritor | 201 | `{entidadOrigenId, entidadDestinoId, multiplicidadOrigen, multiplicidadDestino, tipo?}`; N:M crea tabla intermedia |
+| PUT | `/api/proyectos/{proyectoId}/relaciones/{relacionId}` | Escritor | 200 | Mismo body |
+| PATCH | `/api/proyectos/{proyectoId}/relaciones/{relacionId}/puntos` | Escritor | 200 | `{puntos:[{x,y}]}` reemplaza la lista |
+| DELETE | `/api/proyectos/{proyectoId}/relaciones/{relacionId}` | Escritor | 204 | |
+| GET | `/api/proyectos/{proyectoId}/xmi/exportar` | Miembro | 200 XML | Descarga `diagrama-{id}.xmi` |
+| POST | `/api/proyectos/{proyectoId}/xmi/previsualizar` | ADMIN | 200 `XmiPreviewResponse` | multipart, campo `archivo` |
+| POST | `/api/proyectos/{proyectoId}/xmi/importar?modo=FUSIONAR\|REEMPLAZAR` | ADMIN | 200 `DiagramaResponse` | multipart `archivo`; `modo` default FUSIONAR |
 
----
+Detalle: en las rutas anidadas (`/tareas/{tareaId}`, `/entidades/{entidadId}/atributos/{atributoId}`,
+`/relaciones/{relacionId}`) el permiso se valida contra el proyecto real del recurso; el
+`{proyectoId}`/`{entidadId}` del path no se cruza con el recurso.
 
-## 📐 4. Convenciones Mandatorias de Arquitectura
+Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`) o `IllegalArgumentException`;
+401 sin token / credenciales malas; 403 no miembro o rol insuficiente; 404 recurso inexistente;
+409 nombre/usuario duplicado o violación de integridad en BD.
 
-1. **Monolito Modular y Subpaquetes Canónicos:** Cada módulo nuevo debe implementar obligatoriamente: `controller`, `dto`, `exception`, `model`, `repository`, `service`.
-2. **Autorización Centralizada:** La verificación de membresía y rol jerárquico (`ADMIN > COLABORADOR > LECTOR`) se realiza mediante `ProyectoAccesoService.validarAcceso(proyectoId, usuarioId, rolRequerido)`.
-3. **Prevención de N+1:** Prohibido ejecutar consultas JPA individuales en bucles. Usar `@EntityGraph(attributePaths = {...})` o agregación en memoria con `Collectors.groupingBy`.
-4. **Reglas Operativas:**
-   - No alterar esquemas ni entidades de base de datos sin instrucción explícita.
-   - Todo cambio debe compilar con `./mvnw test` o `mvn clean compile`.
-   - NUNCA ejecutar `git push`.
+## 5. Modelo de datos (Hibernate `ddl-auto=update`, sin migraciones)
+
+| Tabla | Columnas clave | Restricciones |
+| :--- | :--- | :--- |
+| `usuarios` | `id`, `username`(50), `email`(100), `password`(255, hash BCrypt), `created_at` | `username` y `email` únicos |
+| `proyectos` | `id`, `nombre`(100), `descripcion` TEXT, `created_at` | |
+| `miembros_proyecto` | `id`, `proyecto_id`, `usuario_id`, `rol`(20: ADMIN/COLABORADOR/LECTOR), `created_at` | único (`proyecto_id`,`usuario_id`); `proyecto_id` ON DELETE CASCADE |
+| `tareas_proyecto` | `id`, `proyecto_id`, `usuario_id` (asignado, nullable), `titulo`(150), `descripcion` TEXT, `prioridad`(20), `estado`(20), `created_at` | `proyecto_id` CASCADE |
+| `notas_proyecto` | `id`, `proyecto_id`, `usuario_id` (autor), `accion`(100), `motivo` TEXT, `created_at` | `proyecto_id` CASCADE |
+| `diagrama_entidades` | `id`, `proyecto_id`, `nombre`(100), `pos_x`, `pos_y`, `created_at` | único (`proyecto_id`,`nombre`); CASCADE |
+| `entidad_atributos` | `id`, `entidad_id`, `nombre`(100), `tipo_sql`(50), `es_pk`, `es_fk`, `referencia_entidad_id` (nullable), `nullable`, `created_at` | único (`entidad_id`,`nombre`); `entidad_id` CASCADE; `referencia_entidad_id` **RESTRICT a propósito** |
+| `diagrama_relaciones` | `id`, `proyecto_id`, `entidad_origen_id`, `entidad_destino_id`, `multiplicidad_origen`(20), `multiplicidad_destino`(20), `tipo`(20, nullable), `puntos_control` jsonb, `created_at` | las 3 FK con CASCADE |
+
+Enums se guardan como texto (`@Enumerated(STRING)`). Las FK a `usuarios` no tienen cascada (no
+existe endpoint para borrar usuarios).
+
+## 6. Configuración (`application.properties`, sin perfiles)
+
+| Propiedad | Variable de entorno | Default en el archivo |
+| :--- | :--- | :--- |
+| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5433/case_db` (ojo: el Postgres de docker-compose está en **5434**) |
+| `spring.datasource.username` / `password` | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | valores de desarrollo (no usar en prod) |
+| `spring.jpa.hibernate.ddl-auto` | `SPRING_JPA_HIBERNATE_DDL_AUTO` | `update` |
+| `spring.jpa.show-sql` | `SPRING_JPA_SHOW_SQL` | `true` |
+| `cors.allowed-origins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` (lista con comas) |
+| `jwt.secret` | `JWT_SECRET` (Base64, ≥ 256 bits) | clave de desarrollo pública — **debe** sobreescribirse en prod |
+| `jwt.expiration-ms` | `JWT_EXPIRATION_MS` | `86400000` (24 h) |
+| `server.port` | `SERVER_PORT` | `8081` |
+
+`docker-compose.yml` / `docker-compose.prod.yml` (raíz del repo) pasan al contenedor
+`case_backend`: `SPRING_DATASOURCE_*` (host `postgres-db:5432`), `SPRING_JPA_HIBERNATE_DDL_AUTO=update`
+y `CORS_ALLOWED_ORIGINS` (`*` en prod). Hoy **no** pasan `JWT_SECRET`.
+
+## 7. Compilar, probar, correr
+
+```bash
+cd case-backend
+./mvnw -q -DskipTests compile        # verificación mínima obligatoria
+./mvnw -q test                       # contextLoads: necesita Postgres accesible
+# Sin BD, para validar solo el cableado de beans:
+./mvnw -q test -Dspring.jpa.hibernate.ddl-auto=none \
+  -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \
+  -Dspring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access=false
+./mvnw spring-boot:run               # local; exportar SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/case_db y credenciales
+./mvnw -DskipTests package           # genera target/*.jar (lo necesita Dockerfile.prod)
+```
+
+## 8. Reglas para agentes
+
+1. Ningún archivo de código > 150 líneas. Si crece, extraer una clase con nombre de responsabilidad
+   (ej. `TablaIntermediaService`, `XmiMapeoEA`), no "Utils" genéricos.
+2. No modificar entidades JPA ni esquema (columnas, tablas, relaciones) sin pedido explícito:
+   con `ddl-auto=update` cualquier cambio impacta directo la BD de producción.
+3. No romper el contrato: rutas, JSON y códigos HTTP de la sección 4. Endpoint nuevo o modificado →
+   actualizar esta tabla y el `Endpoints.md` del vault.
+4. Autorización siempre vía `ProyectoAccesoService` dentro del service (no en el controller).
+5. Controllers finos (delegan al service); validación de entrada con Bean Validation en los DTO
+   `record` + `@Valid`; errores con las excepciones de cada módulo (mapeadas en `GlobalExceptionHandler`).
+6. Sin N+1: consultas por proyecto + agrupación en memoria o `@EntityGraph`.
+7. Inyección por constructor, sin `@Autowired` en campos. Lombok solo en `model/`.
+8. Verificar con `./mvnw -q -DskipTests compile` antes de entregar. Nunca `git push`.
