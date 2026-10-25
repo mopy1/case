@@ -66,7 +66,8 @@ se hornean en el bundle.
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
 
 1. **Claves de IA públicas:** `VITE_DEEPSEEK_API_KEY` / `VITE_GEMINI_API_KEY` quedan en `dist/assets/*.js`
-   (y la imagen dev las copia porque no hay `.dockerignore`). Rotarlas y mover las llamadas IA al backend.
+   (el `.dockerignore` del frontend ya excluye `.env*` de la imagen Docker dev, pero el `dist/` de prod
+   se compila en local con `.env.production` y las lleva igual). Rotarlas y mover las llamadas IA al backend.
 2. ~~JWT falsificable en prod~~ **(repo resuelto 2026-10-24):** `docker-compose.prod.yml` ahora exige
    `JWT_SECRET` (`${JWT_SECRET:?...}`, compose no arranca sin ella). Falta aplicarlo en el EC2: agregar
    `JWT_SECRET=$(openssl rand -base64 48)` al `.env` del servidor y recrear `case_backend` (cierra todas las sesiones una vez).

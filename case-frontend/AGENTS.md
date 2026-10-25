@@ -215,6 +215,9 @@ en `.gitignore`. Toda variable `VITE_*` es pública: aparece en `dist/assets/*.j
 ## 9. Build y despliegue
 
 - `npm run dev` (Vite :5173) · `npm run build` (`tsc -b && vite build`) · `npm run lint` (oxlint) · `npm run preview`.
+- `.dockerignore`: excluye `node_modules`, `.git` y `.env*` (no `dist/`, que lo necesita `Dockerfile.prod`).
+  Por eso la imagen dev se compila sin `VITE_API_URL` (usa `/api` relativo vía nginx) y sin claves de IA
+  (el Copilot cae a respuestas locales); para probar la IA en local usar `npm run dev`.
 - `Dockerfile` (dev, `docker-compose.yml` → `case_frontend` en :5173→80): build con Node 22 dentro de
   la imagen + `nginx.dev.conf` (HTTP; `/api/` → `http://backend-app:8081/api/`; SPA con `try_files`).
 - `Dockerfile.prod` (`docker-compose.prod.yml`): **copia `dist/` ya compilado** (hay que correr
