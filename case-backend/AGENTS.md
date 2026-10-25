@@ -43,7 +43,7 @@ case-backend/
 │   │                   SeniorDevHistorialFormatterTest.java, # recorte 600, comandos fuera, lote de resumen
 │   │                   SeniorDevConversacionTest.java,       # bucle de tools: rondas, tope por turno, "none", 400 → sin tools
 │   │                   SeniorDevResumidorTest.java,          # umbral 20, lote/marca, recorte 2000, error conserva resumen
-│   │                   SeniorDevPromptsTest.java,            # cero SQL, comandos, GENERAR_DDL, herramientas, RESUMEN_PROMPT
+│   │                   SeniorDevPromptsTest.java,            # cero SQL, comandos, GENERAR_DDL, herramientas, honestidad, permisos DDL, RESUMEN_PROMPT
 │   │                   SeniorDevServiceTest.java,            # PENSANDO con detalle, herramientasUsadas, resumidor, fallback
 │   │                   dto/DeepSeekMensajeJsonTest.java,     # NON_NULL y deserialización de tool_calls (Jackson 3)
 │   │                   tools/SeniorDevHerramientaEjecutorTest, HerramientasProyectoTest, HerramientaBuscarHistorialTest
@@ -167,7 +167,10 @@ case-backend/
     y `=== CONSULTA ACTUAL ===` con `#id [user · ROL] pregunta: …` + "Empieza tu respuesta con @user" (+ aviso si es LECTOR).
   - `SeniorDevPrompts.SYSTEM_PROMPT`: reglas F2 (cero SQL/código, Markdown, comandos `CREAR_TABLA`…`GENERAR_BACKEND`) +
     F3: identidad e hilo (abrir con `@autor`, no repetir `↳ #id`, citar `#id`), uso de herramientas (nunca inventar) y
-    `GENERAR_DDL` (si piden DDL, no lo escribe: el visor lo genera). `RESUMEN_PROMPT` para la memoria.
+    `GENERAR_DDL` (si piden DDL, no lo escribe: el visor lo genera). QA F3/F4: responde solo al autor de la consulta;
+    **nunca afirma haber consultado** algo sin llamar la herramienta en ese turno; no confunde decisiones del chat con ADR;
+    permisos reales: cualquier miembro (incl. LECTOR) ve/descarga el DDL, solo aplicar propuestas exige ADMIN/COLABORADOR.
+    `RESUMEN_PROMPT` para la memoria.
   - Herramientas (tool calling, `tools/`): `obtenerDiagrama(tabla?)`, `listarTareas(estado?, asignado?)`,
     `listarNotas(texto?, limite≤20)`, `buscarEnHistorial(consulta, autor?, limite≤10)`. Solo lectura; el `proyectoId`
     NO es argumento: lo fija el servidor y se ejecutan con el `usuarioId` del autor a través de los services existentes
@@ -179,7 +182,8 @@ case-backend/
     "Buscando en el historial: “…”…"). Si DeepSeek responde 400 a la 1.ª llamada con tools → una llamada sin tools (F2).
     `temperature 0.5`, `max_tokens 1200`, timeout por llamada 45 s.
   - Búsqueda full-text: consulta nativa con `to_tsvector('spanish', contenido) @@ websearch_to_tsquery('spanish', :q)`
-    (nunca falla con texto libre), ordenada por `ts_rank`, excluye `SISTEMA`; usa el índice GIN `idx_chat_mensajes_fts`
+    (nunca falla con texto libre); las palabras clave se unen con `or` (`HerramientaBuscarHistorial.alMenosUna`) porque el
+    AND por defecto no encontraba nada si el modelo agregaba una palabra ausente; ordenada por `ts_rank`, excluye `SISTEMA`; usa el índice GIN `idx_chat_mensajes_fts`
     que crea `ChatBusquedaIndiceInitializer` (`CREATE INDEX IF NOT EXISTS` al arrancar; si falla solo `log.warn`).
   - Resumen acumulado (`SeniorDevResumidor`): corte = id más viejo de la ventana de 30; si hay ≥ 20 mensajes entre la
     marca y el corte, resume un lote (≤ 100, ascendente) con `RESUMEN_PROMPT` (`temperature 0.2`, `max_tokens 600`, sin

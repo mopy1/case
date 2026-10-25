@@ -35,7 +35,8 @@ export function ChatActionCard(props: ChatActionCardProps) {
   const variant = tone === "destructive" ? "destructive" : emphasis === "primary" ? "default" : "outline"
 
   return (
-    <Card size={size} className="gap-3 rounded-2xl shadow-none ring-border dark:ring-border">
+    // mb-px: el ítem del scroller usa content-visibility (contención de pintura) y recortaba el ring inferior.
+    <Card size={size} className="mb-px gap-3 rounded-2xl shadow-none ring-border dark:ring-border">
       <CardHeader>
         <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
           <Icon className={cn("size-4 shrink-0", tone === "destructive" ? "text-destructive" : "text-muted-foreground")} />

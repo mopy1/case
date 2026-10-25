@@ -11,7 +11,7 @@ export const PROJECT_KNOWLEDGE_TOPICS: KnowledgeTopic[] = [
 • **Acción:** Qué se decidió implementar (ej: *"Normalizar Pedido y DetallePedido"* o *"Usar BIGINT en PKs"*).
 • **Motivo Técnico:** Justificación basada en normalización (3FN), rendimiento, escalabilidad o patrones SOLID.
 • **Inmutabilidad:** Las notas son inmutables para garantizar trazabilidad histórica y auditoría ante el docente o equipo.
-• **Integración Directa:** Puedes guardar cualquier sugerencia de la IA en este panel haciendo clic en **"📝 Guardar como Nota ADR en el proyecto"**.`,
+• **Integración Directa:** Puedes guardar cualquier sugerencia de la IA en este panel haciendo clic en **"Guardar como Nota ADR en el proyecto"**.`,
     keywords: ["nota", "adr", "decision", "arquitectura", "justificar", "docente", "motivo", "accion", "inmutable"],
     sampleQuestions: [
       "¿Qué es un ADR y por qué es inmutable?",

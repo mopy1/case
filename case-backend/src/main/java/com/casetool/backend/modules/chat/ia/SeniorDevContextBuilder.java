@@ -100,7 +100,7 @@ public class SeniorDevContextBuilder {
                 .append("Empieza tu respuesta con @").append(user).append('.');
         if (d.rol() == MiembroProyecto.Rol.LECTOR) {
             sb.append(' ').append(user).append(" es LECTOR: no puede aplicar propuestas; si propones cambios, ")
-                    .append("aclárale que un ADMIN o COLABORADOR debe aplicarlos.");
+                    .append("aclárale que un ADMIN o COLABORADOR debe aplicarlos. Sí puede ver y descargar el DDL.");
         }
         return sb.toString();
     }

@@ -38,7 +38,7 @@ public class SeniorDevProyectoFormatter {
     }
 
     public void agregarSeccionesLienzoYGestion(Long proyectoId, StringBuilder sb) {
-        sb.append("\nTablas:\n");
+        sb.append("\nTablas (solo tipo, PK y FK; para saber si una columna acepta NULL usa obtenerDiagrama):\n");
         var entidades = entidadRepo.findByProyectoId(proyectoId);
         var atributos = atributoRepo.findByProyectoId(proyectoId).stream()
                 .collect(Collectors.groupingBy(a -> a.getEntidad().getId()));

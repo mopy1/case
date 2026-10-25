@@ -54,7 +54,7 @@ src/
 │   │   ├── chat-empty.tsx · chat-error.tsx · chat-skeleton.tsx   # 4 estados
 │   │   ├── use-autosize.ts          # altura del textarea (1–8 líneas)
 │   │   ├── lib/chat-time.ts         # horaCorta (24 h), etiquetaDia, cambiaDeDia, debeAgrupar (5 min)
-│   │   └── markdown/                # message-markdown (MessageMarkdown), markdown-renderer, code-block (Copiar),
+│   │   └── markdown/                # message-markdown (MessageMarkdown), markdown-renderer, code-block (Copiar + slot `actions`),
 │   │                                #   markdown-inline (@yo en tono mention), normalizer, tokenizer, markdown.types
 │   └── common/
 │       ├── ConfirmDialog.tsx       # Diálogo "¿Eliminar…?" reutilizado por todos los borrados
@@ -68,7 +68,7 @@ src/
 │   └── useIsMobile.ts        # matchMedia < 768px
 ├── layouts/ProjectLayout.tsx # Shell de /proyectos/:id (ver §4)
 ├── lib/
-│   ├── api.ts                # apiFetch, API_URL, parseErrorMessage, mensajeDeError
+│   ├── api.ts                # apiFetch (timeout 15 s), API_URL, API_TIMEOUT_MS, parseErrorMessage, mensajeDeError
 │   ├── avatar.ts             # colorAvatar(id), iniciales(username)
 │   ├── descargarArchivo.ts   # descargarBlob(blob, nombre) — <a download> sintético
 │   ├── projectCode.ts        # encode/decodeProjectId: id numérico <-> "prj-xxxx" (afín mod 2^32, reversible)
@@ -83,16 +83,20 @@ src/
         │   ├── chat.types.ts          # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, ChatIaEstado, ChatIaEstadoEvent
         │   ├── chat-proposal.types.ts # ChatProposal, ChatProposalSummary, PermisosPropuesta, evaluarPermisosPropuesta
         │   └── mention.types.ts       # MentionItem, MentionTriggerState
-        ├── api/chatApi.ts             # listarMensajes, enviarMensaje, obtenerPresencia, marcarPropuestaAplicada (apiFetch)
+        ├── api/chatApi.ts             # listarMensajes, enviarMensaje, obtenerPresencia, marcarPropuestaAplicada, obtenerMemoria (apiFetch)
         ├── lib/
         │   ├── chatSocket.ts          # chatWsUrl() y chatTopics(p) (mensajes, presencia, ia)
         │   ├── chatFormat.ts          # unirMensajes (dedupe por id), etiquetaRol, nombreAutor, autorDe (→ ChatAuthor)
-        │   ├── chatProposalParser.ts  # Parser puro de comandos Senior Dev y extracción de texto conceptual limpio
+        │   ├── chatProposalParser.ts  # Parser puro de comandos Senior Dev + línea GENERAR_DDL (→ pideDdl) y texto limpio
+        │   ├── chatQuickActions.data.ts # 5 acciones rápidas (auditar, índices, normalización, decisiones; "ddl" = local, prompt null)
+        │   ├── chatIaFuentes.ts       # fuentesIa(herramientasUsadas) → ["Diagrama", "Tareas", "ADRs", "Historial"]
+        │   ├── chatAdrDraft.ts        # borradorAdr(mensaje, texto): acción = 1.ª oración útil (≤ 100), motivo plano + "Origen: chat #id"
         │   └── chatProposalStorage.ts # Persistencia en localStorage de propuestas aplicadas por proyecto
         ├── hooks/
         │   ├── useChatMensajes.ts          # Historial + envío REST
         │   ├── useChatSocket.ts            # STOMP multicanal
-        │   ├── useChatSala.ts              # Orquesta presencia + IA
+        │   ├── useChatSala.ts              # Orquesta presencia + IA (IaEnCurso: evento + pasos `detalle`, timeout 90 s)
+        │   ├── useChatMemoria.ts           # GET /chat/memoria perezoso (al abrir el diálogo): memoria, loading, error, recargar
         │   ├── useChatProposalExecutor.ts  # Ejecución de propuestas en lote, toast feedback y estado reactivo
         │   ├── useMentionTrigger.ts        # Detección de @query, filtrado y navegación de teclado (flechas/Enter/Tab/Esc)
         │   └── useChatVoiceInput.ts        # Web Speech API acumulativa (baseTextRef)
@@ -100,11 +104,15 @@ src/
             ├── chat-team-view.tsx        # ChatShell + 4 estados + filtro de menciones + candidatos
             ├── team-header.tsx           # ChatHeader: presencia (AvatarGroup máx. 3), punto de estado WS, banner de filtro
             ├── team-filter-menu.tsx      # DropdownMenu radio: Todos / Mis menciones (n) / por miembro o SeniorDev
-            ├── chat-message-list.tsx     # ChatThread + separador de día + agrupación + ChatAgentStatus (PENSANDO)
-            ├── chat-message-item.tsx     # ChatMensaje → ChatMessage (+ ChatQuote, ChatMessageActions, propuesta)
-            ├── chat-proposal-card.tsx    # ChatActionCard (Layers) con RBAC, running/done "Aplicado por @x", slot `secondary`
+            ├── chat-message-list.tsx     # ChatThread + día + agrupación + ChatAgentStatus con pasos + error inline "Cargar anteriores" + diálogo ADR único
+            ├── chat-message-item.tsx     # ChatMensaje → ChatMessage (+ cita, "Consultó: …", Copiar/Guardar ADR, propuesta o tarjeta DDL)
+            ├── chat-proposal-card.tsx    # ChatActionCard (Layers) con RBAC, running/done "Aplicado por @x"; si pideDdl, "Ver DDL del modelo" (inline)
+            ├── chat-ddl-card.tsx         # Respuesta solo con GENERAR_DDL: ChatActionCard secundaria que despliega DdlViewer
+            ├── chat-save-adr-dialog.tsx  # Dialog controlado (accion ≤ 100, motivo) → useNoteMutations + evento project:note-created + toast
+            ├── chat-memory-dialog.tsx    # Botón Brain "Memoria del equipo" + Dialog (skeleton, ChatError, Empty, resumen MessageMarkdown)
+            ├── team-quick-actions.tsx    # ChatQuickActions con CHAT_QUICK_ACTIONS: inserta el prompt (D2) o abre DdlViewerDialog
             ├── chat-proposal-summary.tsx # Badges outline + 4 detalles y "Ver N más" (sin scroll interno)
-            ├── team-composer.tsx         # ChatComposer: menciones (popover + NAV_KEYS), botón Senior Dev, voz; slot quickActions
+            ├── team-composer.tsx         # ChatComposer: menciones (popover + NAV_KEYS), botón Senior Dev, voz; insertarTexto → TeamQuickActions
             ├── chat-mention-popover.tsx  # listbox flotante sobre el composer
             └── chat-mention-item.tsx     # renglón: ChatAvatar sm, @usuario, rol o IA
 ```
@@ -166,6 +174,9 @@ URL al código. Todas las páginas se cargan con `React.lazy` + `Suspense`.
   (localStorage `token`), `Content-Type: application/json` si hay body y no es `FormData`.
   401 → borra `token`/`user` y redirige a `/login`. Error → `Error(body.message ?? errorFallback)`.
   204 → `undefined`. `raw: true` devuelve el `Response` (descarga de XMI).
+- **Timeout (F3/F4):** `timeoutMs` (default `API_TIMEOUT_MS` = 15 000) con `AbortSignal.timeout`, combinado con `options.signal`
+  vía `AbortSignal.any`. `TimeoutError` → `Error("El servidor no respondió a tiempo")`; fallo de red (`TypeError`) → `Error("No se pudo
+  conectar con el servidor")`. Previsualizar/importar XMI pasan `timeoutMs: 60_000`. Con `raw: true` el corte también cubre la lectura del body.
 - `mensajeDeError(err, fallback?)`: texto para `setError` en los `catch` (fallback por defecto
   "No se pudo conectar con el servidor").
 - `features/auth/api/authApi.ts` usa `fetch` directo (sin token ni manejo de 401).
@@ -217,6 +228,7 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 ### notes
 - `useNotes` → `GET /proyectos/{p}/notas`; escucha `project:note-created`. `useNoteMutations` →
   `POST /proyectos/{p}/notas` (`{accion, motivo}`). Solo alta y lectura (sin editar/borrar en la UI).
+- API pública (`features/notes/index.ts`): `useNoteMutations`, `NotaRequest`, `NotaResponse` (la usa "Guardar como ADR" del chat).
 
 ### xmi
 - `useXmiExchange`: exportar `GET /proyectos/{p}/xmi/exportar` (blob → `proyecto-{p}.xmi`); importar en
@@ -226,6 +238,11 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 ### generator (100% en el cliente)
 - `useProjectGenerator`: `GET` diagrama + proyecto → `generarProyectoSpringBoot(nombre, diagrama)` →
   vista previa (árbol + visor) → `descargarProyectoZip` (JSZip, `mvnw` con permisos 755, `backend-{p}.zip`).
+- **DDL PostgreSQL (F4, lo genera el backend):** `api/ddlApi.ts` `obtenerDdl(p)` → `GET /proyectos/{p}/ddl` (`raw` + `.text()`, cualquier
+  miembro); `hooks/useDdlEsquema` (`ddl, loading, error, vacio` = sin `CREATE TABLE`, `recargar`, `descargar` → `esquema-{p}.sql`);
+  `components/ddl-viewer.tsx` (4 estados; reutiliza `CodeBlock` de `components/chat` con "Copiar" + acción "Descargar .sql"; vacío →
+  "Ir al diagrama") y `ddl-viewer-dialog.tsx` (controlado, monta el visor al abrir). API pública `features/generator/index.ts`:
+  `DdlViewer`, `DdlViewerDialog`. Accesos: botón "Ver DDL PostgreSQL" en la cabecera del Generador, acción rápida "Ver DDL" y tarjeta del chat.
 - `lib/springBootGenerator.ts` orquesta; plantillas en `lib/springboot/`: `nombres.ts` (casing, tipos
   SQL→Java, `BASE_PACKAGE com.casetool.generated`), `entidadJpa.ts` (normaliza PK), `relacionesJpa.ts`
   (@ManyToOne/@OneToMany desde FKs y relaciones), `pomXml.ts`, `archivosConfig.ts`, `archivosCore.ts`,
@@ -274,7 +291,8 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   1. `/topic/proyectos/{p}/chat`: difusión de mensajes guardados (`USUARIO`, `IA` o `SISTEMA`).
   2. `/topic/proyectos/{p}/chat/presencia`: snapshot de usuarios presentes (suscripción que marca "en la sala").
   3. `/topic/proyectos/{p}/chat/ia`: eventos efímeros `ChatIaEstadoEvent` (`PENSANDO`, `RESPONDIDO`, `ERROR`).
-  Frame ERROR con `401`/`403` → `deactivate()` y "Sin tiempo real" (sin bucle de reconexión); corte de red → "Reconectando…".
+  Frame ERROR con `401`/`403` → `deactivate()` y "Sin tiempo real" (sin bucle de reconexión); corte de red → "Reconectando…" solo si ya
+  hubo una conexión (antes de la 1.ª, un cierre sigue en "Conectando…").
 - `useChatSala`: en cada `onConnect` pide `GET .../presencia` (snapshot); si el historial había fallado (backend caído al
   entrar) hace `recargar()` solo, y si es reconexión `sincronizar()` (GET últimos + unión) para recuperar lo perdido. El propio usuario se agrega a "en la sala" si está conectado.
   El emisor recibe su mensaje por REST y por WS: `unirMensajes` deduplica por `id`. Maneja el estado `iaPensando` ante eventos de IA.
@@ -294,11 +312,19 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   - **Estados**: `ChatSkeleton` · `ChatError` (Alert + Reintentar) · `ChatEmpty` (primario "Preguntar a Senior Dev", outline "Saludar al
     equipo") · lista. Senior Dev pensando: `ChatAgentStatus` con el `detalle` del evento `PENSANDO`.
   - **Pantalla completa**: botón en la fila de pestañas o `Escape` para salir.
-- **Slots listos para F3/F4 (sin lógica todavía)**: `ChatMessage.sources?: string[]` ("Consultó: Diagrama · Historial" desde
-  `herramientasUsadas`), `ChatMessageActions.onSaveAdr?` (Guardar como ADR, mostrar solo a ADMIN/COLABORADOR), `ChatAgentStatus.steps?`
-  y `onCancel?`, `TeamComposer.quickActions?` (`<ChatQuickActions layout="row" …/>`, se oculta con el popover abierto),
-  `ChatProposalCard.secondary?` ("Ver DDL del modelo"), `ChatThread.loadMoreSlot?` (error inline de "Cargar anteriores"),
-  `ChatHeader.actions` (botón "Memoria").
+- **F3/F4 (contexto largo y acciones), sobre los slots del sistema compartido:**
+  - `ChatMensaje.herramientasUsadas` (`HerramientaIa[] | null`) → `ChatMessage.sources` vía `fuentesIa`: "Consultó: Tareas · Diagrama · Historial".
+  - Pasos en vivo: cada `PENSANDO` con `detalle` distinto se acumula en `IaEnCurso.pasos` (se reinicia si cambia `respuestaAId`). El 1.º es la
+    etiqueta de `ChatAgentStatus`; los siguientes son `steps` (anteriores `done`, último `active`). Timeout local 90 s, reiniciado en cada `PENSANDO`.
+  - Acciones rápidas (`TeamQuickActions` en el composer, D2): insertan el prompt (`@SeniorDev …, sin SQL`) en el input sin enviar
+    (reemplaza si está vacío, si no agrega en línea nueva); "Ver DDL" abre `DdlViewerDialog` sin escribir en la sala. Deshabilitadas con `enviando`.
+  - `GENERAR_DDL` (línea sola emitida por la IA) → `ChatProposal.pideDdl`; se quita del texto. Sin cambios → `ChatDdlCard`; con cambios →
+    botón secundario en `ChatProposalCard`. Ambos despliegan `DdlViewer` inline (SQL del backend, nunca el de la IA). Visible para LECTOR.
+  - "Guardar como ADR" (D5): solo en mensajes de Senior Dev y solo si `miRol` es ADMIN/COLABORADOR (`evaluarPermisosPropuesta`; LECTOR no ve
+    el botón). `borradorAdr` prellena; `ChatSaveAdrDialog` crea la nota con `useNoteMutations` y emite `project:note-created {proyectoId, nota}`.
+  - Memoria (`ChatMemoryDialog` en `TeamHeader.extraActions`): `GET /chat/memoria` al abrir; vacío explica que se genera pasados ~50 mensajes.
+  - "Cargar anteriores": `errorAnteriores` propio de `useChatMensajes`, mostrado inline vía `ChatThread.loadMoreSlot` sin ocultar la lista;
+    se limpia al reintentar con el mismo botón.
 
 ### collaboration (solo en DiagramEditorPage)
 - `useRealtimeCollaboration(p)` combina tres mecanismos:
@@ -322,7 +348,7 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 | --- | --- | --- |
 | `project:diagram-updated` `{proyectoId}` | acciones del Copilot, `useDiagramPolling` | `useDiagram` (refetch) |
 | `project:task-created/updated/deleted` | `useTaskMutations`, Copilot | `useTasks` |
-| `project:note-created` | Copilot | `useNotes` |
+| `project:note-created` `{proyectoId, nota?}` | Copilot, "Guardar como ADR" del chat | `useNotes` |
 | `copilot:voice-submit` `{text}` | `ProjectLayout` (push-to-talk) | `CopilotAssistantView` (envía) y `usePanelTab` (cambia a la pestaña Copilot) |
 
 ## 8. Variables de entorno (Vite, se hornean en el build)

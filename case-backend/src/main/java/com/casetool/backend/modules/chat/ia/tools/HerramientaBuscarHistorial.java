@@ -4,6 +4,7 @@ import static com.casetool.backend.modules.chat.ia.SeniorDevLimites.*;
 
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,11 +41,23 @@ public class HerramientaBuscarHistorial {
         String quien = autor != null ? autor.strip().replaceFirst("^@", "") : "";
         int lim = acotar(limite, BUSQUEDA_LIMITE_DEFAULT, 1, BUSQUEDA_LIMITE_MAX);
 
-        List<ChatMensaje> encontrados = chatRepo.buscarTextoCompleto(proyectoId, q, quien, lim);
+        List<ChatMensaje> encontrados = chatRepo.buscarTextoCompleto(proyectoId, alMenosUna(q), quien, lim);
         if (encontrados.isEmpty()) {
             return "Sin resultados para \"" + q + "\"";
         }
         return encontrados.stream().map(HerramientaBuscarHistorial::linea).collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * websearch_to_tsquery une las palabras con AND: "borrado lógico cliente baja" no encuentra un mensaje
+     * que no diga "baja". El modelo manda varias palabras clave, así que basta con que aparezca una
+     * (OR); ts_rank deja primero los mensajes que tienen más.
+     */
+    static String alMenosUna(String consulta) {
+        return Arrays.stream(consulta.replace("\"", " ").split("\\s+"))
+                .map(p -> p.replaceFirst("^-+", ""))
+                .filter(p -> !p.isBlank() && !p.equalsIgnoreCase("or"))
+                .collect(Collectors.joining(" or "));
     }
 
     private static String linea(ChatMensaje m) {

@@ -75,6 +75,7 @@ export function ChatComposer(props: ChatComposerProps) {
             <Button
               type="button"
               size="icon-sm"
+              className="pointer-coarse:size-9"
               disabled={!canSubmit}
               onClick={onSubmit}
               aria-label="Enviar mensaje"

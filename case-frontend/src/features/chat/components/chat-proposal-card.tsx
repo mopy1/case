@@ -1,8 +1,10 @@
-import type { ReactNode } from "react"
-import { Layers } from "lucide-react"
+import { useState, type ReactNode } from "react"
+import { FileCode, Layers } from "lucide-react"
 import { ChatActionCard } from "@/components/chat"
 import type { ActionStatus } from "@/components/chat"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { DdlViewer } from "@/features/generator"
 import { useAuth } from "@/hooks/useAuth"
 import type { RolProyecto } from "@/features/projects/types/projects.type"
 import { evaluarPermisosPropuesta } from "../types/chat-proposal.types"
@@ -25,6 +27,7 @@ interface ChatProposalCardProps {
 export function ChatProposalCard({ proposal: p, miRol, proyectoId, isApplied, aplicadoPor, secondary }: ChatProposalCardProps) {
   const { user } = useAuth()
   const executor = useChatProposalExecutor(proyectoId)
+  const [verDdl, setVerDdl] = useState(false)
   const { puedeAplicar, motivoBloqueo } = evaluarPermisosPropuesta(miRol)
   const total = p.summary.total
   const aplicado = Boolean(isApplied) || executor.isApplied(p.messageId, p.propuestaAplicada)
@@ -48,10 +51,20 @@ export function ChatProposalCard({ proposal: p, miRol, proyectoId, isApplied, ap
       doneLabel={esPropio ? "Aplicado por vos" : autor ? `Aplicado por @${autor}` : "Cambios aplicados"}
       lockedReason={motivoBloqueo}
       onAction={() => void executor.aplicarPropuesta(p)}
-      secondary={secondary}
+      secondary={
+        <>
+          {p.pideDdl && (
+            <Button variant="outline" size="sm" aria-expanded={verDdl} onClick={() => setVerDdl((v) => !v)}>
+              <FileCode data-icon="inline-start" /> {verDdl ? "Ocultar DDL" : "Ver DDL del modelo"}
+            </Button>
+          )}
+          {secondary}
+        </>
+      }
       size="default"
     >
       <ChatProposalSummary summary={p.summary} detalles={p.detalles} />
+      {verDdl && <DdlViewer proyectoId={proyectoId} />}
     </ChatActionCard>
   )
 }

@@ -25,6 +25,8 @@ export interface ChatProposal {
   copilotMessage: CopilotMessage
   propuestaAplicada?: boolean
   aplicadoPor?: string | null
+  /** F4: la IA emitió `GENERAR_DDL` → la tarjeta ofrece el visor del DDL generado desde el diagrama. */
+  pideDdl: boolean
 }
 
 /** Estado de ciclo de vida de la propuesta en la sesión del usuario. */

@@ -5,14 +5,28 @@ import type { ChatIaEstadoEvent, ChatMensaje, UsuarioEnSala } from "../types/cha
 import { useChatMensajes } from "./useChatMensajes"
 import { useChatSocket } from "./useChatSocket"
 
-const TIMEOUT_IA_MS = 65_000
+/** Sin eventos de la IA durante este tiempo → se oculta el indicador (cada `PENSANDO` lo reinicia). */
+const TIMEOUT_IA_MS = 90_000
+
+/** Respuesta en curso de Senior Dev: el último evento y los `detalle` distintos que fue emitiendo (pasos de herramientas). */
+export interface IaEnCurso {
+  evento: ChatIaEstadoEvent
+  pasos: string[]
+}
+
+function sumarPaso(prev: IaEnCurso | null, evento: ChatIaEstadoEvent): IaEnCurso {
+  const detalle = evento.detalle?.trim()
+  const base = prev && prev.evento.respuestaAId === evento.respuestaAId ? prev.pasos : []
+  const pasos = detalle && base[base.length - 1] !== detalle ? [...base, detalle] : base
+  return { evento, pasos }
+}
 
 /** Orquesta historial + WebSocket + presencia + estado IA. */
 export function useChatSala(proyectoId: number) {
   const chat = useChatMensajes(proyectoId)
   const { user } = useAuth()
   const [presentes, setPresentes] = useState<UsuarioEnSala[]>([])
-  const [iaEstado, setIaEstado] = useState<ChatIaEstadoEvent | null>(null)
+  const [iaEstado, setIaEstado] = useState<IaEnCurso | null>(null)
   const timerIaRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { agregar, sincronizar, recargar, error } = chat
 
@@ -35,7 +49,7 @@ export function useChatSala(proyectoId: number) {
 
   const handleIaEstado = useCallback((evento: ChatIaEstadoEvent) => {
     if (evento.estado === "PENSANDO") {
-      setIaEstado(evento)
+      setIaEstado((prev) => sumarPaso(prev, evento))
       limpiarTimerIa()
       timerIaRef.current = setTimeout(() => setIaEstado(null), TIMEOUT_IA_MS)
     } else {

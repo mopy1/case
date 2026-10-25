@@ -32,11 +32,17 @@ class HerramientaBuscarHistorialTest {
 
     @Test
     void formateaResultadosConIdFechaYAutor() {
-        when(chatRepo.buscarTextoCompleto(P, "borrado cliente", "", 5)).thenReturn(List.of(mensaje()));
+        when(chatRepo.buscarTextoCompleto(P, "borrado or cliente", "", 5)).thenReturn(List.of(mensaje()));
 
         assertThat(herramienta.buscar(P, U, "  borrado cliente ", null, null))
                 .isEqualTo("#12 · 2026-10-20 · maria: El borrado de Cliente será lógico");
         verify(accesoService).verificarMiembro(P, U);
+    }
+
+    @Test
+    void palabrasClaveSeUnenConOrParaQueBasteUna() {
+        assertThat(HerramientaBuscarHistorial.alMenosUna("borrado lógico  \"cliente\" -baja or activo"))
+                .isEqualTo("borrado or lógico or cliente or baja or activo");
     }
 
     @Test

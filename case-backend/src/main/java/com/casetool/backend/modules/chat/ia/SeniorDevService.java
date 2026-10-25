@@ -91,7 +91,7 @@ public class SeniorDevService {
 
     private void manejarFallo(Long proyectoId, ChatMensaje disparador, Long disparadorId, Exception ex) {
         String motivo = desglosarMotivo(ex);
-        String texto = "⚠️ @SeniorDev no está disponible en este momento (" + motivo + "). Por favor intenta más tarde.";
+        String texto = "@SeniorDev no está disponible en este momento (" + motivo + "). Por favor intenta más tarde.";
         try {
             ChatMensaje sistema = nuevoMensaje(proyectoId, disparador, ChatMensaje.Tipo.SISTEMA, texto);
             chatRepo.saveAndFlush(sistema);

@@ -16,6 +16,7 @@ export function previewXmi(proyectoId: number, archivo: File): Promise<XmiPrevie
     method: "POST",
     body: formData,
     errorFallback: "Error al leer el XMI",
+    timeoutMs: 60_000,
   })
 }
 
@@ -28,5 +29,6 @@ export function importXmi(proyectoId: number, archivo: File, modo: ModoImportaci
     method: "POST",
     body: formData,
     errorFallback: "Error al importar el XMI",
+    timeoutMs: 60_000,
   })
 }

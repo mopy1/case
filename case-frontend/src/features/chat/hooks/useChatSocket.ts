@@ -60,8 +60,9 @@ export function useChatSocket(proyectoId: number, handlers: ChatSocketHandlers):
       yaConectado = true
     }
 
+    // Antes de la 1.ª conexión un cierre es otro intento fallido: sigue "conectando", nunca "reconectando".
     client.onWebSocketClose = () => {
-      if (!detenido) setEstado("reconectando")
+      if (!detenido) setEstado(yaConectado ? "reconectando" : "conectando")
     }
 
     client.onStompError = (frame) => {

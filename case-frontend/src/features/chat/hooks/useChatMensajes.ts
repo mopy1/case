@@ -11,6 +11,8 @@ export function useChatMensajes(proyectoId: number) {
   const [error, setError] = useState<string | null>(null)
   const [hayMas, setHayMas] = useState(false)
   const [cargandoAnteriores, setCargandoAnteriores] = useState(false)
+  /** Error propio de "Cargar anteriores": se muestra inline y no oculta la lista (antes pisaba `error`). */
+  const [errorAnteriores, setErrorAnteriores] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
 
@@ -57,12 +59,13 @@ export function useChatMensajes(proyectoId: number) {
   const cargarAnteriores = useCallback(async () => {
     if (!primerId) return
     setCargandoAnteriores(true)
+    setErrorAnteriores(null)
     try {
       const lista = await listarMensajes(proyectoId, primerId)
       setMensajes((prev) => unirMensajes(prev, lista))
       setHayMas(lista.length === CHAT_LIMITE_PAGINA)
     } catch (err) {
-      setError(mensajeDeError(err))
+      setErrorAnteriores(mensajeDeError(err, "No se pudieron cargar los mensajes anteriores"))
     } finally {
       setCargandoAnteriores(false)
     }
@@ -90,7 +93,7 @@ export function useChatMensajes(proyectoId: number) {
   )
 
   return {
-    mensajes, loading, error, hayMas, cargandoAnteriores, enviando, errorEnvio,
+    mensajes, loading, error, hayMas, cargandoAnteriores, errorAnteriores, enviando, errorEnvio,
     recargar, sincronizar, cargarAnteriores, enviar, agregar,
   }
 }

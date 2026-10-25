@@ -8,6 +8,7 @@ import { useProject } from "@/features/projects/hooks/useProject"
 import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
 import type { MentionItem } from "../types/mention.types"
 import { useChatSala } from "../hooks/useChatSala"
+import { ChatMemoryDialog } from "./chat-memory-dialog"
 import { ChatMessageList } from "./chat-message-list"
 import { TeamComposer } from "./team-composer"
 import { TeamHeader } from "./team-header"
@@ -73,6 +74,7 @@ export function ChatTeamView({ proyectoId }: { proyectoId: number }) {
         miUsername={user?.username}
         hayMas={sala.hayMas}
         cargandoAnteriores={sala.cargandoAnteriores}
+        errorAnteriores={sala.errorAnteriores}
         onCargarAnteriores={() => void sala.cargarAnteriores()}
         iaEstado={sala.iaEstado}
         miRol={proyecto?.miRol ?? null}
@@ -92,9 +94,20 @@ export function ChatTeamView({ proyectoId }: { proyectoId: number }) {
           totalMisMenciones={totalMisMenciones}
           totalFiltrados={mensajes.length}
           candidatos={candidatos}
+          extraActions={<ChatMemoryDialog proyectoId={proyectoId} />}
         />
       }
-      composer={!sala.loading && <TeamComposer enviando={sala.enviando} errorEnvio={sala.errorEnvio} onEnviar={sala.enviar} candidatos={candidatos} />}
+      composer={
+        !sala.loading && (
+          <TeamComposer
+            enviando={sala.enviando}
+            errorEnvio={sala.errorEnvio}
+            onEnviar={sala.enviar}
+            candidatos={candidatos}
+            proyectoId={proyectoId}
+          />
+        )
+      }
     >
       {cuerpo()}
     </ChatShell>

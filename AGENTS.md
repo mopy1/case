@@ -16,7 +16,7 @@ sw-case/
 ├── docker-compose.yml        # dev local: case_postgres (5434), case_backend (8081), case_frontend (5173→80)
 ├── docker-compose.prod.yml   # prod EC2: red interna case_network, solo case_frontend expone 80/443
 ├── deploy-aws.sh             # en el EC2: instala Docker, crea swap 2 GB, `docker compose -f docker-compose.prod.yml up -d --build`
-├── .env.example              # POSTGRES_PASSWORD, CORS_ALLOWED_ORIGINS (copiar a .env, nunca commitear)
+├── .env.example              # POSTGRES_PASSWORD, CORS_ALLOWED_ORIGINS, DEEPSEEK_API_KEY (copiar a .env, nunca commitear)
 ├── case-backend/             # API REST — Java 21 + Spring Boot 4.1 (Spring 7, Hibernate 7) + PostgreSQL 16
 └── case-frontend/            # SPA — React 19 + TypeScript 6 + Vite 8 + Tailwind v4 + shadcn (Base UI) + @xyflow/react
 ```
@@ -28,16 +28,26 @@ El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descarta
 - **Backend:** monolito modular (`core/` transversal + `modules/{seguridad,proyecto,diagrama,xmi,chat}`,
   cada uno con controller/dto/exception/model/repository/service). Autenticación JWT stateless;
   autorización por rol de proyecto (`ADMIN`, `COLABORADOR`, `LECTOR`) en `ProyectoAccesoService`.
-  Esquema gestionado por Hibernate `ddl-auto=update` (9 tablas, sin migraciones). 40 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
+  Esquema gestionado por Hibernate `ddl-auto=update` (10 tablas, sin migraciones; el índice GIN full-text `idx_chat_mensajes_fts`
+  lo crea `ChatBusquedaIndiceInitializer` al arrancar). 42 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
 - **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,chat,collaboration,voice}`).
   Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
 - **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip), Copilot IA (llamadas
-  directas a DeepSeek / Gemini) y voz (Web Speech API).
+  directas a DeepSeek / Gemini; migrarlo al backend queda para F5) y voz (Web Speech API). El DDL PostgreSQL
+  **no**: lo genera el backend (`GET /api/proyectos/{id}/ddl`, determinístico, cualquier miembro).
 - **Chat de equipo y Senior Dev IA (Parcial 2 · F1 y F2):** mensajes por REST (`/api/proyectos/{id}/chat/mensajes`,
   tabla `chat_mensajes`) y difusión en vivo por **WebSocket STOMP** (`/ws`, JWT en el CONNECT, membresía en el
   SUBSCRIBE, tópicos `/topic/proyectos/{id}/chat`, `.../chat/presencia` y `.../chat/ia`). Pestaña "Equipo" del panel Copilot.
-  Mención `@dev`, `@senior` o `@seniordev` dispara en background la consulta a DeepSeek (vía backend `SeniorDevService`),
-  emitiendo estado `PENSANDO` por WS y respondiendo en el hilo como mensaje `tipo: IA` con contexto en 4 capas (sistema, proyecto/diagrama/tareas/ADRs, historial reciente y pregunta con autor). Nginx enruta `/ws` con `Upgrade`.
+  Solo la mención `@SeniorDev` (sin distinguir mayúsculas; regex de `ChatMencionIaUtils`, no reconoce `@dev` ni `@senior`)
+  dispara, **después del commit** (`ChatMensajeBroadcastListener`, `AFTER_COMMIT`), la consulta `@Async` a DeepSeek en
+  `SeniorDevService` (cola secuencial por proyecto). Emite `PENSANDO` por WS (uno por paso: "Revisando el diagrama…") y responde
+  en el hilo (`respuestaAId`) como `tipo: IA` con `herramientasUsadas`.
+  **F3 contexto largo:** prompt = reglas fijas + memoria acumulada (`chat_memoria`, resumen que actualiza `SeniorDevResumidor`
+  cada ~20 mensajes fuera de la ventana) + estado compacto del proyecto + últimos 30 mensajes con `#id` + consulta con autor y rol.
+  Tool calling de **solo lectura** (`obtenerDiagrama`, `listarTareas`, `listarNotas`, `buscarEnHistorial` full-text `spanish`) con
+  `proyectoId`/`usuarioId` fijados por el servidor, máx. 3 rondas × 4 llamadas y 90 s (`SeniorDevLimites`).
+  **F4 acciones:** acciones rápidas en el composer, "Guardar como ADR" (ADMIN/COLABORADOR), visor/descarga de DDL (`GENERAR_DDL`),
+  diálogo "Memoria" (`GET .../chat/memoria`) y propuestas aplicables sincronizadas. Nginx enruta `/ws` con `Upgrade`.
 - **Colaboración del lienzo:** sin WebSockets. Presencia y cursores por HTTP (`/api/proyectos/{id}/colaboracion`,
   heartbeat ~800 ms, mapa en memoria del backend), refresco del diagrama por polling cada 7 s y
   `BroadcastChannel` entre pestañas del mismo navegador.
@@ -55,7 +65,7 @@ Antes de desplegar: `./mvnw -DskipTests package` en `case-backend` y `npm run bu
 `case-frontend` (con `.env.production`), porque `deploy-aws.sh` **no** compila. Variables `VITE_*`
 se hornean en el bundle.
 
-## 4. Estado de módulos (verificado contra el código, 2026-10-24)
+## 4. Estado de módulos (verificado contra el código, 2026-10-25)
 
 | Módulo | Qué hace hoy |
 | :--- | :--- |
@@ -63,10 +73,10 @@ se hornean en el bundle.
 | Proyectos | CRUD de proyectos, miembros y roles (protege al último ADMIN), Kanban `PENDIENTE/EN_PROGRESO/HECHO`, notas de diseño |
 | Diagramador | Tablas, atributos (PK/FK/tipo/nullable), relaciones con multiplicidad, herencia/composición/agregación, tabla intermedia N:M automática, puntos de quiebre |
 | XMI | Exporta XMI 1.1 (EA); importa dialecto EA (1.1/2.1) y el propio, modo FUSIONAR o REEMPLAZAR (solo ADMIN) |
-| Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente |
-| Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo |
+| Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente; visor "Ver DDL PostgreSQL" (backend) con copiar/descargar `esquema-{id}.sql` |
+| Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo. Comparte con Equipo el sistema de chat (`src/components/chat`) |
 | Colaboración | Presencia, cursores remotos, refresco por polling |
-| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, Senior Dev IA en el hilo (@SeniorDev), mejoras F2+ (menciones interactivas, navegación por flechas corregida, filtro por mención y miembro, badge "@ Te mencionaron", markdown normalizado y unificado con Copilot, modo oscuro calibrado, voz y pantalla completa) y propuestas colaborativas interactivas sincronizadas en tiempo real (persistencia en BD, difusión STOMP, autoría y control RBAC) |
+| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia, menciones con teclado, filtro por mención/miembro, voz y pantalla completa. Senior Dev (@SeniorDev) con contexto largo F3 (memoria acumulada, estado del proyecto, historial con `#id`, herramientas de solo lectura y búsqueda full-text) y acciones F4 (acciones rápidas, Guardar ADR, DDL, Memoria, propuestas aplicables sincronizadas con RBAC) |
 | Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
@@ -87,11 +97,19 @@ se hornean en el bundle.
 Enunciado en el vault: `U/2-2026/SW/Parcial2/Enunciado.md`. Requisito central: una IA "Senior Dev"
 en un **chat grupal por proyecto** (respuestas visibles para todo el equipo, sabe a quién responde y
 mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan por fases en
-`U/2-2026/SW/Parcial2/Plan.md`; especificaciones en `F1_Spec_Chat.md` y `F2_Spec_SeniorDev.md`.
+`U/2-2026/SW/Parcial2/Plan.md`; especificaciones en `F1_Spec_Chat.md`, `F2_Spec_SeniorDev.md` y las de F3/F4.
 - **F1 (chat grupal STOMP sin IA):** completada.
 - **F2 (Senior Dev IA en el chat grupal con DeepSeek desde el backend):** completada.
 - **F2+ (Mejoras y Propuestas Colaborativas Sincronizadas):** menciones dinámicas `@usuario` / `@SeniorDev` con corrección de navegación por flechas, barra de filtrado por menciones y miembro, resaltado de mención propia con badge `@ Te mencionaron`, normalización de espaciado Markdown y unificación de componentes con Copilot, calibración de contraste en modo oscuro (OKLCH), transcripción por voz, modo pantalla completa, y **propuestas colaborativas con sincronización y persistencia en tiempo real** (Senior Dev emite comandos estructurados limpios que el frontend procesa en tarjetas interactivas ejecutables con control RBAC; al aplicar, se persiste en BD, se difunde por WebSocket a toda la sala y se refleja "✓ Cambios aplicados en el proyecto por @username").
-- Siguiente: **F3 (Agente de Inducción para nuevos miembros del equipo).**
+- **F3 (contexto largo):** completada — la IA sabe a quién responde (abre con `@autor`, hilo `respuestaAId`), recuerda con
+  memoria acumulada + `buscarEnHistorial`, consulta datos exactos con herramientas y muestra "Consultó: …"; nunca debe afirmar
+  consultas que no hizo. Spec: `F3_F4_Spec_Contexto_Acciones.md`.
+- **F4 (acciones del chat):** completada — acciones rápidas, Guardar ADR, visor DDL (lo ve cualquier miembro; aplicar cambios
+  requiere ADMIN/COLABORADOR), diálogo Memoria.
+- **Rediseño de chats (F3/F4):** Equipo y Copilot comparten `ChatMessage`/`ChatComposer`/`ChatActionCard`; panel redimensionable
+  (hasta 70 % del viewport, lienzo ≥ 360 px), columna centrada ≤ 768 px, scrollbars con tokens (sin blancos en oscuro). Spec:
+  `F3_F4_Spec_Rediseno_Chats.md`.
+- Siguiente: **F5 (agente de inducción para nuevos miembros + migrar el Copilot personal al backend)**, pendiente.
 
 ## 7. Reglas para agentes
 

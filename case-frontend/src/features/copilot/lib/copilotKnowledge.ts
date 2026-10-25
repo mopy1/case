@@ -137,13 +137,13 @@ export function generateLocalResponse(
     }
 
     return {
-      text: `### 💡 Decisión Arquitectónica Recomendada\n\n• **Acción:** ${adr.accion}\n• **Motivo Técnico:** ${adr.motivo}`,
+      text: `### Decisión Arquitectónica Recomendada\n\n• **Acción:** ${adr.accion}\n• **Motivo Técnico:** ${adr.motivo}`,
       adrSuggestion: adr,
     }
   }
 
   return {
-    text: `### 📌 ${bestTopic.title}\n\n${bestTopic.content}`,
+    text: `### ${bestTopic.title}\n\n${bestTopic.content}`,
     adrSuggestion: bestTopic.suggestedAdr,
   }
 }

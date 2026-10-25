@@ -1,4 +1,3 @@
-import type { ReactNode } from "react"
 import { useRef, useState } from "react"
 import { Bot, Mic, MicOff } from "lucide-react"
 import { ChatComposer, ChatComposerButton } from "@/components/chat"
@@ -7,6 +6,7 @@ import type { MentionItem } from "../types/mention.types"
 import { useChatVoiceInput } from "../hooks/useChatVoiceInput"
 import { useMentionTrigger } from "../hooks/useMentionTrigger"
 import { ChatMentionPopover } from "./chat-mention-popover"
+import { TeamQuickActions } from "./team-quick-actions"
 
 const NAV_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Tab", "Escape", "Home", "End"])
 
@@ -15,12 +15,12 @@ interface TeamComposerProps {
   errorEnvio: string | null
   onEnviar: (contenido: string) => Promise<boolean>
   candidatos: MentionItem[]
-  /** F4: fila de acciones rápidas (se oculta con el popover de menciones abierto). */
-  quickActions?: ReactNode
+  /** F4: con proyecto se muestra la fila de acciones rápidas (oculta con el popover de menciones abierto). */
+  proyectoId?: number
 }
 
 /** Composer del Equipo: menciones con teclado, botón Senior Dev y dictado acumulativo. */
-export function TeamComposer({ enviando, errorEnvio, onEnviar, candidatos, quickActions }: TeamComposerProps) {
+export function TeamComposer({ enviando, errorEnvio, onEnviar, candidatos, proyectoId }: TeamComposerProps) {
   const [texto, setTexto] = useState("")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mention = useMentionTrigger({ candidatos, texto, setTexto, textareaRef })
@@ -34,6 +34,17 @@ export function TeamComposer({ enviando, errorEnvio, onEnviar, candidatos, quick
       setTexto("")
       mention.cerrarPopover()
     }
+  }
+
+  /** Acción rápida (D2): reemplaza el texto si está vacío; si no, lo agrega en una línea nueva. Nunca envía. */
+  function insertarTexto(t: string) {
+    setTexto((prev) => (prev.trim() ? `${prev.trimEnd()}\n${t}` : t))
+    mention.cerrarPopover()
+    setTimeout(() => {
+      const el = textareaRef.current
+      el?.focus()
+      el?.setSelectionRange(el.value.length, el.value.length)
+    }, 0)
   }
 
   function mencionarSeniorDev() {
@@ -59,7 +70,9 @@ export function TeamComposer({ enviando, errorEnvio, onEnviar, candidatos, quick
       ariaLabel="Mensaje para el equipo"
       placeholder="Escribile al equipo… (@ para mencionar)"
       error={errorEnvio}
-      quickActions={mention.activo ? undefined : quickActions}
+      quickActions={
+        proyectoId && !mention.activo ? <TeamQuickActions proyectoId={proyectoId} onInsertar={insertarTexto} disabled={enviando} /> : undefined
+      }
       overlay={
         mention.activo && (
           <ChatMentionPopover

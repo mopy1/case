@@ -29,7 +29,7 @@ export function ChatComposerButton({ icon: Icon, label, onClick, pressed, record
             disabled={disabled}
             aria-label={label}
             aria-pressed={pressed}
-            className={cn("text-muted-foreground", recording && "bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive")}
+            className={cn("text-muted-foreground", !showLabel && "pointer-coarse:size-9", recording && "bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive")}
           />
         }
       >

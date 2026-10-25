@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { X } from "lucide-react"
 import { ChatHeader } from "@/components/chat"
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
@@ -32,16 +33,19 @@ interface TeamHeaderProps {
   totalMisMenciones: number
   totalFiltrados: number
   candidatos: MentionItem[]
+  /** Acciones extra a la izquierda del filtro (botón "Memoria"). */
+  extraActions?: ReactNode
 }
 
 /** Cabecera de la sala: presencia, estado del WebSocket y filtro de menciones. */
-export function TeamHeader({ usuarios, estado, filtro, onFiltroChange, totalMisMenciones, totalFiltrados, candidatos }: TeamHeaderProps) {
+export function TeamHeader(props: TeamHeaderProps) {
+  const { usuarios, estado, filtro, onFiltroChange, totalMisMenciones, totalFiltrados, candidatos, extraActions } = props
   const resto = usuarios.slice(MAX_AVATARES)
   const presencia = (
-    <AvatarGroup>
+    <AvatarGroup className="-space-x-1">
       {usuarios.slice(0, MAX_AVATARES).map((u) => (
         <Tooltip key={u.usuarioId}>
-          <TooltipTrigger render={<Avatar size="sm" />}>
+          <TooltipTrigger render={<Avatar size="sm" className="bg-background" />}>
             <AvatarFallback className={cn("text-xs font-medium", colorAvatar(u.usuarioId))}>{iniciales(u.username)}</AvatarFallback>
           </TooltipTrigger>
           <TooltipContent side="bottom">{u.username}</TooltipContent>
@@ -62,7 +66,12 @@ export function TeamHeader({ usuarios, estado, filtro, onFiltroChange, totalMisM
           {textoEstado(estado, usuarios.length)}
         </span>
       }
-      actions={<TeamFilterMenu filtro={filtro} onFiltroChange={onFiltroChange} totalMisMenciones={totalMisMenciones} candidatos={candidatos} />}
+      actions={
+        <>
+          {extraActions}
+          <TeamFilterMenu filtro={filtro} onFiltroChange={onFiltroChange} totalMisMenciones={totalMisMenciones} candidatos={candidatos} />
+        </>
+      }
       banner={
         filtro && (
           <Marker className="text-xs">

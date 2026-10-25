@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api"
 import {
   CHAT_LIMITE_PAGINA,
+  type ChatMemoria,
   type ChatMensaje,
   type ChatPresencia,
   type EnviarMensajeRequest,
@@ -8,11 +9,7 @@ import {
 
 const base = (proyectoId: number) => `/api/proyectos/${proyectoId}/chat`
 
-/** Últimos `limite` mensajes (o los anteriores a `antesDe`), en orden cronológico ascendente. 
- * 
- *
- * asdf
- * */
+/** Últimos `limite` mensajes (o los anteriores a `antesDe`), en orden cronológico ascendente. */
 export function listarMensajes(proyectoId: number, antesDe?: number, limite = CHAT_LIMITE_PAGINA) {
   const query = new URLSearchParams({ limite: String(limite) })
   if (antesDe) query.set("antesDe", String(antesDe))
@@ -43,5 +40,12 @@ export async function marcarPropuestaAplicada(
   return apiFetch<ChatMensaje>(`${base(proyectoId)}/mensajes/${mensajeId}/aplicar`, {
     method: "POST",
     errorFallback: "No se pudo sincronizar el estado de la propuesta",
+  })
+}
+
+/** Resumen acumulado de la sala (memoria de largo plazo de Senior Dev). */
+export function obtenerMemoria(proyectoId: number) {
+  return apiFetch<ChatMemoria>(`${base(proyectoId)}/memoria`, {
+    errorFallback: "No se pudo cargar la memoria del equipo",
   })
 }

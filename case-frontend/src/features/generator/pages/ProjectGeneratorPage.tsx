@@ -1,5 +1,6 @@
+import { useState } from "react"
 import { useParams } from "react-router-dom"
-import { Download, RefreshCw, Sparkles, Terminal } from "lucide-react"
+import { Download, FileCode, RefreshCw, Sparkles, Terminal } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -8,12 +9,14 @@ import { decodeProjectId } from "@/lib/projectCode"
 import { useProjectGenerator } from "../hooks/useProjectGenerator"
 import { GeneratorFileTree } from "../components/generator-file-tree"
 import { GeneratorCodeViewer } from "../components/generator-code-viewer"
+import { DdlViewerDialog } from "../components/ddl-viewer-dialog"
 
 export function ProjectGeneratorPage() {
   const { id } = useParams<{ id: string }>()
   const proyectoId = decodeProjectId(id)
   const { preview, selectedFile, setSelectedFile, loading, downloading, error, recargar, descargar } =
     useProjectGenerator(proyectoId)
+  const [ddlAbierto, setDdlAbierto] = useState(false)
 
   if (loading) {
     return (
@@ -52,7 +55,11 @@ export function ProjectGeneratorPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setDdlAbierto(true)}>
+            <FileCode className="size-3.5" />
+            Ver DDL PostgreSQL
+          </Button>
           <Button variant="outline" size="sm" onClick={recargar} disabled={loading || downloading}>
             <RefreshCw className="size-3.5" />
             Actualizar
@@ -93,6 +100,7 @@ export function ProjectGeneratorPage() {
           No hay entidades en el diagrama todavía. Diseña tablas en el editor UML para generar tu backend.
         </div>
       )}
+      <DdlViewerDialog open={ddlAbierto} onOpenChange={setDdlAbierto} proyectoId={proyectoId} />
     </div>
   )
 }

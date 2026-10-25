@@ -65,6 +65,7 @@ class SeniorDevContextBuilderTest {
                 .contains("#143 [ana · LECTOR] pregunta: @SeniorDev ¿qué decidimos?")
                 .contains("Empieza tu respuesta con @ana.")
                 .contains("ana es LECTOR: no puede aplicar propuestas")
+                .contains("Sí puede ver y descargar el DDL.")
                 .contains("Proyecto: Tienda Online · Miembros: @ana (LECTOR), @maria (COLABORADOR)")
                 .contains("(Todavía no hay memoria acumulada)");
     }

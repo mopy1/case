@@ -60,7 +60,7 @@ public class SeniorDevConversacion {
                 return new RespuestaIa(deepSeek.solicitarRespuesta(contexto, TEMPERATURA, MAX_TOKENS), List.of());
             }
             if (!resp.tieneToolCalls()) {
-                return new RespuestaIa(resp.content().trim(), List.copyOf(usadas));
+                return new RespuestaIa(resp.content() != null ? resp.content().trim() : "", List.copyOf(usadas));
             }
             mensajes.add(DeepSeekMensaje.asistente(resp.content(), resp.tool_calls()));
             ejecutarRonda(resp.tool_calls(), mensajes, usadas, proyectoId, usuarioId, alUsarHerramienta);

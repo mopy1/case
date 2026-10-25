@@ -25,6 +25,19 @@ export interface ChatMensaje {
   createdAt: string // ISO-8601
   propuestaAplicada?: boolean
   aplicadoPor?: string | null
+  /** F3: herramientas que la IA ejecutó de verdad (null si no es IA o no usó ninguna). */
+  herramientasUsadas?: HerramientaIa[] | null
+}
+
+/** Herramientas de solo lectura que el backend expone a Senior Dev (tool calling). */
+export type HerramientaIa = "obtenerDiagrama" | "listarTareas" | "listarNotas" | "buscarEnHistorial"
+
+/** Espejo de ChatMemoriaResponse (GET /chat/memoria; sin memoria → campos null, nunca 404). */
+export interface ChatMemoria {
+  proyectoId: number
+  resumen: string | null
+  ultimoMensajeResumidoId: number | null
+  updatedAt: string | null // ISO-8601
 }
 
 export interface EnviarMensajeRequest {

@@ -14,6 +14,9 @@ import {
   parseTaskSuggestions,
 } from "@/features/copilot/lib/copilotSystemParsers"
 
+/** Línea de comando que la IA emite sola cuando le piden SQL (nunca escribe el DDL ella misma). */
+const GENERAR_DDL = /^[ \t]*\**GENERAR_DDL\**[ \t]*$/gm
+
 export function parseChatProposal(
   input: ChatMensaje | string | null | undefined,
   context?: { messageId?: number; proyectoId?: number; createdAt?: string }
@@ -23,7 +26,9 @@ export function parseChatProposal(
   const isMsg = typeof input !== "string"
   if (isMsg && (input.tipo !== "IA" || !input.contenido)) return null
 
-  const raw = isMsg ? input.contenido : input
+  const original = isMsg ? input.contenido : input
+  const pideDdl = new RegExp(GENERAR_DDL.source, "m").test(original)
+  const raw = pideDdl ? original.replace(GENERAR_DDL, "").trimEnd() : original
   const messageId = isMsg ? input.id : (context?.messageId ?? 0)
   const proyectoId = isMsg ? input.proyectoId : (context?.proyectoId ?? 0)
   const createdAt = isMsg ? input.createdAt : (context?.createdAt ?? new Date().toISOString())
@@ -48,7 +53,7 @@ export function parseChatProposal(
     systemActions.length,
   ]
   const total = counts.reduce((acc, c) => acc + c, 0)
-  if (total === 0) return null
+  if (total === 0 && !pideDdl) return null
 
   const summary: ChatProposalSummary = {
     tablasNuevas: counts[0],
@@ -100,5 +105,6 @@ export function parseChatProposal(
     copilotMessage,
     propuestaAplicada: isMsg ? Boolean(input.propuestaAplicada) : false,
     aplicadoPor: isMsg ? input.aplicadoPor : null,
+    pideDdl,
   }
 }

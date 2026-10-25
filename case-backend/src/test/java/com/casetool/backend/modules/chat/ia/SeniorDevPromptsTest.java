@@ -46,4 +46,23 @@ class SeniorDevPromptsTest {
                 .contains("**Decisiones**")
                 .contains("Máximo 1800 caracteres");
     }
+
+    @Test
+    void promptProhibeAfirmarConsultasNoHechas() {
+        assertThat(SeniorDevPrompts.SYSTEM_PROMPT)
+                .contains("nunca afirmes que revisaste, consultaste o buscaste algo")
+                .contains("si en este turno no llamaste a la herramienta correspondiente")
+                .contains("llama a la herramienta en lugar de suponer");
+    }
+
+    @Test
+    void promptDejaVerElDdlACualquierMiembroYRespondeSoloAlAutor() {
+        assertThat(SeniorDevPrompts.SYSTEM_PROMPT)
+                .contains("CUALQUIER miembro (ADMIN, COLABORADOR o LECTOR) puede ver, copiar y descargar el DDL")
+                .contains("Solo aplicar propuestas de cambio")
+                .contains("Nunca le digas a un LECTOR que no puede ver o generar el DDL")
+                .contains("una ADR solo existe si aparece en \"ADR recientes\" o en listarNotas")
+                .contains("Respondes a una sola persona")
+                .doesNotContain("respóndeles a cada uno");
+    }
 }

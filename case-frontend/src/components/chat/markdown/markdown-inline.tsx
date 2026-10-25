@@ -1,6 +1,8 @@
 import type { ReactNode } from "react"
 
-const INLINE_REGEX = /(`[^`\n]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|@[a-zA-Z0-9_-]+)/g
+// La negrita admite un `*` suelto adentro ("**Pedido (0..*)**"); `_`/`__` solo cuentan fuera de una palabra,
+// para no convertir en cursiva identificadores snake_case como "cliente_id y pedido_id".
+const INLINE_REGEX = /(`[^`\n]+`|\*\*(?:[^*\n]|\*(?!\*))+\*\*|(?<!\w)__[^_\n]+__(?!\w)|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|@[a-zA-Z0-9_-]+)/g
 
 /**
  * Parsea formato inline: negrita (**), cursiva (*), código (`), @SeniorDev y mención propia @miUsuario.
