@@ -4,9 +4,9 @@ import { Sparkles } from "lucide-react"
 const INLINE_REGEX = /(`[^`\n]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_|@[a-zA-Z0-9_-]+)/g
 
 /**
- * Parsea formato inline: negrita (**), cursiva (*), código inline (`) y menciones (@SeniorDev y @usuario).
+ * Parsea formato inline: negrita (**), cursiva (*), código (`), @SeniorDev y mención propia @miUsuario.
  */
-export function renderMarkdownInline(text: string): ReactNode {
+export function renderMarkdownInline(text: string, currentUsername?: string): ReactNode {
   if (!text) return null
   const parts = text.split(INLINE_REGEX)
 
@@ -53,8 +53,11 @@ export function renderMarkdownInline(text: string): ReactNode {
 
     // 4. Menciones
     if (part.startsWith("@")) {
-      const isSeniorDev = part.toLowerCase() === "@seniordev"
-      if (isSeniorDev) {
+      const tag = part.slice(1).toLowerCase()
+      const esSeniorDev = tag === "seniordev"
+      const esPropia = Boolean(currentUsername && tag === currentUsername.toLowerCase())
+
+      if (esSeniorDev) {
         return (
           <span
             key={index}
@@ -65,6 +68,18 @@ export function renderMarkdownInline(text: string): ReactNode {
           </span>
         )
       }
+
+      if (esPropia) {
+        return (
+          <span
+            key={index}
+            className="inline-flex items-center gap-0.5 rounded-sm border border-amber-500/40 bg-amber-500/25 px-1 py-0.5 font-semibold text-[11px] text-amber-800 dark:text-amber-200 shadow-xs"
+          >
+            {part}
+          </span>
+        )
+      }
+
       return (
         <span
           key={index}

@@ -4,12 +4,13 @@ import { ChatCodeBlock } from "./chat-code-block"
 
 interface ChatMarkdownRendererProps {
   blocks: MarkdownBlock[]
+  currentUsername?: string
 }
 
 /**
  * Renderiza el AST de bloques Markdown en nodos React limpios y estilizados.
  */
-export function ChatMarkdownRenderer({ blocks }: ChatMarkdownRendererProps) {
+export function ChatMarkdownRenderer({ blocks, currentUsername }: ChatMarkdownRendererProps) {
   if (blocks.length === 0) return null
 
   return (
@@ -27,7 +28,7 @@ export function ChatMarkdownRenderer({ blocks }: ChatMarkdownRendererProps) {
                     : "pt-0.5 font-semibold text-xs text-foreground"
                 }
               >
-                {renderMarkdownInline(block.content)}
+                {renderMarkdownInline(block.content, currentUsername)}
               </div>
             )
           }
@@ -38,7 +39,7 @@ export function ChatMarkdownRenderer({ blocks }: ChatMarkdownRendererProps) {
                 key={block.id}
                 className="my-1 rounded-r border-l-2 border-primary/40 bg-muted/30 py-1 pl-2.5 italic text-muted-foreground"
               >
-                {renderMarkdownInline(block.content)}
+                {renderMarkdownInline(block.content, currentUsername)}
               </blockquote>
             )
 
@@ -48,7 +49,9 @@ export function ChatMarkdownRenderer({ blocks }: ChatMarkdownRendererProps) {
                 {(block.meta?.items ?? block.content.split("\n")).map((item, idx) => (
                   <li key={idx} className="flex items-start">
                     <span className="mr-1.5 text-primary select-none">•</span>
-                    <span className="flex-1 leading-relaxed">{renderMarkdownInline(item)}</span>
+                    <span className="flex-1 leading-relaxed">
+                      {renderMarkdownInline(item, currentUsername)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -62,7 +65,9 @@ export function ChatMarkdownRenderer({ blocks }: ChatMarkdownRendererProps) {
                     <span className="mr-1.5 font-mono text-[10px] text-muted-foreground select-none">
                       {idx + 1}.
                     </span>
-                    <span className="flex-1 leading-relaxed">{renderMarkdownInline(item)}</span>
+                    <span className="flex-1 leading-relaxed">
+                      {renderMarkdownInline(item, currentUsername)}
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -81,7 +86,7 @@ export function ChatMarkdownRenderer({ blocks }: ChatMarkdownRendererProps) {
           default:
             return (
               <p key={block.id} className="my-0.5 leading-relaxed break-words whitespace-pre-wrap">
-                {renderMarkdownInline(block.content)}
+                {renderMarkdownInline(block.content, currentUsername)}
               </p>
             )
         }

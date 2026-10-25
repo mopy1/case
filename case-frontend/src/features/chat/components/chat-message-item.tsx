@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { colorAvatar, iniciales } from "@/lib/avatar"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
 import type { RolProyecto } from "@/features/projects/types/projects.type"
 import { etiquetaRol, horaCorta, nombreAutor } from "../lib/chatFormat"
 import { parseChatProposal } from "../lib/chatProposalParser"
@@ -20,11 +21,17 @@ interface ChatMessageItemProps {
   proyectoId?: number
 }
 
-/** Renderiza un mensaje individual con variantes para IA, Sistema y miembros del equipo. */
+/** Renderiza un mensaje individual con variantes para IA, Sistema, mención personal y miembros. */
 export function ChatMessageItem({ mensaje, esPropio, mensajes, miRol, proyectoId }: ChatMessageItemProps) {
+  const { user } = useAuth()
   const autor = nombreAutor(mensaje)
   const esIa = mensaje.tipo === "IA"
   const esSistema = mensaje.tipo === "SISTEMA"
+
+  const esMencionadoYo = useMemo(() => {
+    if (!user?.username) return false
+    return new RegExp(`@${user.username}\\b`, "i").test(mensaje.contenido)
+  }, [user, mensaje.contenido])
 
   const proposal = useMemo(() => {
     if (!esIa) return null
@@ -64,6 +71,11 @@ export function ChatMessageItem({ mensaje, esPropio, mensajes, miRol, proyectoId
               <Sparkles className="mr-0.5 size-2.5" /> Senior Dev · IA
             </Badge>
           )}
+          {esMencionadoYo && (
+            <Badge variant="outline" className="border-amber-500/40 bg-amber-500/20 px-1.5 py-0 text-[9px] font-semibold text-amber-700 dark:text-amber-300">
+              @ Te mencionaron
+            </Badge>
+          )}
           {esSistema && (
             <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-700 dark:text-amber-300">
               Sistema
@@ -85,11 +97,12 @@ export function ChatMessageItem({ mensaje, esPropio, mensajes, miRol, proyectoId
             esIa && "border-primary/30 bg-primary/5 dark:bg-primary/10",
             esSistema && "border-amber-500/30 bg-amber-500/5 text-amber-950 dark:text-amber-200",
             !esIa && !esSistema && esPropio && "border-primary/20 bg-primary/5",
-            !esIa && !esSistema && !esPropio && "border-border/70 bg-card"
+            !esIa && !esSistema && !esPropio && "border-border/70 bg-card",
+            esMencionadoYo && "border-amber-500/50 bg-amber-500/5 dark:border-amber-400/50 dark:bg-amber-500/10 ring-1 ring-amber-500/30"
           )}
         >
           <ChatQuotedMessage respuestaAId={mensaje.respuestaAId} mensajes={mensajes} />
-          <ChatMessageContent contenido={contenidoVisible} />
+          <ChatMessageContent contenido={contenidoVisible} currentUsername={user?.username} />
           {proposal && proposal.totalCambios > 0 && (
             <ChatProposalCard proposal={proposal} miRol={miRol} proyectoId={proyectoId ?? mensaje.proyectoId} />
           )}

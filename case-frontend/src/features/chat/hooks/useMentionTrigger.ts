@@ -10,15 +10,8 @@ interface UseMentionTriggerOptions {
   textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }
 
-/**
- * Hook para detección de mención activa (@query), filtrado y navegación con teclado.
- */
-export function useMentionTrigger({
-  candidatos,
-  texto,
-  setTexto,
-  textareaRef,
-}: UseMentionTriggerOptions) {
+/** Hook para detección de mención activa (@query), filtrado y navegación con teclado. */
+export function useMentionTrigger({ candidatos, texto, setTexto, textareaRef }: UseMentionTriggerOptions) {
   const [trigger, setTrigger] = useState<MentionTriggerState>({
     activo: false,
     query: "",
@@ -36,12 +29,13 @@ export function useMentionTrigger({
   const verificarMencion = useCallback((valor: string, cursorPos: number) => {
     const prefijo = valor.slice(0, cursorPos)
     const match = prefijo.match(MENTION_REGEX)
-
     if (match) {
       const query = match[1] ?? ""
       const inicio = cursorPos - query.length - 1
-      setTrigger({ activo: true, query, posicionInicio: inicio, posicionCursor: cursorPos })
-      setIndiceSeleccionado(0)
+      setTrigger((prev) => {
+        if (!prev.activo || prev.query !== query) setIndiceSeleccionado(0)
+        return { activo: true, query, posicionInicio: inicio, posicionCursor: cursorPos }
+      })
     } else {
       setTrigger((prev) => (prev.activo ? { ...prev, activo: false } : prev))
     }

@@ -10,6 +10,7 @@ import { ChatMentionPopover } from "./chat-mention-popover"
 import { ChatVoiceButton } from "./chat-voice-button"
 
 const SENIOR_DEV_ITEM: MentionItem = { id: "seniordev", username: "SeniorDev", nombreMostrar: "Senior Dev", esIa: true }
+const NAV_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Tab", "Escape", "Home", "End"])
 
 interface ChatInputProps {
   enviando: boolean
@@ -62,12 +63,7 @@ export function ChatInput({ enviando, errorEnvio, onEnviar, candidatos }: ChatIn
           >
             <Sparkles className="size-3 text-primary" /> + @SeniorDev
           </Button>
-          <ChatVoiceButton
-            isListening={voice.isListening}
-            isSupported={voice.isSupported}
-            onToggle={voice.toggleVoice}
-            disabled={enviando}
-          />
+          <ChatVoiceButton isListening={voice.isListening} isSupported={voice.isSupported} onToggle={voice.toggleVoice} disabled={enviando} />
         </div>
         <Textarea
           ref={textareaRef}
@@ -76,7 +72,10 @@ export function ChatInput({ enviando, errorEnvio, onEnviar, candidatos }: ChatIn
             setTexto(e.target.value)
             mention.verificarMencion(e.target.value, e.target.selectionStart ?? 0)
           }}
-          onKeyUp={(e) => mention.verificarMencion(texto, e.currentTarget.selectionStart ?? 0)}
+          onKeyUp={(e) => {
+            if (NAV_KEYS.has(e.key)) return
+            mention.verificarMencion(texto, e.currentTarget.selectionStart ?? 0)
+          }}
           onKeyDown={(e) => {
             if (mention.manejarKeyDown(e)) return
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {

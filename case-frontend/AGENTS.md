@@ -66,8 +66,9 @@ src/
         │   ├── chatFormat.ts          # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
         │   ├── chatProposalParser.ts  # Parser puro de comandos Senior Dev y extracción de texto conceptual limpio
         │   ├── chatProposalStorage.ts # Persistencia en localStorage de propuestas aplicadas por proyecto
+        │   ├── chatMarkdownNormalizer.ts # Normalizador de espaciado: protege bloques ```, compacta listas y expande párrafos
         │   ├── markdownBlockTokenizer.ts # AST de bloques Markdown (code, heading, blockquote, lists, paragraph)
-        │   └── markdownInline.tsx     # Inline Markdown (bold, italic, inline code, @menciones)
+        │   └── markdownInline.tsx     # Inline Markdown (bold, italic, inline code, @SeniorDev y @mención propia)
         ├── hooks/
         │   ├── useChatMensajes.ts          # Historial + envío REST
         │   ├── useChatSocket.ts            # STOMP multicanal
@@ -76,14 +77,15 @@ src/
         │   ├── useMentionTrigger.ts        # Detección de @query, filtrado y navegación de teclado (flechas/Enter/Tab/Esc)
         │   └── useChatVoiceInput.ts        # Integración con Web Speech API sin sobrescribir texto previo
         └── components/
-            ├── chat-team-view.tsx            # Contenedor principal con candidatos de mención, miRol y layout
+            ├── chat-team-view.tsx            # Contenedor principal con candidatos de mención, filtro de menciones, miRol y layout
             ├── chat-presence-bar.tsx         # Barra de presencia y estado WS
+            ├── chat-mentions-filter.tsx      # Barra de filtrado superior (Todos, Mis menciones con badge, selector por miembro)
             ├── chat-message-list.tsx         # Scroll virtual/automático y propagación de miRol / proyectoId
-            ├── chat-message-item.tsx         # Mensaje con avatar, roles, texto limpio y tarjeta de propuesta
+            ├── chat-message-item.tsx         # Mensaje con avatar, roles, badge "@ Te mencionaron", texto limpio y propuesta
             ├── chat-proposal-card.tsx        # Tarjeta contenedora interactiva de propuesta de arquitectura
             ├── chat-proposal-summary.tsx     # Badges/chips de cambios proyectados (tablas, atributos, relaciones, ADRs)
             ├── chat-proposal-action-button.tsx # Botón de aplicación con RBAC (ADMIN/COLABORADOR vs LECTOR)
-            ├── chat-message-content.tsx      # AST tokenizado a ChatMarkdownRenderer
+            ├── chat-message-content.tsx      # Normalizador, tokenizador AST y ChatMarkdownRenderer unificado (Chat y Copilot)
             ├── chat-markdown-renderer.tsx    # Renderizado estructurado de bloques Markdown
             ├── chat-code-block.tsx           # Bloque de código con header de lenguaje y botón "Copiar" (2s feedback)
             ├── chat-quoted-message.tsx       # Cita visual al mensaje referenciado
@@ -242,9 +244,16 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   El emisor recibe su mensaje por REST y por WS: `unirMensajes` deduplica por `id`. Maneja el estado `iaPensando` ante eventos de IA.
 - UI y Componentes F2 y F2+ (Mejoras avanzadas de Chat Grupal):
   - **Menciones dinámicas con `@` estilo WhatsApp/Slack (`useMentionTrigger`, `ChatMentionPopover`, `ChatMentionItem`):**
-    Detecta `@query` en tiempo real desde el cursor; abre un popover accesible sobre el input con filtrado instantáneo por coincidencia insensible a mayúsculas/minúsculas. Incluye tanto al bot `@SeniorDev` (con icono de bot y badge IA) como a los miembros reales del proyecto cargados con `useProjectMembers` (con sus avatares, usernames y badges de rol). Soporta navegación fluida por teclado (`ArrowDown`/`ArrowUp` para navegar, `Enter`/`Tab` para insertar, `Escape` para cancelar) e inserción precisa con reposicionamiento de foco y cursor.
-  - **Renderizado Markdown estructurado y limpio (`markdownBlockTokenizer`, `markdownInline`, `ChatMarkdownRenderer`, `ChatCodeBlock`):**
-    Parser AST y renderer modular sin dependencias externas pesadas. Tokeniza texto en bloques (`code_block`, `heading` h1-h6, `blockquote`, `bullet_list`, `ordered_list`, `paragraph`) y tokens inline (negrita `**`, cursiva `*`, código inline `` `code` ``, mención resaltada `@SeniorDev` con icono Sparkles y `@usuario`). Los bloques de código (`ChatCodeBlock`) cuentan con cabecera de lenguaje monospace y botón de copia al portapapeles (`navigator.clipboard`) con feedback visual de confirmación de 2 segundos.
+    Detecta `@query` en tiempo real desde el cursor; abre un popover accesible sobre el input con filtrado instantáneo por coincidencia insensible a mayúsculas/minúsculas. Incluye tanto al bot `@SeniorDev` (con icono de bot y badge IA) como a los miembros reales del proyecto cargados con `useProjectMembers` (con sus avatares, usernames y badges de rol).
+    - **Navegación robusta por teclado:** Se corrigió el bug de navegación de flechas ignorando `NAV_KEYS` (`ArrowUp`, `ArrowDown`, `Enter`, etc.) en el evento `onKeyUp` del `ChatInput`, garantizando que la selección cíclica fluya sin que se reinicie el índice a 0.
+  - **Filtro de menciones y resaltado personal (`ChatMentionsFilter`, `ChatMessageItem`, `markdownInline`):**
+    - **Barra de filtros superior:** Permite alternar entre "Todos", "Mis menciones" (con badge reactivo que indica el total de mensajes dirigidos al usuario actual) y un selector desplegable para filtrar por cualquier miembro o por SeniorDev.
+    - **Resaltado de mención propia:** Si un mensaje menciona al usuario actual (`@miUsername`), la tarjeta se resalta con borde y anillo ámbar (`border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/30`), incluye una insignia destacada `@ Te mencionaron` en la cabecera, y la mención en el texto se estiliza en tono ámbar distintivo.
+  - **Renderizado Markdown estructurado y normalizado (`chatMarkdownNormalizer`, `markdownBlockTokenizer`, `markdownInline`, `ChatMessageContent`, `ChatMarkdownRenderer`, `ChatCodeBlock`):**
+    - **Normalización inteligente:** `normalizeMarkdownSpacing` protege bloques de código delimitados por triple backtick ```` ``` ````, compacta listas consecutivas separadas por líneas en blanco a saltos simples y expande puntos y aparte ordinarios a doble salto (`\n\n`) para evitar bloques densos de texto.
+    - **Unificación con Copilot:** `ChatMessageContent` se utiliza idénticamente en el Chat de Equipo (`ChatMessageItem`) y en el Asistente Copilot (`CopilotMessageItem`), garantizando paridad visual completa (bloques de código con botón de copia de 2 segundos, listas estilizadas, citas y negritas/cursivas).
+  - **Calibración estética en Modo Oscuro (`index.css`):**
+    Tokens OKLCH optimizados para legibilidad y contraste: `--primary` ajustado a `oklch(0.65 0.22 27)` (brillante y distinguible), `--border` reforzado al 14%, `--input` al 18%, y `--muted-foreground` a `0.75` para affordance y jerarquía visual impecable.
   - **Transcripción por voz integrada en el chat (`useChatVoiceInput`, `ChatVoiceButton`):**
     Usa la Web Speech API (`webkitSpeechRecognition`/`SpeechRecognition`, `es-ES`) mediante un buffer acumulativo persistente (`baseTextRef`) que permite añadir texto dictado sin sobrescribir lo que el usuario ya había escrito. El botón `ChatVoiceButton` conmuta entre reposo y grabación continua (`animate-pulse` con indicador `animate-ping` y etiqueta "Escuchando…"), deteniéndose automáticamente al enviar el mensaje.
   - **Modo Pantalla Completa:**

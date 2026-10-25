@@ -142,6 +142,7 @@ case-backend/
   - Construye el contexto en 4 capas (`SeniorDevContextBuilder` + `SeniorDevProyectoFormatter`):
     1) System prompt con rol de Senior Dev mentor (`SeniorDevPrompts.SYSTEM_PROMPT`):
        - **Regla estricta Cero SQL y Cero Código en el chat:** prohibición absoluta de código ejecutable o DDL/DML; respuestas explicativas, conceptuales y arquitectónicas en español.
+       - **Formato y Legibilidad Markdown:** párrafos separados por doble salto de línea (`\n\n`) en puntos y aparte; listas compactas (`- `, `1. `) con un único salto simple (`\n`) entre ítems consecutivos sin líneas en blanco intermedias; términos clave en negrita (`**término**`) o citas (`> nota`).
        - **Comandos estructurados al final:** emite sugerencias de cambios limpias al final (`CREAR_TABLA`, `AGREGAR_ATRIBUTO`, `CREAR_RELACION`, `ELIMINAR_RELACION`, `ELIMINAR_TABLA`, `CREAR_TAREA`, `ADR_SUGERIDA`, `EXPORTAR_XMI`, `GENERAR_BACKEND`) para que el frontend las extraiga y presente como tarjetas interactivas de propuesta.
     2) Estado del proyecto compacto (entidades, columnas PK/FK, relaciones con multiplicidades, tareas Kanban, notas ADR).
     3) Historial reciente de la sala (~30 mensajes formateados `[username · ROL]: contenido`).

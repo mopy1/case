@@ -22,4 +22,16 @@ class SeniorDevPromptsTest {
                 .contains("ADR_SUGERIDA: [Acción clara]")
                 .contains("MOTIVO: [Justificación técnica concisa]");
     }
+
+    @Test
+    void promptContieneReglasDeLegibilidadYFormatoParrafos() {
+        String prompt = SeniorDevPrompts.SYSTEM_PROMPT;
+
+        assertThat(prompt)
+                .contains("FORMATO Y LEGIBILIDAD")
+                .contains("DOBLE SALTO DE LÍNEA")
+                .contains("LISTAS COMPACTAS")
+                .contains("ÚNICO salto de línea")
+                .contains("Aprovecha el formato Markdown para resaltar conceptos o términos clave");
+    }
 }
