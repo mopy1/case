@@ -15,12 +15,14 @@ export function renderMarkdownInline(text: string): ReactNode {
 
     // 1. Código inline
     if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      const code = part.slice(1, -1).trim()
+      if (!code || code === "`") return null
       return (
         <code
           key={index}
           className="mx-0.5 rounded border border-border/60 bg-muted/70 px-1 py-0.5 font-mono text-[11px] text-foreground"
         >
-          {part.slice(1, -1)}
+          {code}
         </code>
       )
     }

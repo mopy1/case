@@ -16,7 +16,7 @@ export function tokenizeMarkdownBlocks(rawText: string): MarkdownBlock[] {
   while (i < lines.length) {
     const line = lines[i]
 
-    if (line.trim() === "") {
+    if (line.trim() === "" || /^`+$/.test(line.trim())) {
       i++
       continue
     }
@@ -27,12 +27,15 @@ export function tokenizeMarkdownBlocks(rawText: string): MarkdownBlock[] {
       i++
       while (i < lines.length && !lines[i].startsWith("```")) codeLines.push(lines[i++])
       if (i < lines.length && lines[i].startsWith("```")) i++
-      blocks.push({
-        id: `code-${id++}`,
-        type: "code_block",
-        content: codeLines.join("\n"),
-        meta: { language: codeMatch[1]?.toLowerCase() || "" },
-      })
+      const codeContent = codeLines.join("\n")
+      if (codeContent.trim() !== "") {
+        blocks.push({
+          id: `code-${id++}`,
+          type: "code_block",
+          content: codeContent,
+          meta: { language: codeMatch[1]?.toLowerCase() || "" },
+        })
+      }
       continue
     }
 
