@@ -1,8 +1,8 @@
 /**
  * Normaliza el espaciado en respuestas Markdown:
- * 1. Protege bloques de código delimitados por ``` para no alterar su contenido.
- * 2. Compacta listas consecutivas separadas por líneas en blanco a un solo salto simple.
- * 3. Expande puntos y aparte con salto simple a doble salto (\n\n) para párrafos aireados.
+ * 1. Protege bloques de código delimitados por ``` para no alterar su formato interno.
+ * 2. Garantiza doble salto de línea (\n\n) en puntos y aparte (. ? ! :) para párrafos aireados.
+ * 3. Mantiene las listas (con viñetas o numeradas) compactas con salto simple (\n).
  */
 export function normalizeMarkdownSpacing(raw: string): string {
   if (!raw) return ""
@@ -14,22 +14,31 @@ export function normalizeMarkdownSpacing(raw: string): string {
     .map((part) => {
       if (part.startsWith("```")) return part
 
-      let text = part.replace(/\r\n/g, "\n")
+      const lines = part.replace(/\r\n/g, "\n").split("\n")
+      const result: string[] = []
 
-      // 1. Compactar listas consecutivas separadas por líneas en blanco
-      let prevText = ""
-      while (prevText !== text) {
-        prevText = text
-        text = text.replace(
-          /(^|\n)([ \t]*(?:[-*•+]|\d+\.)[^\n]+)\n\n+([ \t]*(?:[-*•+]|\d+\.))/g,
-          "$1$2\n$3"
-        )
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        const trimmed = line.trim()
+        const isList = /^\s*(?:[-*•+]|\d+\.)\s+/.test(line)
+
+        result.push(line)
+
+        if (i < lines.length - 1) {
+          const nextLine = lines[i + 1]
+          const nextTrimmed = nextLine.trim()
+          const nextIsList = /^\s*(?:[-*•+]|\d+\.)\s+/.test(nextLine)
+
+          // Si termina en puntuación (. ? ! :) y la siguiente línea tiene contenido
+          // y ninguna es un ítem de lista: insertar salto adicional (\n\n)
+          const endsWithPunct = /[.?!:]\s*$/.test(trimmed)
+          if (endsWithPunct && nextTrimmed !== "" && !isList && !nextIsList) {
+            result.push("")
+          }
+        }
       }
 
-      // 2. Expandir punto y aparte con un solo salto a doble salto si sigue texto ordinario
-      text = text.replace(/([.?!:])\n(?=[A-Z¿¡ÁÉÍÓÚa-z0-9])/g, "$1\n\n")
-
-      return text
+      return result.join("\n")
     })
     .join("")
 }

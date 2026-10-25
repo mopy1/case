@@ -14,7 +14,7 @@ export function ChatMarkdownRenderer({ blocks, currentUsername }: ChatMarkdownRe
   if (blocks.length === 0) return null
 
   return (
-    <div className="space-y-1.5 text-xs text-foreground/90">
+    <div className="space-y-3.5 text-xs text-foreground/90">
       {blocks.map((block) => {
         switch (block.type) {
           case "heading": {
@@ -24,8 +24,8 @@ export function ChatMarkdownRenderer({ blocks, currentUsername }: ChatMarkdownRe
                 key={block.id}
                 className={
                   isTopLevel
-                    ? "pt-1 font-semibold text-sm tracking-tight text-foreground"
-                    : "pt-0.5 font-semibold text-xs text-foreground"
+                    ? "pt-1.5 font-semibold text-sm tracking-tight text-foreground"
+                    : "pt-1 font-semibold text-xs text-foreground"
                 }
               >
                 {renderMarkdownInline(block.content, currentUsername)}
@@ -37,7 +37,7 @@ export function ChatMarkdownRenderer({ blocks, currentUsername }: ChatMarkdownRe
             return (
               <blockquote
                 key={block.id}
-                className="my-1 rounded-r border-l-2 border-primary/40 bg-muted/30 py-1 pl-2.5 italic text-muted-foreground"
+                className="my-1.5 rounded-r border-l-2 border-primary/40 bg-muted/30 py-1 pl-2.5 italic text-muted-foreground"
               >
                 {renderMarkdownInline(block.content, currentUsername)}
               </blockquote>
@@ -85,7 +85,7 @@ export function ChatMarkdownRenderer({ blocks, currentUsername }: ChatMarkdownRe
           case "paragraph":
           default:
             return (
-              <p key={block.id} className="my-0.5 leading-relaxed break-words whitespace-pre-wrap">
+              <p key={block.id} className="leading-relaxed break-words whitespace-pre-wrap">
                 {renderMarkdownInline(block.content, currentUsername)}
               </p>
             )
