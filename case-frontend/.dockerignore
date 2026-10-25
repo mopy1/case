@@ -1,9 +1,2 @@
 node_modules
-# dist/ NO se excluye: Dockerfile.prod copia el dist ya compilado.
 .git
-# Las variables VITE_* se hornean en el bundle: no meter claves en la imagen.
-# Sin .env, VITE_API_URL queda vacío y la API se llama por /api (proxy de nginx.dev.conf).
-.env
-.env.*
-!.env.example
-!.env.production.example
