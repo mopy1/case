@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react"
 import { Client } from "@stomp/stompjs"
 import { chatTopics, chatWsUrl } from "../lib/chatSocket"
-import type { ChatMensaje, ChatPresencia, EstadoConexionChat } from "../types/chat.types"
+import type {
+  ChatIaEstadoEvent,
+  ChatMensaje,
+  ChatPresencia,
+  EstadoConexionChat,
+} from "../types/chat.types"
 
 interface ChatSocketHandlers {
   onMensaje(m: ChatMensaje): void
   onPresencia(p: ChatPresencia): void
   onConectado(esReconexion: boolean): void
+  onIaEstado?(evento: ChatIaEstadoEvent): void
 }
 
 /** Ciclo de vida del cliente STOMP de la sala. 401/403 del servidor → "error" sin reintentar en bucle. */
@@ -48,6 +54,7 @@ export function useChatSocket(proyectoId: number, handlers: ChatSocketHandlers):
     client.onConnect = () => {
       client.subscribe(topics.mensajes, (f) => handlersRef.current.onMensaje(JSON.parse(f.body)))
       client.subscribe(topics.presencia, (f) => handlersRef.current.onPresencia(JSON.parse(f.body)))
+      client.subscribe(topics.ia, (f) => handlersRef.current.onIaEstado?.(JSON.parse(f.body)))
       setEstado("conectado")
       handlersRef.current.onConectado(yaConectado)
       yaConectado = true

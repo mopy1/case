@@ -53,15 +53,16 @@ src/
 │   ├── ProtectedRoute.tsx    # Sin token en localStorage → /login
 │   └── GuestRoute.tsx        # Con token → /proyectos
 └── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, chat, collaboration, voice
-    └── chat/                 # Chat grupal del equipo (ver §6 chat)
+    └── chat/                 # Chat grupal del equipo con Senior Dev IA (ver §6 chat)
         ├── index.ts          # export { ChatTeamView } + tipos
-        ├── types/chat.types.ts   # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, CHAT_LIMITE_PAGINA=30, CHAT_MAX_CARACTERES=4000
+        ├── types/chat.types.ts   # ChatMensaje, ChatPresencia, UsuarioEnSala, EstadoConexionChat, ChatIaEstado, ChatIaEstadoEvent
         ├── api/chatApi.ts        # listarMensajes, enviarMensaje, obtenerPresencia (apiFetch)
-        ├── lib/chatSocket.ts     # chatWsUrl() y chatTopics(p)
+        ├── lib/chatSocket.ts     # chatWsUrl() y chatTopics(p) (mensajes, presencia, ia)
         ├── lib/chatFormat.ts     # unirMensajes (dedupe por id), horaCorta, etiquetaRol, nombreAutor
-        ├── hooks/                # useChatMensajes (historial+envío), useChatSocket (Client STOMP), useChatSala (orquesta)
+        ├── hooks/                # useChatMensajes (historial+envío), useChatSocket (STOMP multicanal), useChatSala (orquesta presencia+IA)
         └── components/           # chat-team-view, chat-presence-bar, chat-message-list, chat-message-item,
-                                  #   chat-input, chat-empty-state, chat-skeleton
+                                  #   chat-message-content (código+menciones), chat-quoted-message,
+                                  #   chat-thinking-indicator, chat-input, chat-empty-state, chat-skeleton
 ```
 
 Convención por feature: `api/` (llamadas HTTP), `hooks/` (estado + mutaciones), `components/`,
@@ -192,24 +193,28 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 - Entrada: texto, dictado (`useSpeechRecognition`, comandos de voz "enviar"/"detener") y foto
   (`copilotImageUtils.ts`: redimensiona a 1200px, JPEG 0.8, base64).
 
-### chat (pestaña "Equipo" del panel lateral, sin IA)
+### chat (pestaña "Equipo" del panel lateral, con Senior Dev IA en tiempo real)
 - REST (`chatApi.ts`): `GET /proyectos/{p}/chat/mensajes?limite=30[&antesDe={id}]` (orden ascendente;
   `hayMas = length === 30`), `POST /proyectos/{p}/chat/mensajes` (`{contenido}` ≤ 4000) → `ChatMensaje`,
   `GET /proyectos/{p}/chat/presencia` → `{proyectoId, usuarios: [{usuarioId, username}]}`. Cualquier miembro
   (incluido LECTOR) lee y escribe.
 - WebSocket (`useChatSocket`): `Client` de `@stomp/stompjs` contra `chatWsUrl()` =
   `(VITE_API_URL || origin)` con `http→ws` + `/ws`; `reconnectDelay` 5s, heartbeat 10s/10s. `beforeConnect`
-  manda `Authorization: Bearer <token>` (el vigente en localStorage; sin token → estado `error`). Se suscribe a
-  `/topic/proyectos/{p}/chat` (mensajes nuevos) y `/topic/proyectos/{p}/chat/presencia` (lista completa;
-  esta suscripción es la que cuenta como "en la sala"). Frame ERROR con `401`/`403` → `deactivate()` y
-  "Sin tiempo real" (sin bucle de reconexión); corte de red → "Reconectando…".
+  manda `Authorization: Bearer <token>` (el vigente en localStorage; sin token → estado `error`). Se suscribe a:
+  1. `/topic/proyectos/{p}/chat`: difusión de mensajes guardados (`USUARIO`, `IA` o `SISTEMA`).
+  2. `/topic/proyectos/{p}/chat/presencia`: snapshot de usuarios presentes (suscripción que marca "en la sala").
+  3. `/topic/proyectos/{p}/chat/ia`: eventos efímeros `ChatIaEstadoEvent` (`PENSANDO`, `RESPONDIDO`, `ERROR`).
+  Frame ERROR con `401`/`403` → `deactivate()` y "Sin tiempo real" (sin bucle de reconexión); corte de red → "Reconectando…".
 - `useChatSala`: en cada `onConnect` pide `GET .../presencia` (snapshot); si el historial había fallado (backend caído al
   entrar) hace `recargar()` solo, y si es reconexión `sincronizar()` (GET últimos + unión) para recuperar lo perdido. El propio usuario se agrega a "en la sala" si está conectado.
-  El emisor recibe su mensaje por REST y por WS: `unirMensajes` deduplica por `id`.
-- UI: barra de presencia (`AvatarGroup` máx. 4 + "+N", badge emerald/ámbar/rose de conexión), 4 estados
-  (skeleton · Alert + "Reintentar" · vacío con "Saludar al equipo" · lista), "Cargar anteriores" conserva el
-  scroll, Enter envía / Shift+Enter salto, contador desde 3500 caracteres; si el POST falla el texto queda
-  en el input con el error. Texto plano (`whitespace-pre-wrap`, sin HTML).
+  El emisor recibe su mensaje por REST y por WS: `unirMensajes` deduplica por `id`. Maneja el estado `iaPensando` ante eventos de IA.
+- UI y Componentes F2:
+  - `ChatThinkingIndicator`: burbuja animada con icono de bot y tres puntos pulsantes cuando Senior Dev está procesando una consulta.
+  - `ChatMessageContent`: parseador modular sin dependencias externas pesadas que renderiza bloques de código ```` con badge de lenguaje y sintaxis resaltada, `inline code` y resaltado visual para menciones (`@dev`, `@senior`, `@seniordev`).
+  - `ChatQuotedMessage`: cita visual del mensaje original al que responde el Senior Dev (`respuestaAId`), mostrando autor y extracto del contenido.
+  - `ChatMessageItem`: estilos diferenciados por rol/tipo (`USUARIO`, `IA` con badge "Senior Dev" / fondo tintado sutil, o `SISTEMA` centrado).
+  - `ChatInput`: botón de atajo rápido `@dev` para invocar al Senior Dev con un solo clic, placeholder reactivo, atajos de teclado (Enter / Shift+Enter), contador a partir de 3500 caracteres.
+  - Barra de presencia (`AvatarGroup` máx. 4 + "+N", badge emerald/ámbar/rose de conexión), 4 estados (skeleton · Alert + "Reintentar" · vacío con "Saludar al equipo" o consultar al Senior Dev · lista).
 
 ### collaboration (solo en DiagramEditorPage)
 - `useRealtimeCollaboration(p)` combina tres mecanismos:

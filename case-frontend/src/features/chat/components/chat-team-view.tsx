@@ -9,10 +9,11 @@ import { ChatPresenceBar } from "./chat-presence-bar"
 import { ChatSkeleton } from "./chat-skeleton"
 
 const SALUDO = "¡Hola equipo! 👋"
+const CONSULTA_INICIAL_IA = "@SeniorDev ¿cómo estructuramos las entidades principales del proyecto?"
 
 type Sala = ReturnType<typeof useChatSala>
 
-/** Los 4 estados del historial: loading, error, vacío accionable y lista. */
+/** Los 4 estados del historial: loading, error, vacío accionable y lista con eventos en tiempo real. */
 function ChatTeamBody({ sala }: { sala: Sala }) {
   if (sala.loading) return <ChatSkeleton />
 
@@ -33,7 +34,13 @@ function ChatTeamBody({ sala }: { sala: Sala }) {
   }
 
   if (sala.mensajes.length === 0) {
-    return <ChatEmptyState enviando={sala.enviando} onSaludar={() => void sala.enviar(SALUDO)} />
+    return (
+      <ChatEmptyState
+        enviando={sala.enviando}
+        onSaludar={() => void sala.enviar(SALUDO)}
+        onConsultarIa={() => void sala.enviar(CONSULTA_INICIAL_IA)}
+      />
+    )
   }
 
   return (
@@ -43,6 +50,7 @@ function ChatTeamBody({ sala }: { sala: Sala }) {
       hayMas={sala.hayMas}
       cargandoAnteriores={sala.cargandoAnteriores}
       onCargarAnteriores={() => void sala.cargarAnteriores()}
+      iaEstado={sala.iaEstado}
     />
   )
 }

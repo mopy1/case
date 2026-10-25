@@ -30,9 +30,13 @@ case-backend/
 ├── src/test/java/com/casetool/backend/
 │   ├── CaseBackendApplicationTests.java          # contextLoads (necesita BD)
 │   ├── core/websocket/StompAuthInterceptorTest.java          # CONNECT/SUBSCRIBE/SEND (Mockito, sin BD)
-│   └── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío
-│                            ChatMensajeRequestValidationTest.java, # Bean Validation del body
-│                            ChatFixtures.java                      # entidades en memoria para los tests
+│   ├── modules/chat/service/ChatMensajeServiceTest.java,     # paginación, clamp de limite, permisos, envío
+│   │                        ChatMensajeServiceMencionIaTest.java,  # invocación async de IA ante @SeniorDev
+│   │                        ChatMensajeRequestValidationTest.java, # Bean Validation del body
+│   │                        ChatFixtures.java                      # entidades en memoria para los tests
+│   └── modules/chat/ia/ChatMencionIaUtilsTest.java,          # regex @SeniorDev
+│                       SeniorDevContextBuilderTest.java,     # ensamblado de prompt en 4 capas
+│                       SeniorDevServiceTest.java             # orquestación async, locks, WS y fallback
 └── src/main/java/com/casetool/backend/
     ├── CaseBackendApplication.java
     ├── core/
@@ -71,10 +75,14 @@ case-backend/
         │                    RelacionDiagramaService, TablaIntermediaService
         ├── chat/
         │   ├── controller/  ChatController
-        │   ├── dto/         ChatMensajeRequest, ChatMensajeResponse, ChatPresenciaResponse (UsuarioEnSala)
-        │   ├── model/       ChatMensaje (@Entity, enum Tipo USUARIO/IA/SISTEMA)
+        │   ├── dto/         ChatMensajeRequest, ChatMensajeResponse, ChatPresenciaResponse (UsuarioEnSala),
+        │   │                ChatIaEstadoEvent (PENSANDO | RESPONDIDO | ERROR)
+        │   ├── model/       ChatMensaje (@Entity, enum Tipo USUARIO/IA/SISTEMA, autorreferencia respuestaA)
         │   ├── repository/  ChatMensajeRepository
-        │   └── service/     ChatMensajeService, ChatPresenciaService, ChatPresenciaListener, ChatDestinos
+        │   ├── service/     ChatMensajeService, ChatPresenciaService, ChatPresenciaListener, ChatDestinos
+        │   └── ia/          SeniorDevService (@Async orquestador), SeniorDevContextBuilder (4 capas),
+        │                    SeniorDevProyectoFormatter, SeniorDevPrompts, DeepSeekClient (RestClient timeout 60s),
+        │                    ChatMencionIaUtils (@seniordev regex), dto/ (DeepSeekChatRequest, DeepSeekChatResponse)
         └── xmi/             (sin model/repository propios: usa los services de diagrama)
             ├── controller/  XmiController
             ├── dto/         ModoImportacionXmi (FUSIONAR | REEMPLAZAR), XmiPreviewResponse
@@ -119,19 +127,31 @@ case-backend/
   heartbeat guarda cursor/selección, purga sesiones con > 3,5 s sin actividad y devuelve a los
   demás. Se pierde al reiniciar y no escala a más de una instancia.
 
-**chat** (Parcial 2 · F1, sin IA)
+**chat** (Parcial 2 · F1 + F2 Senior Dev IA)
 - Leer y escribir = cualquier miembro, **incluido LECTOR** (decisión D1: el chat no modifica el modelo).
 - `ChatMensajeService.listar`: `limite` default 30 recortado a `[1,100]`; `antesDe` = cursor por `id`;
   consulta `created_at DESC, id DESC` con `Limit` + `@EntityGraph(usuario)`, se invierte y sale ascendente.
   El `rol` de cada autor (actual) sale de 1 consulta de miembros → `Map` (sin N+1).
 - `enviar`: `strip()` del contenido (vacío → 400), `tipo=USUARIO`, `saveAndFlush` y después
-  `convertAndSend("/topic/proyectos/{id}/chat", respuesta)`. El emisor recibe su mensaje 2 veces
-  (POST + broadcast): el frontend deduplica por `id`.
+  `convertAndSend("/topic/proyectos/{id}/chat", respuesta)`. Si el mensaje contiene `@SeniorDev`
+  (`ChatMencionIaUtils.contieneMencionSeniorDev`), dispara de forma asíncrona (`@Async`) a `SeniorDevService.procesarMencion`.
+- Senior Dev IA (`SeniorDevService`, orquestación asíncrona F2):
+  - Lock por proyecto en `ConcurrentHashMap<Long, ReentrantLock>` para garantizar secuencia en la sala.
+  - Emite estado `PENSANDO` a `/topic/proyectos/{id}/chat/ia`.
+  - Construye el contexto en 4 capas (`SeniorDevContextBuilder` + `SeniorDevProyectoFormatter`):
+    1) System prompt con rol de Senior Dev mentor y directrices rigurosas en español.
+    2) Estado del proyecto compacto (entidades, columnas PK/FK, relaciones con multiplicidades, tareas Kanban, notas ADR).
+    3) Historial reciente de la sala (~30 mensajes formateados `[username · ROL]: contenido`).
+    4) Consulta actual del disparador.
+  - Invoca `DeepSeekClient` (`RestClient` configurable mediante `application.properties`, timeout 60s).
+  - Guarda la respuesta como `ChatMensaje` (`tipo=IA`, `usuario=null`, `respuestaA=disparador`).
+  - Difunde a `/topic/proyectos/{id}/chat` y emite estado `RESPONDIDO` a `/topic/proyectos/{id}/chat/ia`.
+  - Fallback elegante: si la API key está vacía o DeepSeek falla (timeout, 401, 429), guarda y difunde un mensaje `tipo=SISTEMA` con explicación amigable y emite estado `ERROR` sin romper la transacción ni la sala.
 - Presencia (`ChatPresenciaService`, en memoria, igual que `ColaboracionController`): cuenta una
   suscripción a `.../chat/presencia` (decisión D2: "en la sala" = tiene el proyecto abierto). Clave
   `sessionId:subscriptionId`; `ChatPresenciaListener` escucha Subscribe/Unsubscribe/Disconnect y cada
   cambio difunde la lista completa (dedupe por usuario, orden por username). Se pierde al reiniciar.
-- `ChatDestinos`: arma y parsea los tópicos (único lugar con esos strings).
+- `ChatDestinos`: arma y parsea los tópicos (mensajes `/chat`, presencia `/chat/presencia`, estado IA `/chat/ia`).
 
 **diagrama**
 - `DiagramaService.obtenerDiagrama`: 3 consultas fijas (entidades, atributos del proyecto,
@@ -210,7 +230,8 @@ autor ya no es miembro; `respuestaAId` null en F1).
 
 **WebSocket (STOMP 1.2)** — `ws(s)://<host>/ws`, sin SockJS. CONNECT con header nativo
 `Authorization: Bearer <jwt>`; heartbeat 10000,10000. Destinos (solo server → cliente):
-`/topic/proyectos/{id}/chat` (cada POST, payload `ChatMensajeResponse`) y
+`/topic/proyectos/{id}/chat` (cada mensaje, payload `ChatMensajeResponse`),
+`/topic/proyectos/{id}/chat/ia` (eventos de estado IA: PENSANDO, RESPONDIDO, ERROR, payload `ChatIaEstadoEvent`), y
 `/topic/proyectos/{id}/chat/presencia` (al entrar/salir alguien, payload `ChatPresenciaResponse`, lista
 completa). Errores: frame `ERROR` con `message` `401 …` / `403 …` y cierre. En Nginx (`case-frontend/nginx*.conf`)
 `location = /ws` con `Upgrade`/`Connection: upgrade` y timeouts de 3600 s.

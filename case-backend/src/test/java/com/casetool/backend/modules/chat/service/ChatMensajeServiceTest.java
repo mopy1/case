@@ -20,8 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Limit;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import com.casetool.backend.core.exception.ResourceNotFoundException;
 import com.casetool.backend.modules.chat.dto.ChatMensajeRequest;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
+import com.casetool.backend.modules.chat.ia.SeniorDevService;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.proyecto.exception.AccesoDenegadoProyectoException;
@@ -44,6 +46,7 @@ class ChatMensajeServiceTest {
     @Mock MiembroProyectoRepository miembroProyectoRepository;
     @Mock ProyectoAccesoService accesoService;
     @Mock SimpMessagingTemplate messagingTemplate;
+    @Mock SeniorDevService seniorDevService;
     @InjectMocks ChatMensajeService service;
 
     private final Proyecto proyecto = ChatFixtures.proyecto(P);

@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.casetool.backend.core.exception.ResourceNotFoundException;
 import com.casetool.backend.modules.chat.dto.ChatMensajeRequest;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
+import com.casetool.backend.modules.chat.ia.ChatMencionIaUtils;
+import com.casetool.backend.modules.chat.ia.SeniorDevService;
 import com.casetool.backend.modules.chat.model.ChatMensaje;
 import com.casetool.backend.modules.chat.repository.ChatMensajeRepository;
 import com.casetool.backend.modules.proyecto.model.MiembroProyecto;
@@ -35,6 +37,7 @@ public class ChatMensajeService {
     private final MiembroProyectoRepository miembroProyectoRepository;
     private final ProyectoAccesoService accesoService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SeniorDevService seniorDevService;
 
     public ChatMensajeService(
             ChatMensajeRepository chatMensajeRepository,
@@ -42,13 +45,15 @@ public class ChatMensajeService {
             UsuarioRepository usuarioRepository,
             MiembroProyectoRepository miembroProyectoRepository,
             ProyectoAccesoService accesoService,
-            SimpMessagingTemplate messagingTemplate) {
+            SimpMessagingTemplate messagingTemplate,
+            SeniorDevService seniorDevService) {
         this.chatMensajeRepository = chatMensajeRepository;
         this.proyectoRepository = proyectoRepository;
         this.usuarioRepository = usuarioRepository;
         this.miembroProyectoRepository = miembroProyectoRepository;
         this.accesoService = accesoService;
         this.messagingTemplate = messagingTemplate;
+        this.seniorDevService = seniorDevService;
     }
 
     /** Página de historial en orden cronológico ascendente (el más viejo primero). */
@@ -87,6 +92,11 @@ public class ChatMensajeService {
 
         ChatMensajeResponse response = ChatMensajeResponse.from(mensaje, miembro.getRol());
         messagingTemplate.convertAndSend(ChatDestinos.topicMensajes(proyectoId), response);
+
+        if (ChatMencionIaUtils.contieneMencionSeniorDev(contenido)) {
+            seniorDevService.procesarMencion(proyectoId, mensaje.getId(), contenido, usuarioId);
+        }
+
         return response;
     }
 

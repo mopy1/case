@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef } from "react"
 import { History, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { ChatMensaje } from "../types/chat.types"
+import type { ChatIaEstadoEvent, ChatMensaje } from "../types/chat.types"
 import { ChatMessageItem } from "./chat-message-item"
+import { ChatThinkingIndicator } from "./chat-thinking-indicator"
 
 interface ChatMessageListProps {
   mensajes: ChatMensaje[]
@@ -10,26 +11,28 @@ interface ChatMessageListProps {
   hayMas: boolean
   cargandoAnteriores: boolean
   onCargarAnteriores: () => void
+  iaEstado?: ChatIaEstadoEvent | null
 }
 
+/** Lista scrolleable con auto-scroll a mensajes recientes y soporte para indicador de IA. */
 export function ChatMessageList({
   mensajes,
   yoId,
   hayMas,
   cargandoAnteriores,
   onCargarAnteriores,
+  iaEstado,
 }: ChatMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  // Distancia al fondo antes de anteponer anteriores, para que la vista no salte.
   const distanciaAlFondo = useRef<number | null>(null)
   const ultimoId = mensajes.at(-1)?.id
   const primerId = mensajes[0]?.id
+  const estaPensando = iaEstado?.estado === "PENSANDO"
 
-  // Auto-scroll solo cuando llega un mensaje nuevo al final (no al anteponer).
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [ultimoId])
+  }, [ultimoId, estaPensando])
 
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -55,8 +58,14 @@ export function ChatMessageList({
         </div>
       )}
       {mensajes.map((m) => (
-        <ChatMessageItem key={m.id} mensaje={m} esPropio={yoId !== null && m.usuarioId === yoId} />
+        <ChatMessageItem
+          key={m.id}
+          mensaje={m}
+          esPropio={yoId !== null && m.usuarioId === yoId}
+          mensajes={mensajes}
+        />
       ))}
+      {estaPensando && <ChatThinkingIndicator detalle={iaEstado?.detalle} />}
     </div>
   )
 }

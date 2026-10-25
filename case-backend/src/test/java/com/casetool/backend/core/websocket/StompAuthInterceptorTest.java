@@ -92,6 +92,13 @@ class StompAuthInterceptorTest {
     }
 
     @Test
+    void subscribeDeMiembroATopicIaPasa() {
+        Message<?> msg = frame(StompCommand.SUBSCRIBE, "/topic/proyectos/7/chat/ia", null);
+
+        assertThat(interceptor.preSend(msg, null)).isSameAs(msg);
+    }
+
+    @Test
     void sendSiempreSeRechazaCon403() {
         assertThatThrownBy(() -> interceptor.preSend(frame(StompCommand.SEND, "/topic/proyectos/7/chat", null), null))
                 .isInstanceOf(MessageDeliveryException.class).hasMessage("403 Los mensajes se envían por REST");

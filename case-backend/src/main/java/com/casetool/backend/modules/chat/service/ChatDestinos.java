@@ -10,8 +10,8 @@ import java.util.regex.Pattern;
  */
 public final class ChatDestinos {
 
-    /** Únicos destinos suscribibles: la sala de mensajes y su presencia. */
-    private static final Pattern SALA = Pattern.compile("^/topic/proyectos/(\\d{1,18})/chat(/presencia)?$");
+    /** Destinos suscribibles: la sala de mensajes, su presencia y el estado de la IA. */
+    private static final Pattern SALA = Pattern.compile("^/topic/proyectos/(\\d{1,18})/chat(/presencia|/ia)?$");
 
     private ChatDestinos() {
     }
@@ -22,6 +22,10 @@ public final class ChatDestinos {
 
     public static String topicPresencia(Long proyectoId) {
         return topicMensajes(proyectoId) + "/presencia";
+    }
+
+    public static String topicIa(Long proyectoId) {
+        return topicMensajes(proyectoId) + "/ia";
     }
 
     /** Id del proyecto si el destino es de una sala de chat; vacío si es cualquier otro destino. */

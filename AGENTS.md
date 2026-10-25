@@ -33,10 +33,11 @@ El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descarta
   Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
 - **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip), Copilot IA (llamadas
   directas a DeepSeek / Gemini) y voz (Web Speech API).
-- **Chat de equipo (Parcial 2 · F1):** mensajes por REST (`/api/proyectos/{id}/chat/mensajes`, tabla
-  `chat_mensajes`) y difusión en vivo por **WebSocket STOMP** (`/ws`, JWT en el CONNECT, membresía en el
-  SUBSCRIBE, tópicos `/topic/proyectos/{id}/chat` y `.../chat/presencia`). Pestaña "Equipo" del panel Copilot.
-  Nginx enruta `/ws` con `Upgrade`. Todavía sin IA (llega en F2).
+- **Chat de equipo y Senior Dev IA (Parcial 2 · F1 y F2):** mensajes por REST (`/api/proyectos/{id}/chat/mensajes`,
+  tabla `chat_mensajes`) y difusión en vivo por **WebSocket STOMP** (`/ws`, JWT en el CONNECT, membresía en el
+  SUBSCRIBE, tópicos `/topic/proyectos/{id}/chat`, `.../chat/presencia` y `.../chat/ia`). Pestaña "Equipo" del panel Copilot.
+  Mención `@dev`, `@senior` o `@seniordev` dispara en background la consulta a DeepSeek (vía backend `SeniorDevService`),
+  emitiendo estado `PENSANDO` por WS y respondiendo en el hilo como mensaje `tipo: IA` con contexto en 4 capas (sistema, proyecto/diagrama/tareas/ADRs, historial reciente y pregunta con autor). Nginx enruta `/ws` con `Upgrade`.
 - **Colaboración del lienzo:** sin WebSockets. Presencia y cursores por HTTP (`/api/proyectos/{id}/colaboracion`,
   heartbeat ~800 ms, mapa en memoria del backend), refresco del diagrama por polling cada 7 s y
   `BroadcastChannel` entre pestañas del mismo navegador.
@@ -65,7 +66,7 @@ se hornean en el bundle.
 | Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente |
 | Copilot IA | Chat **individual por usuario**: DeepSeek para texto, Gemini para fotos de diagramas; propone/aplica acciones sobre el lienzo |
 | Colaboración | Presencia, cursores remotos, refresco por polling |
-| Chat de equipo | Sala por proyecto en tiempo real (STOMP), historial paginado, presencia "en la sala"; cualquier miembro lee y escribe |
+| Chat de equipo y Senior Dev IA | Sala en tiempo real (STOMP), historial paginado, presencia y asistencia Senior Dev con DeepSeek en el hilo (@dev / @senior) |
 | Voz | Dictado y push-to-talk (`Espacio`/`V`) que alimentan el Copilot |
 
 ## 5. Riesgos conocidos (auditoría 2026-10-24, pendientes de decisión)
@@ -81,13 +82,15 @@ se hornean en el bundle.
 5. Import EA con herencia (`UML:Class xmi.idref` anidado) crea entidades sin nombre → 409.
 6. Disco del EC2 estuvo al 98 % (2026-09-21); revisar antes de cada `up --build`.
 
-## 6. Próximo ciclo (Parcial 2)
+## 6. Ciclo Parcial 2
 
 Enunciado en el vault: `U/2-2026/SW/Parcial2/Enunciado.md`. Requisito central: una IA "Senior Dev"
 en un **chat grupal por proyecto** (respuestas visibles para todo el equipo, sabe a quién responde y
 mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan por fases en
-`U/2-2026/SW/Parcial2/Plan.md`; contrato de F1 en `U/2-2026/SW/Parcial2/F1_Spec_Chat.md`.
-**F1 (chat grupal sin IA) implementada.** Siguiente: F2, `@SeniorDev` con DeepSeek desde el backend.
+`U/2-2026/SW/Parcial2/Plan.md`; especificaciones en `F1_Spec_Chat.md` y `F2_Spec_SeniorDev.md`.
+- **F1 (chat grupal STOMP sin IA):** completada.
+- **F2 (Senior Dev IA en el chat grupal con DeepSeek desde el backend):** completada.
+- Siguiente: **F3 (Agente de Inducción para nuevos miembros del equipo).**
 
 ## 7. Reglas para agentes
 

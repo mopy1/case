@@ -31,6 +31,7 @@ services:
       # Clave HMAC de los JWT (Base64, >= 256 bits). Obligatoria: sin ella compose no arranca,
       # para no caer en la clave de desarrollo de application.properties.
       JWT_SECRET: ${JWT_SECRET:?Definir JWT_SECRET en .env (openssl rand -base64 48)}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     networks:
       - case_network
 

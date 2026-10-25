@@ -9,5 +9,6 @@ export function chatTopics(proyectoId: number) {
   return {
     mensajes: `/topic/proyectos/${proyectoId}/chat`,
     presencia: `/topic/proyectos/${proyectoId}/chat/presencia`,
+    ia: `/topic/proyectos/${proyectoId}/chat/ia`,
   }
 }

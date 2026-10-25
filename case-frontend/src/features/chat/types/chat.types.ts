@@ -2,6 +2,16 @@ import type { RolProyecto } from "@/features/projects/types/projects.type"
 
 export type TipoMensajeChat = "USUARIO" | "IA" | "SISTEMA"
 
+export type EstadoIaChat = "INACTIVO" | "PENSANDO" | "RESPONDIDO" | "ERROR"
+
+/** Evento efímero de estado de la IA emitido en /topic/proyectos/{id}/chat/ia. */
+export interface ChatIaEstadoEvent {
+  proyectoId: number
+  estado: EstadoIaChat
+  detalle?: string | null
+  respuestaAId?: number | null
+}
+
 /** Espejo de ChatMensajeResponse (REST 201/200 y tópico /topic/proyectos/{id}/chat). */
 export interface ChatMensaje {
   id: number
