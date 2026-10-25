@@ -12,9 +12,18 @@ interface CopilotPanelProps {
   onClose: () => void
   /** Contenido de la pestaña "Equipo" (chat grupal, `features/chat`). */
   teamPanel: ReactNode
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
-export function CopilotPanel({ proyectoId, isOpen, onClose, teamPanel }: CopilotPanelProps) {
+export function CopilotPanel({
+  proyectoId,
+  isOpen,
+  onClose,
+  teamPanel,
+  isFullscreen = false,
+  onToggleFullscreen,
+}: CopilotPanelProps) {
   const isMobile = useIsMobile()
   const { width, isDragging, setIsDragging, resetWidth } = usePanelResize()
   const { tab, setTab } = usePanelTab()
@@ -35,23 +44,28 @@ export function CopilotPanel({ proyectoId, isOpen, onClose, teamPanel }: Copilot
         style={
           isMobile
             ? { height: "var(--visual-viewport-height, 100dvh)", maxHeight: "var(--visual-viewport-height, 100dvh)" }
-            : { width: isOpen ? `${width}px` : 0 }
+            : isFullscreen
+              ? undefined
+              : { width: isOpen ? `${width}px` : 0 }
         }
         className={cn(
           "bg-card border-border",
           // Móvil: Drawer flotante adaptativo al teclado virtual que no empuja el layout
           "fixed top-0 right-0 z-50 flex flex-col w-full sm:max-w-[380px] shadow-2xl transition-transform duration-200 ease-out overscroll-contain",
           isOpen ? "translate-x-0 border-l" : "translate-x-full pointer-events-none invisible",
-          // Escritorio: Panel acoplado redimensionable
-          "md:relative md:top-auto md:right-auto md:inset-auto md:z-auto md:w-auto md:shadow-xl md:translate-x-0 md:visible md:h-full md:shrink-0",
+          // Escritorio: Panel acoplado redimensionable o pantalla completa
+          "md:relative md:top-auto md:right-auto md:inset-auto md:z-auto md:shadow-xl md:translate-x-0 md:visible md:h-full md:shrink-0",
+          isFullscreen
+            ? "md:w-full md:flex-1 md:max-w-none md:border-l-0"
+            : "md:w-auto",
           isDragging ? "md:select-none" : "md:transition-[width,opacity] md:duration-200 md:ease-out",
           isOpen
             ? "md:border-l md:opacity-100 md:pointer-events-auto"
             : "md:border-l-0 md:overflow-hidden md:opacity-0 md:pointer-events-none"
         )}
       >
-        {/* Resize handle exclusivo para pantallas de escritorio */}
-        {!isMobile && isOpen && (
+        {/* Resize handle exclusivo para pantallas de escritorio cuando no está en pantalla completa */}
+        {!isMobile && isOpen && !isFullscreen && (
           <div
             role="separator"
             onMouseDown={(e) => {
@@ -72,6 +86,8 @@ export function CopilotPanel({ proyectoId, isOpen, onClose, teamPanel }: Copilot
           onClose={onClose}
           teamPanel={teamPanel}
           copilotPanel={<CopilotAssistantView proyectoId={proyectoId} />}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={onToggleFullscreen}
         />
       </aside>
     </>

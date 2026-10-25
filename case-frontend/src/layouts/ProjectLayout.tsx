@@ -11,6 +11,7 @@ import { ChatTeamView } from "@/features/chat"
 import { usePushToTalk, VoicePushToTalkHud } from "@/features/voice"
 import { useIsMobile } from "@/hooks/useIsMobile"
 import { decodeProjectId, encodeProjectId } from "@/lib/projectCode"
+import { cn } from "@/lib/utils"
 
 const COPILOT_STORAGE_KEY = "sw_case_copilot_open"
 
@@ -22,11 +23,9 @@ export function ProjectLayout() {
   const proyectoId = decodeProjectId(id)
   const maskedCode = encodeProjectId(proyectoId)
 
-  // Reescribir suavemente en la barra de direcciones si se ingresó con ID numérico (ej: /proyectos/1)
   useEffect(() => {
     if (id && /^\d+$/.test(id) && maskedCode && id !== maskedCode) {
-      const nuevoPath = location.pathname.replace(`/proyectos/${id}`, `/proyectos/${maskedCode}`)
-      navigate(nuevoPath, { replace: true })
+      navigate(location.pathname.replace(`/proyectos/${id}`, `/proyectos/${maskedCode}`), { replace: true })
     }
   }, [id, maskedCode, location.pathname, navigate])
 
@@ -35,27 +34,29 @@ export function ProjectLayout() {
   const isMobile = useIsMobile()
 
   const [isCopilotOpen, setIsCopilotOpen] = useState(() => {
-    // En móviles (< 768px), inicia por defecto cerrado para no ocultar el contenido principal
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      return false
-    }
+    if (typeof window !== "undefined" && window.innerWidth < 768) return false
     const saved = localStorage.getItem(COPILOT_STORAGE_KEY)
     return saved !== null ? saved === "true" : true
   })
+  const [isChatFullScreen, setIsChatFullScreen] = useState(false)
 
   useEffect(() => {
-    if (!isMobile) {
-      localStorage.setItem(COPILOT_STORAGE_KEY, String(isCopilotOpen))
-    }
+    if (!isMobile) localStorage.setItem(COPILOT_STORAGE_KEY, String(isCopilotOpen))
   }, [isCopilotOpen, isMobile])
 
-  const handleVoiceSend = (text: string) => {
-    setIsCopilotOpen(true)
-    window.dispatchEvent(new CustomEvent("copilot:voice-submit", { detail: { text } }))
-  }
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isChatFullScreen) setIsChatFullScreen(false)
+    }
+    window.addEventListener("keydown", handleEscape)
+    return () => window.removeEventListener("keydown", handleEscape)
+  }, [isChatFullScreen])
 
   const { isPushing, isSending, liveText } = usePushToTalk({
-    onSend: handleVoiceSend,
+    onSend: (text) => {
+      setIsCopilotOpen(true)
+      window.dispatchEvent(new CustomEvent("copilot:voice-submit", { detail: { text } }))
+    },
   })
 
   return (
@@ -63,12 +64,8 @@ export function ProjectLayout() {
       className="flex h-[100dvh] max-h-[100dvh] w-screen overflow-hidden bg-background"
       style={{ height: "var(--visual-viewport-height, 100dvh)" }}
     >
-      <ProjectNavRail
-        projectId={maskedCode || id!}
-        miembros={miembros}
-        miRol={proyecto?.miRol}
-      />
-      <main className="relative flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden">
+      <ProjectNavRail projectId={maskedCode || id!} miembros={miembros} miRol={proyecto?.miRol} />
+      <main className={cn("relative flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden", isChatFullScreen && "hidden")}>
         {error ? (
           <Alert variant="destructive" className="m-6">
             <AlertTitle>No se pudo cargar el proyecto</AlertTitle>
@@ -80,7 +77,6 @@ export function ProjectLayout() {
           </ErrorBoundary>
         )}
 
-        {/* Botón arriba a la derecha cuando el panel está cerrado */}
         {!isCopilotOpen && (
           <button
             type="button"
@@ -97,15 +93,16 @@ export function ProjectLayout() {
       <CopilotPanel
         proyectoId={proyectoId}
         isOpen={isCopilotOpen}
-        onClose={() => setIsCopilotOpen(false)}
+        onClose={() => {
+          setIsCopilotOpen(false)
+          setIsChatFullScreen(false)
+        }}
         teamPanel={<ChatTeamView key={proyectoId} proyectoId={proyectoId} />}
+        isFullscreen={isChatFullScreen}
+        onToggleFullscreen={() => setIsChatFullScreen((prev) => !prev)}
       />
 
-      <VoicePushToTalkHud
-        isPushing={isPushing}
-        isSending={isSending}
-        liveText={liveText}
-      />
+      <VoicePushToTalkHud isPushing={isPushing} isSending={isSending} liveText={liveText} />
     </div>
   )
 }

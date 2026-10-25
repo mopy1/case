@@ -1,6 +1,9 @@
+import { useMemo } from "react"
 import { RotateCcw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { useProjectMembers } from "@/features/projects/hooks/useProjectMembers"
+import type { MentionItem } from "../types/mention.types"
 import { useChatSala } from "../hooks/useChatSala"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
@@ -62,13 +65,36 @@ interface ChatTeamViewProps {
 /** Pestaña "Equipo" del panel lateral. Montarla con `key={proyectoId}` para reiniciar al cambiar de proyecto. */
 export function ChatTeamView({ proyectoId }: ChatTeamViewProps) {
   const sala = useChatSala(proyectoId)
+  const { miembros } = useProjectMembers(proyectoId)
+
+  const candidatos = useMemo<MentionItem[]>(() => {
+    const lista: MentionItem[] = [
+      { id: "seniordev", username: "SeniorDev", nombreMostrar: "Senior Dev", esIa: true },
+    ]
+    for (const m of miembros) {
+      lista.push({
+        id: m.usuarioId,
+        username: m.username,
+        nombreMostrar: m.username,
+        esIa: false,
+        rol: m.rol,
+        email: m.email,
+      })
+    }
+    return lista
+  }, [miembros])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ChatPresenceBar usuarios={sala.enSala} estado={sala.estado} />
       <ChatTeamBody sala={sala} />
       {!sala.loading && (
-        <ChatInput enviando={sala.enviando} errorEnvio={sala.errorEnvio} onEnviar={sala.enviar} />
+        <ChatInput
+          enviando={sala.enviando}
+          errorEnvio={sala.errorEnvio}
+          onEnviar={sala.enviar}
+          candidatos={candidatos}
+        />
       )}
     </div>
   )

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Bot, Users, X } from "lucide-react"
+import { Bot, Maximize2, Minimize2, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -11,12 +11,22 @@ interface CopilotPanelTabsProps {
   onClose: () => void
   teamPanel: ReactNode
   copilotPanel: ReactNode
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
 // keepMounted en ambas: el historial del Copilot vive en memoria y el WS del chat no debe cortarse.
 const PANEL_CLASS = "flex min-h-0 flex-1 flex-col text-base"
 
-export function CopilotPanelTabs({ tab, onTabChange, onClose, teamPanel, copilotPanel }: CopilotPanelTabsProps) {
+export function CopilotPanelTabs({
+  tab,
+  onTabChange,
+  onClose,
+  teamPanel,
+  copilotPanel,
+  isFullscreen = false,
+  onToggleFullscreen,
+}: CopilotPanelTabsProps) {
   return (
     <Tabs
       value={tab}
@@ -32,6 +42,28 @@ export function CopilotPanelTabs({ tab, onTabChange, onClose, teamPanel, copilot
             <Bot /> Copilot
           </TabsTrigger>
         </TabsList>
+
+        {onToggleFullscreen && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden size-7 rounded-lg text-foreground/80 hover:text-foreground md:inline-flex"
+                  onClick={onToggleFullscreen}
+                  aria-label={isFullscreen ? "Restaurar panel acoplado" : "Maximizar a pantalla completa"}
+                />
+              }
+            >
+              {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {isFullscreen ? "Restaurar tamaño acoplado" : "Maximizar a pantalla completa"}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         <Tooltip>
           <TooltipTrigger
             render={
