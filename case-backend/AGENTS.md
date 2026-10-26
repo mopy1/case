@@ -148,7 +148,7 @@ case-backend/
   con heartbeat servidor 10 s/10 s y el `messageBrokerTaskScheduler`. No hay destinos `/app`.
 - `websocket/StompAuthInterceptor` (canal inbound): `CONNECT` exige header nativo
   `Authorization: Bearer <jwt>` → si falta/es inválido/usuario borrado lanza `"401 Token inválido o ausente"`;
-  `SUBSCRIBE` solo a `/topic/proyectos/{id}/chat(/presencia)?` siendo miembro (`"403 Destino no permitido"` /
+  `SUBSCRIBE` solo a `/topic/proyectos/{id}/chat(/presencia|/ia)?` siendo miembro (`"403 Destino no permitido"` /
   `"403 No sos colaborador de este proyecto"`); `SEND` siempre `"403 Los mensajes se envían por REST"`.
   Spring responde frame `ERROR` (header `message`) y cierra la conexión.
 
@@ -382,7 +382,7 @@ Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`), `Il
 | `diagrama_entidades` | `id`, `proyecto_id`, `nombre`(100), `pos_x`, `pos_y`, `created_at` | único (`proyecto_id`,`nombre`); CASCADE |
 | `entidad_atributos` | `id`, `entidad_id`, `nombre`(100), `tipo_sql`(50), `es_pk`, `es_fk`, `referencia_entidad_id` (nullable), `nullable`, `created_at` | único (`entidad_id`,`nombre`); `entidad_id` CASCADE; `referencia_entidad_id` **RESTRICT a propósito** |
 | `chat_mensajes` | `id`, `proyecto_id`, `usuario_id` (nullable: null = IA/SISTEMA), `tipo`(20: USUARIO/IA/SISTEMA), `contenido` TEXT, `respuesta_a_id` (nullable, FK a sí misma), `created_at`, `propuesta_aplicada` (NOT NULL default false), `aplicado_por`(100), `herramientas_usadas`(255, nullable, CSV) | `proyecto_id` CASCADE; `respuesta_a_id` SET NULL; índice `idx_chat_mensajes_proyecto_created` (`proyecto_id`,`created_at`); índice GIN `idx_chat_mensajes_fts` sobre `to_tsvector('spanish', contenido)` (lo crea `ChatBusquedaIndiceInitializer`, Hibernate lo ignora); CHECK de `tipo` (agregar un valor exige `ALTER TABLE` manual) |
-| `chat_memoria` | `proyecto_id` (PK y FK), `resumen` TEXT, `ultimo_mensaje_resumido_id` (marca de agua, sin FK), `updated_at` | `proyecto_id` ON DELETE CASCADE (verificado con `\d chat_memoria`) |
+| `chat_memoria` | `proyecto_id` (PK y FK), `resumen` TEXT NOT NULL, `ultimo_mensaje_resumido_id` NOT NULL (marca de agua, sin FK), `updated_at` | `proyecto_id` ON DELETE CASCADE (verificado con `\d chat_memoria`) |
 | `diagrama_relaciones` | `id`, `proyecto_id`, `entidad_origen_id`, `entidad_destino_id`, `multiplicidad_origen`(20), `multiplicidad_destino`(20), `tipo`(20, nullable), `puntos_control` jsonb, `created_at` | las 3 FK con CASCADE |
 
 Enums se guardan como texto (`@Enumerated(STRING)`). Las FK a `usuarios` no tienen cascada (no
