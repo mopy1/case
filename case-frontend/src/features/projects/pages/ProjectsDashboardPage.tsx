@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useMemo, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
@@ -8,27 +7,18 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { UserAvatarMenu } from "@/components/common/UserAvatarMenu"
 import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { useProjects } from "../hooks/useProjects"
+import { PRACTICA, usePracticaQuery } from "../hooks/usePracticaQuery"
 import { ProjectCard } from "../components/project-card/project-card"
 import { CreateProjectDialog } from "../components/create-project-dialog/create-project-dialog"
-
-/** Misión 1 de la Guía: el usuario crea su propio proyecto de práctica (prellenado, editable). */
-const PRACTICA = { nombre: "Práctica — Biblioteca", descripcion: "Proyecto de práctica para la inducción: Libro, Autor y Préstamo." }
 
 export function ProjectsDashboardPage() {
   const { projects, loading, error, getMyProjects } = useProjects()
   const [busqueda, setBusqueda] = useState("")
-  const [searchParams, setSearchParams] = useSearchParams()
-  // Se lee una vez al montar (el diálogo se monta recién cuando termina la carga) y se apaga al crear:
-  // si no, el diálogo de la grilla se volvería a abrir solo al pasar de 0 a 1 proyecto.
-  const [abrirPractica, setAbrirPractica] = useState(() => searchParams.get("nuevo") === "practica")
+  const { abrirPractica, apagarPractica } = usePracticaQuery()
   const alCrear = () => {
-    setAbrirPractica(false)
+    apagarPractica()
     void getMyProjects()
   }
-
-  useEffect(() => {
-    if (searchParams.has("nuevo")) setSearchParams({}, { replace: true })
-  }, [searchParams, setSearchParams])
 
   const filtrados = useMemo(
     () => projects.filter((p) => p.nombre.toLowerCase().includes(busqueda.toLowerCase())),

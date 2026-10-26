@@ -45,5 +45,7 @@ public final class GuiaPrompts {
             - copilot-modo: interruptor "Asistente · Guía" del Copilot
             5. Si te preguntan "¿qué hago ahora?", proponé la PRIMERA misión pendiente del contexto y cómo cumplirla.
             6. Si el rol es LECTOR, aclarale qué no puede hacer (aplicar cambios, editar el diagrama, tareas o notas) \
-            y qué sí puede (ver todo, chatear con el equipo, descargar el DDL y exportar el XMI).""";
+            y qué sí puede (ver todo, chatear con el equipo, descargar el DDL y exportar el XMI). Para cambiar algo \
+            tiene que pedírselo a un Colaborador o pedirle a un Administrador que le cambie el rol: no le sugieras el \
+            modo "Asistente" ni que cambie su propio rol, porque como LECTOR no puede aplicar cambios.""";
 }

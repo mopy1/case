@@ -284,6 +284,11 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   borrar), `ELIMINAR_RELACION`, `CREAR_TAREA`, `ADR_SUGERIDA`/`MOTIVO`, `EXPORTAR_XMI`, `GENERAR_BACKEND`, `IR_A` → 8 tarjetas
   (`copilot-*-card.tsx`) o lote ("Aplicar todos", `copilotBatchExecutor.ts`). Las acciones (`copilotDiagramActions.ts`,
   `copilotSystemActions.ts`) usan las APIs de cada feature y emiten `project:*` (exportar XMI/ZIP también `project:artifact-exported`).
+  `cleanResponseText` quita los comandos aunque vengan sin corchetes, en lista (`- `/`1. `) o dentro de un bloque ```` ``` ```` (DeepSeek
+  lo hace seguido); si solo había comandos, la burbuja dice "Te preparé estas propuestas para aplicar:" en vez del texto crudo.
+- Markdown compartido (`components/chat/markdown`): la cursiva con `*` no abre tras letra/dígito/punto ni antes de espacio, así
+  `0..*`/`1..*` no se vuelven cursiva; los índices pares del `split` son texto plano; `---`/`***` sueltos se omiten (no hay `<hr>`).
+- `App.tsx`: el `Toaster` de sonner recibe `theme` de `useTheme()` (antes salía claro en modo oscuro).
 - **Modos** (`copilot-modes.tsx`): interruptor `copilot-mode-switch.tsx` ("Asistente · Guía", `Tabs` h-7, `data-guia="copilot-modo"`,
   primero en las acciones de ambas cabeceras). Los dos modos quedan **montados** y el inactivo se oculta con `hidden`: dos historiales en
   memoria separados. Modo en localStorage `sw_case_copilot_modo` (`useCopilotModo`; `guia:panel {modoGuia}` lo pasa a Guía). Solo la vista
@@ -305,7 +310,7 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 - **7 misiones** (`guiaMisiones.data.ts`, mismos ids que `MisionGuia` del backend) y su detección (`useGuiaDeteccion`, montado en `ProjectLayout`):
   | Misión | Se detecta con | "Llevarme ahí" |
   | --- | --- | --- |
-  | `CREAR_PROYECTO` | `GET /proyectos` → algún `miRol ADMIN` | `/proyectos?nuevo=practica` (diálogo prellenado «Práctica — Biblioteca») |
+  | `CREAR_PROYECTO` | `GET /proyectos` → algún `miRol ADMIN` | `/proyectos?nuevo=practica` (diálogo prellenado «Práctica — Biblioteca»; `projects/hooks/usePracticaQuery`) |
   | `CREAR_TABLAS` | diagrama: ≥ 2 tablas con atributos | pasos `diagrama-nueva-entidad`, `diagrama-atributo` |
   | `RELACIONAR` | diagrama: ≥ 1 relación (D7: cualquiera) | navega a `diagrama` |
   | `INVITAR` | `GET /miembros` ≥ 2 (D6) | paso `nav-colaboradores` |

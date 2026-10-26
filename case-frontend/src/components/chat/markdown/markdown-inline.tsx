@@ -2,7 +2,9 @@ import type { ReactNode } from "react"
 
 // La negrita admite un `*` suelto adentro ("**Pedido (0..*)**"); `_`/`__` solo cuentan fuera de una palabra,
 // para no convertir en cursiva identificadores snake_case como "cliente_id y pedido_id".
-const INLINE_REGEX = /(`[^`\n]+`|\*\*(?:[^*\n]|\*(?!\*))+\*\*|(?<!\w)__[^_\n]+__(?!\w)|\*[^*\n]+\*|(?<!\w)_[^_\n]+_(?!\w)|@[a-zA-Z0-9_-]+)/g
+// La cursiva con `*` no abre tras letra/dígito/punto ni antes de un espacio, y no cierra tras espacio/punto:
+// así las multiplicidades "1..*", "0..*" o un "*" suelto no se vuelven cursiva.
+const INLINE_REGEX = /(`[^`\n]+`|\*\*(?:[^*\n]|\*(?!\*))+\*\*|(?<!\w)__[^_\n]+__(?!\w)|(?<![\w.*])\*(?![\s*])[^*\n]*?(?<![\s.])\*(?![\w*])|(?<!\w)_[^_\n]+_(?!\w)|@[a-zA-Z0-9_-]+)/g
 
 /**
  * Parsea formato inline: negrita (**), cursiva (*), código (`), @SeniorDev y mención propia @miUsuario.
@@ -13,6 +15,8 @@ export function renderMarkdownInline(text: string, currentUsername?: string): Re
 
   return parts.map((part, index) => {
     if (!part) return null
+    // split con un grupo de captura: los índices pares son texto plano, aunque empiece y termine con "*"
+    if (index % 2 === 0) return part
 
     // 1. Código inline
     if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {

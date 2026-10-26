@@ -50,8 +50,7 @@ function processAssistantResponse(
   const userWantsDelete = /\b(?:eliminar|borrar|quitar|remover|delete|drop)\b/i.test(userQuery)
   const entityDeleteSuggestions = userWantsDelete ? parseEntityDeleteSuggestions(rawText) : []
 
-  return {
-    text: cleanResponseText(rawText) || rawText,
+  const result = {
     adrSuggestion: adrList[0],
     adrSuggestions: adrList,
     entitySuggestions: parseEntitySuggestions(rawText, existingEntities),
@@ -62,6 +61,10 @@ function processAssistantResponse(
     taskSuggestions: parseTaskSuggestions(rawText),
     systemActions: parseSystemActionSuggestions(rawText),
   }
+  // Si el modelo solo mandó comandos (a veces dentro de un bloque ```), no se muestra el texto crudo.
+  const hayTarjetas = Object.values(result).some((v) => Array.isArray(v) && v.length > 0)
+  const limpio = cleanResponseText(rawText)
+  return { ...result, text: limpio || (hayTarjetas ? "Te preparé estas propuestas para aplicar:" : rawText) }
 }
 
 /** Modo Asistente: el backend arma el prompt con el diagrama y llama a DeepSeek (texto) o Gemini (foto). */

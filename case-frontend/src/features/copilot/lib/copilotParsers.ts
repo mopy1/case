@@ -34,8 +34,8 @@ export function parseAdrListFromText(text: string): AdrSuggestion[] {
 export function cleanResponseText(rawText: string): string {
   const sinComandos = rawText
     .replace(/(?:##\s*ADR:?[\s\S]*$)/i, "")
-    .replace(/(?:\*{0,2})ADR_SUGERIDA:?[^\n]+(?:\n+(?:\*{0,2})MOTIVO:?[^\n]+)?/gi, "")
-    .replace(/(?:\*{0,2})CREAR_TABLA:?[^\n]+(?:\n+(?:\*{0,2})ATRIBUTOS:?[^\n]+)?/gi, "")
+    .replace(/(?:\*{0,2})ADR_SUGERIDA:?[^\n]+(?:\n+[ \t]*(?:\*{0,2})MOTIVO:?[^\n]+)?/gi, "")
+    .replace(/(?:\*{0,2})CREAR_TABLA:?[^\n]+(?:\n+[ \t]*(?:\*{0,2})ATRIBUTOS:?[^\n]+)?/gi, "")
     .replace(/(?:\*{0,2})(?:CREAR_RELACION|ACTUALIZAR_RELACION):?[^\n]+/gi, "")
     .replace(/(?:\*{0,2})(?:ELIMINAR_RELACION|BORRAR_RELACION):?[^\n]+/gi, "")
     .replace(/(?:\*{0,2})(?:AGREGAR_ATRIBUTO|CREAR_ATRIBUTO):?[^\n]+/gi, "")
@@ -46,6 +46,8 @@ export function cleanResponseText(rawText: string): string {
     // Sin letra antes: "transaccional" no es la etiqueta "Acción:" (antes cortaba el texto ahí).
     .replace(/(?<!\p{L})(?:\*{0,2})Acci[oó]n:?[^\n]+(?:\n+(?:\*{0,2})Motivo:?[^\n]+)?/giu, "")
     .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")
+    // DeepSeek a veces lista los comandos ("- CREAR_TABLA: …", "1. …"): quedan viñetas sueltas.
+    .replace(/^[ \t]*(?:[-*•+]|\d+[.)])[ \t]*$/gm, "")
     // Elimina bloques de código vacíos o fences huérfanos dejados tras extraer los comandos
     .replace(/```[a-zA-Z0-9_-]*\s*```/g, "")
     .replace(/^```[a-zA-Z0-9_-]*\s*$/gm, "")

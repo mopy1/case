@@ -1,7 +1,7 @@
 import type { MarkdownBlock } from "./markdown.types"
 
 const isBlockBoundary = (l: string) =>
-  l.trim() === "" || l.startsWith("```") || l.startsWith(">") || /^#{1,6}\s+/.test(l) || /^\s*[-*•+]\s+/.test(l) || /^\s*\d+\.\s+/.test(l)
+  l.trim() === "" || /^(?:-{3,}|\*{3,}|_{3,})$/.test(l.trim()) || l.startsWith("```") || l.startsWith(">") || /^#{1,6}\s+/.test(l) || /^\s*[-*•+]\s+/.test(l) || /^\s*\d+\.\s+/.test(l)
 
 /**
  * Tokeniza texto Markdown en bloques estructurados (código, encabezados, citas, listas, párrafos).
@@ -16,7 +16,8 @@ export function tokenizeMarkdownBlocks(rawText: string): MarkdownBlock[] {
   while (i < lines.length) {
     const line = lines[i]
 
-    if (line.trim() === "" || /^`+$/.test(line.trim())) {
+    // Vacías, fences huérfanos y separadores "---" / "***" (el modelo los usa entre secciones).
+    if (line.trim() === "" || /^`+$/.test(line.trim()) || /^(?:-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
       i++
       continue
     }

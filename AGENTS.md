@@ -118,6 +118,9 @@ mantiene el hilo) usando la API de DeepSeek, más un agente de inducción. Plan 
   `POST /api/proyectos/{id}/copilot/consultas` (Asistente/Guía, 400/403/429/503, respaldo MANUAL), manual de 17 temas,
   Guía con tool calling `buscarManual` e ids `GUIA_PASO`, aviso `SISTEMA` en la sala al agregar un miembro (AFTER_COMMIT).
   Spec: `F5_Spec_Guia_Induccion.md`. Frontend (misiones, tarjeta "Primeros pasos", modo Guía, coach marks) en su `AGENTS.md`.
+  QA F5 (2026-10-25): aprobado en contenedores (claves solo en `case_backend`, bundle sin claves, foto de ~1,2 MB por Nginx,
+  7 misiones, oferta única, aviso en vivo, móvil 390 px). Con la QA: `spring.jpa.open-in-view=false` (la conexión JDBC ya no
+  queda tomada durante la llamada a la IA), Toaster con tema, `0..*`/`1..*` sin cursiva, comandos dentro de ``` sin residuos.
 
 ## 7. Reglas para agentes
 

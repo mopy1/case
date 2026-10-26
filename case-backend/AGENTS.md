@@ -164,8 +164,10 @@ case-backend/
 - `CopilotService.consultar`, en orden: `verificarMiembro` (403) → `texto.strip()`; texto e imagen vacíos → 400 → GUIA con imagen → 400 →
   `Base64.decode` (400 "La imagen no es válida") → `CopilotCuota.registrar` (429) → `DiagramaService.obtenerDiagrama` → imagen =
   `CopilotVision` · GUIA = `GuiaService` · si no `CopilotAsistente`. **Sin `@Transactional`** (la IA tarda decenas de segundos).
-  Riesgo conocido: `spring.jpa.open-in-view` sigue en su default (`true`), así que el request retiene su conexión JDBC mientras
-  espera a la IA (pool Hikari de 10); con la cuota y pocos usuarios alcanza, pero no apagarlo sin revisar los lazy loads de los controllers.
+  `spring.jpa.open-in-view=false` (QA F5): con OSIV el request retenía su conexión JDBC mientras esperaba a la IA (pool Hikari
+  de 10). Es seguro porque los services son `@Transactional` y los repos que leen relaciones fuera de transacción usan
+  `@EntityGraph` (Senior Dev es `@Async`, nunca tuvo OSIV); verificado con los tests y una prueba en vivo de todas las pantallas.
+  Regla: un controller nunca navega relaciones lazy de una entidad; mapear a DTO dentro del service.
 - `CopilotAsistente`: un solo turno `[system(CopilotPrompts.asistente(seccion, diagrama)), user(texto)]`, `temperature 0.3`,
   `max_tokens 2000` → `origen DEEPSEEK`. Sin clave o cualquier error → `CopilotRespaldoManual` (200 `origen MANUAL`, nunca 5xx).
 - `CopilotPrompts`: port literal del prompt del front (tablas `- Nombre (x:80, y:80) [id:BIGINT:PK]`, relaciones, próxima

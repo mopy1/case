@@ -20,7 +20,8 @@ class GuiaPromptsTest {
 
     @Test
     void voseoSinEmojisPrimeraMisionYLector() {
-        assertThat(GuiaPrompts.SYSTEM).contains("voseo", "sin emojis", "120 palabras", "PRIMERA misión pendiente", "LECTOR");
+        assertThat(GuiaPrompts.SYSTEM).contains("voseo", "sin emojis", "120 palabras", "PRIMERA misión pendiente", "LECTOR",
+                "no le sugieras el modo \"Asistente\"");
         assertThat(GuiaPrompts.SYSTEM.codePoints().noneMatch(c -> c >= 0x1F300)).isTrue();
     }
 }
