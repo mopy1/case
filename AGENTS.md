@@ -95,7 +95,9 @@ se hornean en el bundle.
 3. `docker-compose.prod.yml` tiene una contraseña de Postgres por defecto en texto plano y `CORS_ALLOWED_ORIGINS: "*"`.
 4. Presencia (`ColaboracionController`) no verifica membresía del proyecto.
 5. Import EA con herencia (`UML:Class xmi.idref` anidado) crea entidades sin nombre → 409.
-6. Disco del EC2 estuvo al 98 % (2026-09-21); revisar antes de cada `up --build`.
+6. Disco del EC2: liberado el 2026-11-09 (100 % → 82 %, sin snap, kernel viejo ni ImageMagick); revisar `df -h` antes de cada `up --build`.
+7. **Desplegado en el EC2 el 2026-11-09** (`main` = `a965339`) con `JWT_SECRET`, `DEEPSEEK_API_KEY` y `GEMINI_API_KEY` en `~/sw-case/.env`
+   del servidor. El EC2 no tiene IP elástica: tras cada stop/start cambia la IP pública y hay que actualizar DuckDNS.
 
 ## 6. Ciclo Parcial 2
 
