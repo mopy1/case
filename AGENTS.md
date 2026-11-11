@@ -96,7 +96,7 @@ se hornean en el bundle.
 4. Presencia (`ColaboracionController`) no verifica membresía del proyecto.
 5. Import EA con herencia (`UML:Class xmi.idref` anidado) crea entidades sin nombre → 409.
 6. Disco del EC2: liberado el 2026-11-09 (100 % → 82 %, sin snap, kernel viejo ni ImageMagick); revisar `df -h` antes de cada `up --build`.
-7. **Desplegado en el EC2 el 2026-11-11** (`main` = `561578b`: motor Qwen/Kaggle, import/export XMI de EA, fix de tarjetas) con
+7. **Desplegado en el EC2 el 2026-11-11** (última actualización 05:15 UTC) (`main` = `d65bf61`: motor Qwen/Kaggle, import/export XMI de EA, fix de tarjetas, prompts con N:M automática y `MOVER_TABLA`) con
    `JWT_SECRET`, `DEEPSEEK_API_KEY` y `GEMINI_API_KEY` en `~/sw-case/.env` del servidor. `~/sw-case` **no es un clon de git**: solo tiene
    `.env`, `docker-compose.prod.yml`, `deploy-aws.sh`, los `Dockerfile.prod`, `nginx.conf`, `case-backend/target/*.jar` y `case-frontend/dist/`.
    Para actualizar: compilar local, `scp` del jar y de los archivos de config que cambien, `rsync --delete` de `dist/`, `docker builder prune -af`
