@@ -58,6 +58,10 @@ public class ChatMensaje {
   @Column(name = "herramientas_usadas", length = 255)
   private String herramientasUsadas;
 
+  /** Razonamiento del modelo (solo Qwen en Kaggle lo devuelve); null con DeepSeek o si no es IA. */
+  @Column(name = "razonamiento", columnDefinition = "TEXT")
+  private String razonamiento;
+
   @PrePersist
   void onCreate() {
     this.createdAt = Instant.now();

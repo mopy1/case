@@ -15,6 +15,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.casetool.backend.core.ia.motor.MotorIaPreferencias;
+import com.casetool.backend.core.ia.motor.MotorIaUrlValidator;
 import com.casetool.backend.modules.copilot.CopilotFixtures;
 import com.casetool.backend.modules.copilot.dto.*;
 import com.casetool.backend.modules.copilot.exception.CopilotCuotaExcedidaException;
@@ -43,7 +45,8 @@ class CopilotServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CopilotService(acceso, diagramaService, cuota, asistente, vision, guia);
+        service = new CopilotService(acceso, diagramaService, cuota, asistente, vision, guia,
+                new MotorIaPreferencias(new MotorIaUrlValidator("ngrok-free.dev")));
     }
 
     private void miembro(MiembroProyecto.Rol rol) {

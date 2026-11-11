@@ -10,6 +10,7 @@ import type {
   TaskSuggestion,
 } from "../types/copilot.types"
 import type { EntidadDiagramaResponse, RelacionDiagramaResponse } from "@/features/diagram/types/diagram.types"
+import { separarRazonamiento } from "@/components/chat"
 import { mensajeDeError } from "@/lib/api"
 import { consultarCopilot } from "../api/copilotApi"
 import {
@@ -36,7 +37,11 @@ export interface AskCopilotResult {
   entityDeleteSuggestions?: EntityDeleteSuggestion[]
   taskSuggestions?: TaskSuggestion[]
   systemActions?: SystemActionSuggestion[]
+  razonamiento?: string
 }
+
+/** El modelo se quedó pensando (respuesta cortada dentro de `<think>`). */
+const SIN_RESPUESTA_FINAL = "El modelo no llegó a una respuesta final. Revisá su razonamiento o volvé a preguntar."
 
 /** Mismo tope que `@Size` del backend (≈ 1,5 MB de imagen). */
 const IMAGEN_BASE64_MAX = 2_000_000
@@ -67,7 +72,7 @@ function processAssistantResponse(
   return { ...result, text: limpio || (hayTarjetas ? "Te preparé estas propuestas para aplicar:" : rawText) }
 }
 
-/** Modo Asistente: el backend arma el prompt con el diagrama y llama a DeepSeek (texto) o Gemini (foto). */
+/** Modo Asistente: el backend arma el prompt con el diagrama y llama al motor elegido (DeepSeek o Qwen) o a Gemini (foto). */
 export async function askCopilot(
   proyectoId: number,
   query: string,
@@ -85,7 +90,10 @@ export async function askCopilot(
       seccion: section,
       modo: "ASISTENTE",
     })
-    return processAssistantResponse(res.texto, diagram?.entidades ?? [], query)
+    // Sin el razonamiento: un comando "pensado" dentro de <think> no debe volverse tarjeta.
+    const { razonamiento, respuesta } = separarRazonamiento(res.texto, res.razonamiento)
+    const texto = respuesta || (razonamiento ? SIN_RESPUESTA_FINAL : res.texto)
+    return { ...processAssistantResponse(texto, diagram?.entidades ?? [], query), razonamiento: razonamiento ?? undefined }
   } catch (err) {
     return { text: `**Error del Copilot:** ${mensajeDeError(err)}` }
   }

@@ -134,11 +134,11 @@ class SeniorDevConversacionTest {
     }
 
     private static DeepSeekMensaje texto(String t) {
-        return new DeepSeekMensaje("assistant", t, null, null);
+        return new DeepSeekMensaje("assistant", t, null, null, null);
     }
 
     private static DeepSeekMensaje pide(DeepSeekToolCall... calls) {
-        return new DeepSeekMensaje("assistant", null, List.of(calls), null);
+        return new DeepSeekMensaje("assistant", null, List.of(calls), null, null);
     }
 
     private static DeepSeekToolCall call(String id, String nombre) {

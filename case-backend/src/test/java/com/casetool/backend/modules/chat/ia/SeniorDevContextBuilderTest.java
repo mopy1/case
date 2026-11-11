@@ -111,7 +111,7 @@ class SeniorDevContextBuilderTest {
 
     private List<DeepSeekMensaje> construir() {
         return builder.construirMensajes(new ChatMensajeResponse(143L, P, 1L, "ana", MiembroProyecto.Rol.LECTOR,
-                ChatMensaje.Tipo.USUARIO, "@SeniorDev ¿qué decidimos?", null, Instant.now(), false, null, null));
+                ChatMensaje.Tipo.USUARIO, "@SeniorDev ¿qué decidimos?", null, Instant.now(), false, null, null, null));
     }
 
     private void sinMemoria() {

@@ -27,6 +27,8 @@ export interface ChatMensaje {
   aplicadoPor?: string | null
   /** F3: herramientas que la IA ejecutó de verdad (null si no es IA o no usó ninguna). */
   herramientasUsadas?: HerramientaIa[] | null
+  /** Cadena de pensamiento de Qwen (Kaggle) separada por el backend; DeepSeek → null/ausente. */
+  razonamiento?: string | null
 }
 
 /** Herramientas de solo lectura que el backend expone a Senior Dev (tool calling). */

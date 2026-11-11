@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageActions, MessageMarkdown, horaCorta } from "@/components/chat"
+import { ChatMessage, ChatMessageActions, ChatReasoning, MessageMarkdown, horaCorta } from "@/components/chat"
 import type { ChatAuthor } from "@/components/chat"
 import type { GuiaMensaje } from "../../types/copilot.types"
 import { GuiaMessageActions } from "./guia-message-actions"
@@ -17,6 +17,7 @@ export function GuiaMessageItem({ mensaje }: { mensaje: GuiaMensaje }) {
       time={horaCorta(mensaje.timestamp)}
       dateTime={mensaje.timestamp}
       tone={mensaje.error ? "error" : "default"}
+      reasoning={!own && mensaje.razonamiento ? <ChatReasoning text={mensaje.razonamiento} /> : undefined}
       sources={mensaje.fuentes}
       actions={own || mensaje.error ? undefined : <ChatMessageActions text={mensaje.text} />}
       extras={own ? undefined : <GuiaMessageActions irA={mensaje.irA} pasos={mensaje.pasos} />}

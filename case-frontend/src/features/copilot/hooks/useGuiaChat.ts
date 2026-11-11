@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { useLocation } from "react-router-dom"
 import { useGuiaProgreso } from "@/features/guia"
+import { separarRazonamiento } from "@/components/chat"
 import { mensajeDeError } from "@/lib/api"
 import { consultarCopilot } from "../api/copilotApi"
 import { detectActiveSection } from "../lib/copilotSection"
@@ -37,9 +38,10 @@ export function useGuiaChat(proyectoId: number) {
       setLoading(true)
       try {
         const res = await consultarCopilot(proyectoId, { modo: "GUIA", texto, seccion, historial, misionesPendientes: pendientes })
-        const r = parsearRespuestaGuia(res.texto)
+        const { razonamiento, respuesta } = separarRazonamiento(res.texto, res.razonamiento)
+        const r = parsearRespuestaGuia(respuesta)
         const fuentes = res.herramientasUsadas?.includes("buscarManual") ? ["Manual"] : undefined
-        setMensajes((prev) => [...prev, nuevo({ sender: "assistant", text: r.texto, pasos: r.pasos, irA: r.irA, fuentes })])
+        setMensajes((prev) => [...prev, nuevo({ sender: "assistant", text: r.texto, pasos: r.pasos, irA: r.irA, fuentes, razonamiento: razonamiento ?? undefined })])
       } catch (err) {
         setMensajes((prev) => [...prev, nuevo({ sender: "assistant", text: mensajeDeError(err), error: true })])
       } finally {

@@ -29,8 +29,15 @@ public class SeniorDevConversacion {
 
     private static final Logger log = LoggerFactory.getLogger(SeniorDevConversacion.class);
 
-    /** Texto final y herramientas efectivamente ejecutadas (sin duplicados, en orden de uso). */
-    public record RespuestaIa(String texto, List<String> herramientas) {}
+    /**
+     * Texto final, herramientas efectivamente ejecutadas (sin duplicados, en orden de uso) y el razonamiento
+     * del modelo (solo Qwen en Kaggle: el de cada ronda unido con una línea en blanco; null si no hubo).
+     */
+    public record RespuestaIa(String texto, List<String> herramientas, String razonamiento) {
+        public RespuestaIa(String texto, List<String> herramientas) {
+            this(texto, herramientas, null);
+        }
+    }
 
     private final DeepSeekClient deepSeek;
     private final SeniorDevHerramientaEjecutor ejecutor;
@@ -48,6 +55,7 @@ public class SeniorDevConversacion {
             Consumer<String> alUsarHerramienta) {
         List<DeepSeekMensaje> mensajes = new ArrayList<>(contexto);
         Set<String> usadas = new LinkedHashSet<>();
+        List<String> razonamientos = new ArrayList<>();
         long inicio = System.currentTimeMillis();
 
         for (int ronda = 0; ronda < TOOLS_MAX_ITERACIONES; ronda++) {
@@ -60,8 +68,9 @@ public class SeniorDevConversacion {
                 log.warn("DeepSeek rechazó tools (400), reintento sin herramientas: {}", ex.getMessage());
                 return new RespuestaIa(deepSeek.solicitarRespuesta(contexto, TEMPERATURA, MAX_TOKENS), List.of());
             }
+            anotar(resp, razonamientos);
             if (!resp.tieneToolCalls()) {
-                return new RespuestaIa(resp.content() != null ? resp.content().trim() : "", List.copyOf(usadas));
+                return respuesta(resp, usadas, razonamientos);
             }
             mensajes.add(DeepSeekMensaje.asistente(resp.content(), resp.tool_calls()));
             ejecutarRonda(resp.tool_calls(), mensajes, usadas, proyectoId, usuarioId, alUsarHerramienta);
@@ -71,7 +80,20 @@ public class SeniorDevConversacion {
             }
         }
         DeepSeekMensaje fin = deepSeek.completar(mensajes, SeniorDevHerramientas.DEFINICIONES, "none", TEMPERATURA, MAX_TOKENS);
-        return new RespuestaIa(fin.content() != null ? fin.content().trim() : "", List.copyOf(usadas));
+        anotar(fin, razonamientos);
+        return respuesta(fin, usadas, razonamientos);
+    }
+
+    private static void anotar(DeepSeekMensaje resp, List<String> razonamientos) {
+        if (resp.reasoning_content() != null && !resp.reasoning_content().isBlank()) {
+            razonamientos.add(resp.reasoning_content().strip());
+        }
+    }
+
+    private static RespuestaIa respuesta(DeepSeekMensaje fin, Set<String> usadas, List<String> razonamientos) {
+        String texto = fin.content() != null ? fin.content().trim() : "";
+        String razonamiento = razonamientos.isEmpty() ? null : String.join("\n\n", razonamientos);
+        return new RespuestaIa(texto, List.copyOf(usadas), razonamiento);
     }
 
     /** Cada tool_call_id recibe su mensaje tool (también las que pasan el tope): la API lo exige. */

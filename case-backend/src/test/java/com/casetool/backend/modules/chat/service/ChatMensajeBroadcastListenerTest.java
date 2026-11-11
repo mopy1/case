@@ -28,7 +28,7 @@ class ChatMensajeBroadcastListenerTest {
     @InjectMocks ChatMensajeBroadcastListener listener;
 
     private final ChatMensajeResponse mensaje = new ChatMensajeResponse(42L, 7L, 3L, "adrian", null,
-            ChatMensaje.Tipo.USUARIO, "@SeniorDev hola", null, Instant.now(), false, null, null);
+            ChatMensaje.Tipo.USUARIO, "@SeniorDev hola", null, Instant.now(), false, null, null, null);
 
     @Test
     void difundeSiempreYDisparaIaSoloSiHayMencion() {

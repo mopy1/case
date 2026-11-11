@@ -19,3 +19,5 @@ export { ChatMessageActions, type ChatMessageActionsProps } from "./chat-message
 export { horaCorta, etiquetaDia, cambiaDeDia, debeAgrupar } from "./lib/chat-time"
 export { MessageMarkdown, type MessageMarkdownProps } from "./markdown/message-markdown"
 export { CodeBlock } from "./markdown/code-block"
+export { ChatReasoning, type ChatReasoningProps } from "./chat-reasoning"
+export { separarRazonamiento, type TextoSeparado } from "./lib/chat-reasoning"

@@ -47,7 +47,7 @@ class GuiaServiceTest {
     }
 
     private static DeepSeekMensaje texto(String t) {
-        return new DeepSeekMensaje("assistant", t, null, null);
+        return new DeepSeekMensaje("assistant", t, null, null, null);
     }
 
     private static DeepSeekToolCall call(String id, String nombre) {

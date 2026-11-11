@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { Button } from "@/components/ui/button"
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { IaMotorSelector } from "@/features/ia-motor"
 import { cn } from "@/lib/utils"
 import type { CopilotSection } from "../types/copilot.types"
 import { SECTION_LABELS } from "../lib/copilotSection"
@@ -29,6 +30,7 @@ export function CopilotHeader({ section, autoMode, onToggleAutoMode, onClear, ca
       actions={
         <>
           {modeSwitch}
+          <IaMotorSelector />
           <Tooltip>
             <TooltipTrigger
               render={

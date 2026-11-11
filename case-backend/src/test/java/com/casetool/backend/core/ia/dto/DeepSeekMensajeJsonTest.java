@@ -21,6 +21,19 @@ class DeepSeekMensajeJsonTest {
         assertThat(json).isEqualTo("{\"role\":\"user\",\"content\":\"hola\"}");
         assertThat(mapper.writeValueAsString(DeepSeekMensaje.tool("call_1", "ok")))
                 .contains("\"tool_call_id\":\"call_1\"").doesNotContain("tool_calls");
+        assertThat(mapper.writeValueAsString(DeepSeekMensaje.asistente("x", null))).doesNotContain("reasoning_content");
+    }
+
+    @Test
+    void leeElReasoningContentDeLlamaServer() {
+        String respuesta = """
+                {"choices":[{"index":0,"finish_reason":"stop",
+                 "message":{"role":"assistant","content":"Hola","reasoning_content":"pienso"}}]}
+                """;
+
+        DeepSeekMensaje m = mapper.readValue(respuesta, DeepSeekChatResponse.class).mensaje();
+
+        assertThat(m.reasoning_content()).isEqualTo("pienso");
     }
 
     @Test

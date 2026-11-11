@@ -87,6 +87,8 @@ export interface CopilotMessage {
   systemActions?: SystemActionSuggestion[]
   section?: CopilotSection
   imageUrl?: string
+  /** Razonamiento del modelo (Qwen): se muestra colapsado y nunca se parsea en tarjetas. */
+  razonamiento?: string
 }
 
 /** Mensaje del modo Guía (historial en memoria, separado del Asistente). */
@@ -99,4 +101,5 @@ export interface GuiaMensaje {
   irA?: CopilotSection
   fuentes?: string[]
   error?: boolean
+  razonamiento?: string
 }

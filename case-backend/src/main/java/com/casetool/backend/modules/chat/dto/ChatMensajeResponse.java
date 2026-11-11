@@ -21,7 +21,8 @@ public record ChatMensajeResponse(
     Instant createdAt,
     Boolean propuestaAplicada,
     String aplicadoPor,
-    List<String> herramientasUsadas
+    List<String> herramientasUsadas,
+    String razonamiento
 ) {
     /** {@code rol} es el rol ACTUAL del autor (null si es IA/SISTEMA o ya no es miembro). */
     public static ChatMensajeResponse from(ChatMensaje m, MiembroProyecto.Rol rol) {
@@ -38,7 +39,8 @@ public record ChatMensajeResponse(
             m.getCreatedAt(),
             m.isPropuestaAplicada(),
             m.getAplicadoPor(),
-            herramientas(m.getHerramientasUsadas())
+            herramientas(m.getHerramientasUsadas()),
+            m.getRazonamiento()
         );
     }
 

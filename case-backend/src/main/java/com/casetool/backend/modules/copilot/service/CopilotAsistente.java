@@ -13,10 +13,9 @@ import com.casetool.backend.core.ia.DeepSeekClient;
 import com.casetool.backend.core.ia.IaErrores;
 import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
 import com.casetool.backend.modules.copilot.dto.CopilotConsultaResponse;
-import com.casetool.backend.modules.copilot.dto.OrigenRespuesta;
 import com.casetool.backend.modules.diagrama.dto.DiagramaResponse;
 
-/** Modo Asistente (texto, un solo turno): prompt con el diagrama → DeepSeek → texto crudo con comandos. */
+/** Modo Asistente (texto, un solo turno): prompt con el diagrama → motor de chat → texto crudo con comandos y razonamiento. */
 @Component
 public class CopilotAsistente {
 
@@ -38,10 +37,10 @@ public class CopilotAsistente {
             List<DeepSeekMensaje> mensajes = List.of(
                     DeepSeekMensaje.system(CopilotPrompts.asistente(seccion, diagrama)),
                     DeepSeekMensaje.user(texto));
-            String respuesta = deepSeek.solicitarRespuesta(mensajes, ASISTENTE_TEMPERATURA, ASISTENTE_MAX_TOKENS);
-            return new CopilotConsultaResponse(respuesta, OrigenRespuesta.DEEPSEEK, null);
+            DeepSeekMensaje respuesta = deepSeek.completar(mensajes, null, null, ASISTENTE_TEMPERATURA, ASISTENTE_MAX_TOKENS);
+            return CopilotConsultaResponse.deIa(respuesta, null);
         } catch (Exception ex) {
-            log.warn("El Copilot no pudo consultar a DeepSeek: {}", ex.getMessage());
+            log.warn("El Copilot no pudo consultar a la IA: {}", ex.getMessage());
             return respaldo.responder(texto, seccion, IaErrores.motivo(ex));
         }
     }

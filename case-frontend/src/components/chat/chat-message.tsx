@@ -18,6 +18,8 @@ export interface ChatMessageProps {
   mentionedMe?: boolean
   tone?: "default" | "error"
   quote?: ReactNode
+  /** Acordeón de razonamiento (`ChatReasoning`, solo IA): va antes de la respuesta y de las tarjetas. */
+  reasoning?: ReactNode
   attachment?: ReactNode
   children: ReactNode
   /** Barra "Aplicar todos" + tarjetas (solo IA). */
@@ -32,7 +34,7 @@ const BURBUJA_HUMANA = "max-w-[min(85%,56ch)]"
 
 /** Un solo sistema de mensaje: humano = burbuja, IA = documento, sistema = marcador centrado. */
 export function ChatMessage(props: ChatMessageProps) {
-  const { variant, author, time, dateTime, grouped, mentionedMe, tone, quote, attachment, children, extras, actions, sources } = props
+  const { variant, author, time, dateTime, grouped, mentionedMe, tone, quote, reasoning, attachment, children, extras, actions, sources } = props
 
   if (variant === "system") {
     return (
@@ -63,6 +65,7 @@ export function ChatMessage(props: ChatMessageProps) {
           </MessageHeader>
         )}
         {quote}
+        {reasoning}
         <Bubble
           variant={bubbleVariant}
           align={own ? "end" : "start"}

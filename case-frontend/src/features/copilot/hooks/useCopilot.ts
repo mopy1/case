@@ -67,6 +67,7 @@ export function useCopilot(proyectoId: number) {
           entityDeleteSuggestions: res.entityDeleteSuggestions,
           taskSuggestions: res.taskSuggestions,
           systemActions: res.systemActions,
+          razonamiento: res.razonamiento,
           section: activeSection,
         }
 

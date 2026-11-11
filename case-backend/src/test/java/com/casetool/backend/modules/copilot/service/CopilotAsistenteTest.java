@@ -37,16 +37,18 @@ class CopilotAsistenteTest {
     @Test
     void armaElPromptConElDiagramaYUsaTemperatura03Y2000Tokens() {
         when(deepSeek.tieneApiKey()).thenReturn(true);
-        when(deepSeek.solicitarRespuesta(any(), eq(0.3), eq(2000))).thenReturn("CREAR_TABLA: [Libro] (x: 80, y: 80)");
+        when(deepSeek.completar(any(), isNull(), isNull(), eq(0.3), eq(2000)))
+                .thenReturn(new DeepSeekMensaje("assistant", " CREAR_TABLA: [Libro] (x: 80, y: 80) ", null, null, "razono"));
 
         CopilotConsultaResponse r = asistente.responder("Creá Libro", "diagrama", CopilotFixtures.libroAutor());
 
         assertThat(r.origen()).isEqualTo(OrigenRespuesta.DEEPSEEK);
         assertThat(r.texto()).startsWith("CREAR_TABLA");
         assertThat(r.herramientasUsadas()).isNull();
+        assertThat(r.razonamiento()).isEqualTo("razono");
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<DeepSeekMensaje>> msgs = ArgumentCaptor.forClass(List.class);
-        verify(deepSeek).solicitarRespuesta(msgs.capture(), eq(0.3), eq(2000));
+        verify(deepSeek).completar(msgs.capture(), isNull(), isNull(), eq(0.3), eq(2000));
         assertThat(msgs.getValue()).hasSize(2);
         assertThat(msgs.getValue().get(0).content()).contains("Sección actual: \"diagrama\"", "- Libro (x:80, y:80)");
         assertThat(msgs.getValue().get(1)).isEqualTo(DeepSeekMensaje.user("Creá Libro"));
@@ -58,13 +60,13 @@ class CopilotAsistenteTest {
         when(respaldo.responder("hola", "diagrama", "Clave de API no configurada")).thenReturn(manual);
 
         assertThat(asistente.responder("hola", "diagrama", CopilotFixtures.vacio())).isSameAs(manual);
-        verify(deepSeek, never()).solicitarRespuesta(any(), anyDouble(), anyInt());
+        verify(deepSeek, never()).completar(any(), any(), any(), anyDouble(), anyInt());
     }
 
     @Test
     void errorDelProveedorRespondeElManualConElMotivo() {
         when(deepSeek.tieneApiKey()).thenReturn(true);
-        when(deepSeek.solicitarRespuesta(any(), anyDouble(), anyInt())).thenThrow(new ResourceAccessException("Read timed out"));
+        when(deepSeek.completar(any(), any(), any(), anyDouble(), anyInt())).thenThrow(new ResourceAccessException("Read timed out"));
         when(respaldo.responder("hola", "tareas", "Tiempo de espera agotado")).thenReturn(manual);
 
         assertThat(asistente.responder("hola", "tareas", CopilotFixtures.vacio())).isSameAs(manual);

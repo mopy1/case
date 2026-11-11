@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Marker, MarkerContent } from "@/components/ui/marker"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { colorAvatar, iniciales } from "@/lib/avatar"
+import { IaMotorSelector } from "@/features/ia-motor"
 import { cn } from "@/lib/utils"
 import type { EstadoConexionChat, UsuarioEnSala } from "../types/chat.types"
 import type { MentionItem } from "../types/mention.types"
@@ -68,6 +69,7 @@ export function TeamHeader(props: TeamHeaderProps) {
       }
       actions={
         <>
+          <IaMotorSelector />
           {extraActions}
           <TeamFilterMenu filtro={filtro} onFiltroChange={onFiltroChange} totalMisMenciones={totalMisMenciones} candidatos={candidatos} />
         </>

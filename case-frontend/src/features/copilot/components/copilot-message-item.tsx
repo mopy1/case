@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageActions, MessageMarkdown, horaCorta } from "@/components/chat"
+import { ChatMessage, ChatMessageActions, ChatReasoning, MessageMarkdown, horaCorta } from "@/components/chat"
 import type { ChatAuthor } from "@/components/chat"
 import type { CopilotMessage } from "../types/copilot.types"
 import { CopilotApplyAllButton } from "./copilot-apply-all-button"
@@ -27,6 +27,7 @@ export function CopilotMessageItem({ message, grouped, isApplyingAll, onApplyAll
       dateTime={message.timestamp}
       grouped={grouped}
       tone={tone}
+      reasoning={!own && message.razonamiento ? <ChatReasoning text={message.razonamiento} /> : undefined}
       attachment={
         message.imageUrl && <img src={message.imageUrl} alt="Diagrama adjunto" className="mb-2 max-h-52 w-auto rounded-xl object-contain" />
       }

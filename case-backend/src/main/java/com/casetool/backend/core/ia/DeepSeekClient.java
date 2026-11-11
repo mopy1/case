@@ -15,31 +15,41 @@ import com.casetool.backend.core.ia.dto.DeepSeekChatRequest;
 import com.casetool.backend.core.ia.dto.DeepSeekChatResponse;
 import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
 import com.casetool.backend.core.ia.dto.DeepSeekTool;
+import com.casetool.backend.core.ia.motor.MotorIaContexto;
+import com.casetool.backend.core.ia.motor.MotorIaRouter;
 
+/**
+ * Gateway de chat de toda la IA de texto. Por defecto llama a DeepSeek; si el pedido eligió Qwen en Kaggle
+ * ({@link MotorIaContexto}), {@link MotorIaRouter} lo intenta primero y DeepSeek queda de respaldo.
+ */
 @Component
 public class DeepSeekClient {
 
     private final String apiKey;
     private final String model;
     private final RestClient restClient;
+    private final MotorIaRouter router;
 
     @Autowired
     public DeepSeekClient(
             @Value("${deepseek.api.key:}") String apiKey,
             @Value("${deepseek.api.url:https://api.deepseek.com}") String apiUrl,
             @Value("${deepseek.model:deepseek-chat}") String model,
-            @Value("${deepseek.timeout-ms:45000}") long timeoutMs) {
-        this(apiKey, model, construirRestClient(apiUrl, timeoutMs));
+            @Value("${deepseek.timeout-ms:45000}") long timeoutMs,
+            MotorIaRouter router) {
+        this(apiKey, model, construirRestClient(apiUrl, timeoutMs), router);
     }
 
-    DeepSeekClient(String apiKey, String model, RestClient restClient) {
+    DeepSeekClient(String apiKey, String model, RestClient restClient, MotorIaRouter router) {
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.model = model != null && !model.isBlank() ? model.trim() : "deepseek-chat";
         this.restClient = restClient;
+        this.router = router;
     }
 
+    /** Hay con quién hablar: clave de DeepSeek o Kaggle elegido en este pedido (decide el respaldo del manual). */
     public boolean tieneApiKey() {
-        return !apiKey.isBlank();
+        return !apiKey.isBlank() || MotorIaContexto.urlKaggle() != null;
     }
 
     /**
@@ -54,7 +64,13 @@ public class DeepSeekClient {
         boolean conTools = tools != null && !tools.isEmpty();
         DeepSeekChatRequest request = new DeepSeekChatRequest(model, mensajes, temperatura, maxTokens,
                 conTools ? tools : null, conTools ? toolChoice : null);
+        return router.completar(request, !apiKey.isBlank(), () -> llamarDeepSeek(request));
+    }
 
+    private DeepSeekMensaje llamarDeepSeek(DeepSeekChatRequest request) {
+        if (apiKey.isBlank()) {
+            throw new IllegalStateException("Clave de API de DeepSeek no configurada");
+        }
         DeepSeekChatResponse response = restClient.post()
                 .uri("/chat/completions")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
@@ -63,7 +79,7 @@ public class DeepSeekClient {
                 .body(DeepSeekChatResponse.class);
 
         DeepSeekMensaje mensaje = response != null ? response.mensaje() : null;
-        if (mensaje == null || (!mensaje.tieneToolCalls() && response.contenido().isBlank())) {
+        if (mensaje == null || mensaje.estaVacio()) {
             throw new IllegalStateException("Respuesta vacía del proveedor de IA");
         }
         return mensaje;

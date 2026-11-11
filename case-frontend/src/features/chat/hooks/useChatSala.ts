@@ -6,7 +6,8 @@ import { useChatMensajes } from "./useChatMensajes"
 import { useChatSocket } from "./useChatSocket"
 
 /** Sin eventos de la IA durante este tiempo → se oculta el indicador (cada `PENSANDO` lo reinicia). */
-const TIMEOUT_IA_MS = 90_000
+/** Qwen en Kaggle (con razonamiento) puede tardar bastante más que DeepSeek. */
+const TIMEOUT_IA_MS = 180_000
 
 /** Respuesta en curso de Senior Dev: el último evento y los `detalle` distintos que fue emitiendo (pasos de herramientas). */
 export interface IaEnCurso {

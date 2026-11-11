@@ -19,6 +19,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.casetool.backend.core.ia.DeepSeekClient;
+import com.casetool.backend.core.ia.motor.MotorIa;
+import com.casetool.backend.core.ia.motor.MotorIaContexto;
+import com.casetool.backend.core.ia.motor.MotorIaPreferencias;
+import com.casetool.backend.core.ia.motor.MotorIaUrlValidator;
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent;
 import com.casetool.backend.modules.chat.dto.ChatIaEstadoEvent.Estado;
 import com.casetool.backend.modules.chat.dto.ChatMensajeResponse;
@@ -44,15 +48,16 @@ class SeniorDevServiceTest {
     @Mock DeepSeekClient deepSeekClient;
     @Mock SimpMessagingTemplate messagingTemplate;
 
+    private final MotorIaPreferencias preferencias = new MotorIaPreferencias(new MotorIaUrlValidator("ngrok-free.dev"));
     private SeniorDevService service;
     private ChatMensaje disparador;
     private final ChatMensajeResponse dto = new ChatMensajeResponse(D, P, 1L, "ana", MiembroProyecto.Rol.LECTOR,
-            ChatMensaje.Tipo.USUARIO, "@SeniorDev consulta", null, Instant.now(), false, null, null);
+            ChatMensaje.Tipo.USUARIO, "@SeniorDev consulta", null, Instant.now(), false, null, null, null);
 
     @BeforeEach
     void setUp() {
-        service = new SeniorDevService(chatRepo, proyectoRepo, contextBuilder, conversacion, resumidor,
-                deepSeekClient, messagingTemplate);
+        service = new SeniorDevService(chatRepo, contextBuilder, conversacion, resumidor, deepSeekClient,
+                new SeniorDevPublicador(chatRepo, proyectoRepo, messagingTemplate), preferencias);
         Proyecto proyecto = new Proyecto();
         proyecto.setId(P);
         disparador = new ChatMensaje();
@@ -108,6 +113,23 @@ class SeniorDevServiceTest {
         assertThat(guardado.getValue().getHerramientasUsadas()).isNull();
         verify(messagingTemplate, never()).convertAndSend(eq(TOPIC_IA),
                 argThat((ChatIaEstadoEvent e) -> e.estado() == Estado.ERROR));
+    }
+
+    @Test
+    void conKaggleElegidoRespondeDentroDelContextoYGuardaElRazonamiento() {
+        preferencias.guardar(1L, MotorIa.QWEN_KAGGLE, "https://abc.ngrok-free.dev");
+        when(conversacion.responder(any(), any(), any(), any())).thenAnswer(inv -> {
+            assertThat(MotorIaContexto.urlKaggle()).isEqualTo("https://abc.ngrok-free.dev/v1");
+            return new RespuestaIa("ok", List.of(), "pensé en la FK");
+        });
+        when(chatRepo.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.procesarMencion(dto);
+
+        ArgumentCaptor<ChatMensaje> guardado = ArgumentCaptor.forClass(ChatMensaje.class);
+        verify(chatRepo).saveAndFlush(guardado.capture());
+        assertThat(guardado.getValue().getRazonamiento()).isEqualTo("pensé en la FK");
+        assertThat(MotorIaContexto.urlKaggle()).isNull();
     }
 
     @Test

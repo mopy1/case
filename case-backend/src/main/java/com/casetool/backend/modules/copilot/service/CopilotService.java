@@ -4,6 +4,9 @@ import java.util.Base64;
 
 import org.springframework.stereotype.Service;
 
+import com.casetool.backend.core.ia.motor.MotorIaContexto;
+import com.casetool.backend.core.ia.motor.MotorIaPreferencias;
+
 import com.casetool.backend.modules.copilot.dto.CopilotConsultaRequest;
 import com.casetool.backend.modules.copilot.dto.CopilotConsultaResponse;
 import com.casetool.backend.modules.copilot.dto.ModoCopilot;
@@ -16,7 +19,8 @@ import com.casetool.backend.modules.proyecto.service.ProyectoAccesoService;
 
 /**
  * Orquesta una consulta del Copilot personal: membresía → validaciones → cuota → diagrama → ruteo
- * (imagen = Gemini, GUIA = Guía, si no = Asistente). Sin @Transactional: la llamada a la IA puede
+ * (imagen = Gemini, GUIA = Guía, si no = Asistente) con el motor de chat que eligió el usuario
+ * (Qwen en Kaggle o DeepSeek, ver {@link MotorIaContexto}). Sin @Transactional: la llamada a la IA puede
  * tardar decenas de segundos y no debe retener una transacción abierta.
  */
 @Service
@@ -28,15 +32,18 @@ public class CopilotService {
     private final CopilotAsistente asistente;
     private final CopilotVision vision;
     private final GuiaService guiaService;
+    private final MotorIaPreferencias motorPreferencias;
 
     public CopilotService(ProyectoAccesoService accesoService, DiagramaService diagramaService, CopilotCuota cuota,
-            CopilotAsistente asistente, CopilotVision vision, GuiaService guiaService) {
+            CopilotAsistente asistente, CopilotVision vision, GuiaService guiaService,
+            MotorIaPreferencias motorPreferencias) {
         this.accesoService = accesoService;
         this.diagramaService = diagramaService;
         this.cuota = cuota;
         this.asistente = asistente;
         this.vision = vision;
         this.guiaService = guiaService;
+        this.motorPreferencias = motorPreferencias;
     }
 
     public CopilotConsultaResponse consultar(Long proyectoId, Long usuarioId, String username, CopilotConsultaRequest req) {
@@ -60,11 +67,13 @@ public class CopilotService {
         if (!imagen.isEmpty()) {
             return vision.responder(texto, imagen, diagrama);
         }
+        String urlKaggle = motorPreferencias.urlKaggle(usuarioId).orElse(null);
         if (modo == ModoCopilot.GUIA) {
-            return guiaService.responder(new GuiaContexto(proyectoId, username, miembro.getRol(), seccion, texto,
-                    diagrama, req.historial(), req.misionesPendientes()));
+            GuiaContexto ctx = new GuiaContexto(proyectoId, username, miembro.getRol(), seccion, texto,
+                    diagrama, req.historial(), req.misionesPendientes());
+            return MotorIaContexto.ejecutarCon(urlKaggle, () -> guiaService.responder(ctx));
         }
-        return asistente.responder(texto, seccion, diagrama);
+        return MotorIaContexto.ejecutarCon(urlKaggle, () -> asistente.responder(texto, seccion, diagrama));
     }
 
     private static void validarBase64(String imagen) {

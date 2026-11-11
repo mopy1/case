@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { ChatMessage, ChatMessageActions, ChatQuote, MessageMarkdown, horaCorta } from "@/components/chat"
+import { ChatMessage, ChatMessageActions, ChatQuote, ChatReasoning, MessageMarkdown, horaCorta, separarRazonamiento } from "@/components/chat"
 import type { ChatMessageVariant } from "@/components/chat"
 import type { RolProyecto } from "@/features/projects/types/projects.type"
 import { autorDe, nombreAutor } from "../lib/chatFormat"
@@ -29,12 +29,19 @@ export function ChatMessageItem(props: ChatMessageItemProps) {
     () => Boolean(miUsername && new RegExp(`@${miUsername}\\b`, "i").test(mensaje.contenido)),
     [miUsername, mensaje.contenido]
   )
+  // El razonamiento se separa ANTES de parsear: un CREAR_TABLA pensado en voz alta nunca genera propuestas.
+  const { razonamiento, limpio } = useMemo(() => {
+    if (mensaje.tipo !== "IA") return { razonamiento: null, limpio: mensaje }
+    const r = separarRazonamiento(mensaje.contenido, mensaje.razonamiento)
+    return { razonamiento: r.razonamiento, limpio: { ...mensaje, contenido: r.respuesta } }
+  }, [mensaje])
   const proposal = useMemo(
-    () => (mensaje.tipo === "IA" ? parseChatProposal(mensaje, { messageId: mensaje.id, proyectoId, createdAt: mensaje.createdAt }) : null),
-    [mensaje, proyectoId]
+    () => (limpio.tipo === "IA" ? parseChatProposal(limpio, { messageId: limpio.id, proyectoId, createdAt: limpio.createdAt }) : null),
+    [limpio, proyectoId]
   )
-  const texto = proposal ? proposal.textoLimpio : mensaje.contenido
+  const texto = (proposal ? proposal.textoLimpio : limpio.contenido) || (razonamiento ? "Senior Dev no llegó a una respuesta final." : "")
   const citado = mensaje.respuestaAId ? mensajes.find((m) => m.id === mensaje.respuestaAId) : undefined
+  const extractoCita = citado && (citado.tipo === "IA" ? separarRazonamiento(citado.contenido, citado.razonamiento).respuesta : citado.contenido)
   const agente = variant === "agent"
 
   function extras() {
@@ -53,7 +60,8 @@ export function ChatMessageItem(props: ChatMessageItemProps) {
       dateTime={mensaje.createdAt}
       grouped={grouped}
       mentionedMe={mentionedMe && variant !== "own"}
-      quote={mensaje.respuestaAId ? <ChatQuote author={citado && nombreAutor(citado)} excerpt={citado?.contenido} /> : undefined}
+      quote={mensaje.respuestaAId ? <ChatQuote author={citado && nombreAutor(citado)} excerpt={extractoCita} /> : undefined}
+      reasoning={razonamiento ? <ChatReasoning text={razonamiento} /> : undefined}
       sources={agente ? fuentesIa(mensaje.herramientasUsadas) : undefined}
       actions={agente ? <ChatMessageActions text={texto} onSaveAdr={onGuardarAdr && (() => onGuardarAdr(mensaje, texto))} /> : undefined}
       extras={extras()}

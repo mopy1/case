@@ -40,11 +40,13 @@ src/
 │   │   ├── chat-shell.tsx           # columna header/cuerpo/composer + `@container/chat`
 │   │   ├── chat-header.tsx          # cabecera 48 px (leading, title, description, actions, banner)
 │   │   ├── chat-thread.tsx          # MessageScroller (auto-scroll, preserveScrollOnPrepend, "Cargar anteriores", ir al final) + ChatThreadItem
-│   │   ├── chat-message.tsx         # 4 variantes: own (burbuja tinted der.), peer (muted izq.), agent (documento), system (Marker)
+│   │   ├── chat-message.tsx         # 4 variantes: own (burbuja tinted der.), peer (muted izq.), agent (documento), system (Marker);
+│   │   │                            #   slots quote · reasoning (ChatReasoning, antes del cuerpo) · attachment · sources · actions · extras
 │   │   ├── chat-message-meta.tsx    # nombre · rol · IA · te mencionó · hora (una línea)
 │   │   ├── chat-message-actions.tsx # Copiar respuesta + slot "Guardar como ADR" (F4)
 │   │   ├── chat-avatar.tsx          # iniciales con color de identidad / Bot / Info
 │   │   ├── chat-quote.tsx           # cita compacta (respuestaAId)
+│   │   ├── chat-reasoning.tsx       # acordeón "Proceso de Razonamiento Arquitectónico" (Brain + chevron, aria-expanded, colapsado; mono xs, borde izq., max-h-72)
 │   │   ├── chat-day-separator.tsx   # Marker "Hoy" / "Ayer" / "24 oct"
 │   │   ├── chat-agent-status.tsx    # "la IA está trabajando" (shimmer) + pasos opcionales (F3)
 │   │   ├── chat-composer.tsx        # composer con slots: quickActions, overlay, attachment, tools, error; Enter/⇧Enter
@@ -54,6 +56,7 @@ src/
 │   │   ├── chat-empty.tsx · chat-error.tsx · chat-skeleton.tsx   # 4 estados
 │   │   ├── use-autosize.ts          # altura del textarea (1–8 líneas)
 │   │   ├── lib/chat-time.ts         # horaCorta (24 h), etiquetaDia, cambiaDeDia, debeAgrupar (5 min)
+│   │   ├── lib/chat-reasoning.ts    # PURO: separarRazonamiento(texto, razonamiento?) → {razonamiento, respuesta}; extrae <think>…</think>, <think> sin cerrar y </think> sin apertura
 │   │   └── markdown/                # message-markdown (MessageMarkdown), markdown-renderer, code-block (Copiar + slot `actions`),
 │   │                                #   markdown-inline (@yo en tono mention), normalizer, tokenizer, markdown.types
 │   └── common/
@@ -76,7 +79,19 @@ src/
 ├── routes/
 │   ├── ProtectedRoute.tsx    # Sin token en localStorage → /login
 │   └── GuestRoute.tsx        # Con token → /proyectos
-└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, guia, chat, collaboration, voice
+└── features/                 # auth, projects, diagram, tasks, notes, xmi, generator, copilot, guia, chat, ia-motor, collaboration, voice
+    ├── ia-motor/             # Motor de IA: DeepSeek Cloud (defecto) o Qwen 3.5 MoE en Kaggle (llama.cpp + ngrok). La llamada la hace el backend.
+    │   ├── index.ts          # IaMotorSelector, useIaMotor, tipos
+    │   ├── types/iaMotor.types.ts    # MotorIa DEEPSEEK|QWEN_KAGGLE, MotorIaConfig, ProbarMotorResponse, SaludMotor, ETIQUETA_MOTOR
+    │   ├── api/iaMotorApi.ts         # guardarMotor (PUT /api/ia/motor), probarMotor (POST /api/ia/motor/probar, 20 s)
+    │   ├── lib/
+    │   │   ├── iaMotorStorage.ts     # localStorage `sw_case_ia_motor_v1` (try/catch + validación), urlKaggleValida (https + *.ngrok*), normalizarUrlKaggle (/v1)
+    │   │   ├── iaMotorStore.ts       # store externo (useSyncExternalStore): config + salud + ultimaPrueba; aplicarMotor, usarMotor (+PUT),
+    │   │   │                         #   sincronizarMotor, probarSalud (dedupe), registrarVigia (60 s + focus/visibilitychange mientras haya selectores)
+    │   │   └── iaMotorTexto.ts       # textoSalud, etiquetaSelector (aria-label), hostDe
+    │   ├── hooks/                    # useIaMotor({vigilar}) · useIaMotorConfig (probar sin guardar, "Guardar y usar" = PUT + aplicar)
+    │   └── components/               # ia-motor-selector (DropdownMenu radio + "Configurar endpoint…"), ia-motor-option, ia-motor-status-dot,
+    │                                 #   ia-motor-config-dialog (Field + Input, foco inicial en la URL), ia-motor-probe-result (aria-live)
     ├── guia/                 # F5 Inducción "Primeros pasos" (no importa features/copilot; copilot sí importa guia)
     │   ├── index.ts          # abrirGuia, abrirPanel, mostrarPasos, notificar*, escuchar, EVENTO, useGuiaProgreso, useGuiaInduccion,
     │   │                     #   GuiaSpotlight, GuiaPrimerosPasos(+Bloque), GuiaLink, MISIONES, parseGuiaPasos, tipos
@@ -270,8 +285,9 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
 
 ### copilot (Asistente · Guía, IA solo vía backend desde F5)
 - **Ninguna llamada a DeepSeek ni Gemini sale del navegador.** Un solo endpoint: `api/copilotApi.ts` `consultarCopilot(p, body)` →
-  `POST /proyectos/{p}/copilot/consultas` (`timeoutMs: 100_000`, la visión puede tardar ~90 s). Contrato espejo en
-  `types/copilotApi.types.ts` (`CopilotModo ASISTENTE|GUIA`, `OrigenRespuesta DEEPSEEK|GEMINI|MANUAL`, `historial ≤ 6`, `misionesPendientes`).
+  `POST /proyectos/{p}/copilot/consultas` (`timeoutMs: 180_000`: visión ~90 s o Qwen en Kaggle razonando). Contrato espejo en
+  `types/copilotApi.types.ts` (`CopilotModo ASISTENTE|GUIA`, `OrigenRespuesta DEEPSEEK|QWEN_KAGGLE|GEMINI|MANUAL`, `historial ≤ 6`,
+  `misionesPendientes`, `razonamiento: string | null`).
   El backend arma el prompt con el diagrama, aplica cuota (20/min → 429) y, sin clave o con el proveedor caído, responde con el
   manual (`origen MANUAL`). Se borraron `geminiService.ts`, `geminiVisionService.ts`, `copilotSystemPrompt.ts`, `copilotKnowledge*.ts`
   y `KnowledgeTopic`.
@@ -305,6 +321,21 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   sugerencias cuando la tarjeta "Primeros pasos" ya ocupa el vacío, así queda un solo primario) o `GuiaMessageList` ("Buscando en el
   manual…"; mensaje agente con "Consultó: Manual" si `herramientasUsadas` incluye `buscarManual`, Copiar, botones outline). Composer =
   `CopilotComposer sinImagen` (sin cámara ni Autónomo; voz sí).
+
+- **Razonamiento (Qwen):** `askCopilot` y `useGuiaChat` pasan `separarRazonamiento(res.texto, res.razonamiento)` **antes** de parsear
+  tarjetas/`IR_A`/`GUIA_PASO`; el razonamiento va a `CopilotMessage.razonamiento` / `GuiaMensaje.razonamiento` y se pinta con
+  `ChatReasoning` en el slot `reasoning` de `ChatMessage` (arriba de la respuesta y de las tarjetas). Si solo hubo razonamiento, texto de respaldo.
+
+### ia-motor (selector de motor de IA)
+- `IaMotorSelector` va en las acciones de `copilot-header` (tras el interruptor de modo) y `team-header` (antes de Memoria). Botón outline
+  con punto (`success` activo · `warning` probando · `destructive` caído · gris sin configurar) + `Cpu` + "DeepSeek"/"Qwen 3.5"
+  (`sr-only` bajo 28rem). Menú: "DeepSeek Cloud", "Qwen 3.5 MoE (Kaggle GPU)" (detalle: salud o host), "Configurar endpoint…".
+  Elegir Qwen sin URL abre el diálogo. Ambas cabeceras comparten el store.
+- **Fuente de verdad = localStorage** (`sw_case_ia_motor_v1`); el backend guarda la preferencia en memoria por usuario, así que se
+  re-envía con `PUT /api/ia/motor` al montarse el primer selector, en cada cambio y al volver el foco. Con Qwen, `probarSalud`
+  (`POST /api/ia/motor/probar {url}` → `{ok, modelos, latenciaMs, error}`) cada 60 s solo mientras haya un selector montado.
+- Diálogo: "Probar conexión" (spinner, modelos como Badge y latencia o error en `role=status aria-live`) y "Guardar y usar" (primario:
+  PUT, aplica Qwen con la URL normalizada que devuelve el backend). Si Kaggle cae el backend usa DeepSeek solo (fallback transparente).
 
 ### guia (inducción "Primeros pasos", F5)
 - **7 misiones** (`guiaMisiones.data.ts`, mismos ids que `MisionGuia` del backend) y su detección (`useGuiaDeteccion`, montado en `ProjectLayout`):
@@ -385,6 +416,9 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   - "Guardar como ADR" (D5): solo en mensajes de Senior Dev y solo si `miRol` es ADMIN/COLABORADOR (`evaluarPermisosPropuesta`; LECTOR no ve
     el botón). `borradorAdr` prellena; `ChatSaveAdrDialog` crea la nota con `useNoteMutations` y emite `project:note-created {proyectoId, nota}`.
   - Memoria (`ChatMemoryDialog` en `TeamHeader.extraActions`): `GET /chat/memoria` al abrir; vacío explica que se genera pasados ~50 mensajes.
+  - **Razonamiento** (`ChatMensaje.razonamiento`, REST y WS): `chat-message-item` separa con `separarRazonamiento` **antes** de
+    `parseChatProposal` (un `CREAR_TABLA:` dentro del razonamiento nunca genera propuestas); cita, Copiar y "Guardar como ADR" usan el
+    texto limpio; el acordeón va en el slot `reasoning`. `TIMEOUT_IA_MS` de `useChatSala` subió a 180 s (Qwen tarda más).
   - "Cargar anteriores": `errorAnteriores` propio de `useChatMensajes`, mostrado inline vía `ChatThread.loadMoreSlot` sin ocultar la lista;
     se limpia al reintentar con el mismo botón.
 
@@ -430,7 +464,7 @@ en el bundle; si siguen en un `.env` local quedan sin uso y conviene borrarlas y
 
 ### localStorage del front
 `token`, `user`, `casetool_theme`, `sw_case_copilot_open`, `sw_case_copilot_width`, `sw_case_panel_tab`, `sw_case_copilot_auto_mode`,
-`sw_case_copilot_modo` (F5), `sw_case_guia_v1_{userId}` (F5) y el respaldo de propuestas del chat.
+`sw_case_copilot_modo` (F5), `sw_case_guia_v1_{userId}` (F5), `sw_case_ia_motor_v1` (`{motor, urlKaggle}`) y el respaldo de propuestas del chat.
 
 ## 9. Build y despliegue
 

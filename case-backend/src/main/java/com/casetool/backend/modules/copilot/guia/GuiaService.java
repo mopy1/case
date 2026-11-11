@@ -15,6 +15,7 @@ import com.casetool.backend.core.ia.IaErrores;
 import com.casetool.backend.core.ia.dto.DeepSeekMensaje;
 import com.casetool.backend.core.ia.dto.DeepSeekTool;
 import com.casetool.backend.core.ia.dto.DeepSeekToolCall;
+import com.casetool.backend.core.ia.motor.MotorIaContexto;
 import com.casetool.backend.modules.copilot.dto.CopilotConsultaResponse;
 import com.casetool.backend.modules.copilot.dto.OrigenRespuesta;
 import com.casetool.backend.modules.copilot.service.CopilotRespaldoManual;
@@ -59,12 +60,12 @@ public class GuiaService {
                 return sinHerramientas(ctx, usuario);
             }
             if (!r1.tieneToolCalls()) {
-                return new CopilotConsultaResponse(texto(r1), OrigenRespuesta.DEEPSEEK, null);
+                return CopilotConsultaResponse.deIa(r1, null);
             }
             mensajes.add(DeepSeekMensaje.asistente(r1.content(), r1.tool_calls()));
             boolean usoManual = ejecutarRonda(r1.tool_calls(), ctx.seccion(), mensajes);
             DeepSeekMensaje r2 = deepSeek.completar(mensajes, TOOLS, "none", GUIA_TEMPERATURA, GUIA_MAX_TOKENS);
-            return new CopilotConsultaResponse(texto(r2), OrigenRespuesta.DEEPSEEK, usoManual ? USADAS : null);
+            return CopilotConsultaResponse.deIa(r2, usoManual ? USADAS : null);
         } catch (Exception ex) {
             log.warn("La Guía no pudo consultar a DeepSeek en proyecto {}: {}", ctx.proyectoId(), ex.getMessage());
             return respaldo.responder(ctx.pregunta(), ctx.seccion(), IaErrores.motivo(ex));
@@ -93,10 +94,6 @@ public class GuiaService {
         String conManual = usuario + "\n=== MANUAL ===\n" + herramienta.buscar(ctx.pregunta(), ctx.seccion());
         String r = deepSeek.solicitarRespuesta(List.of(DeepSeekMensaje.system(GuiaPrompts.SYSTEM),
                 DeepSeekMensaje.user(conManual)), GUIA_TEMPERATURA, GUIA_MAX_TOKENS);
-        return new CopilotConsultaResponse(r, OrigenRespuesta.DEEPSEEK, USADAS);
-    }
-
-    private static String texto(DeepSeekMensaje m) {
-        return m.content() != null ? m.content().trim() : "";
+        return new CopilotConsultaResponse(r, OrigenRespuesta.deMotor(MotorIaContexto.motorUsado()), USADAS);
     }
 }

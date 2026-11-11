@@ -3,7 +3,7 @@ import type { CopilotSection } from "./copilot.types"
 
 /** Espejo de `POST /api/proyectos/{id}/copilot/consultas` (modules/copilot/dto del backend). */
 export type CopilotModo = "ASISTENTE" | "GUIA"
-export type OrigenRespuesta = "DEEPSEEK" | "GEMINI" | "MANUAL"
+export type OrigenRespuesta = "DEEPSEEK" | "QWEN_KAGGLE" | "GEMINI" | "MANUAL"
 
 export interface CopilotTurno {
   rol: "usuario" | "asistente"
@@ -23,4 +23,6 @@ export interface CopilotConsultaResponse {
   texto: string
   origen: OrigenRespuesta
   herramientasUsadas: string[] | null
+  /** Cadena de pensamiento de Qwen (Kaggle), ya separada del `texto`; null con DeepSeek/Gemini/manual. */
+  razonamiento: string | null
 }
