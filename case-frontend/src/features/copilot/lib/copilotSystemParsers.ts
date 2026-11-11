@@ -1,5 +1,5 @@
 import type { Prioridad } from "@/features/tasks/types/tasks.type"
-import type { CopilotSection, RelationDeleteSuggestion, SystemActionSuggestion, TaskSuggestion } from "../types/copilot.types"
+import type { CopilotSection, RelationDeleteSuggestion, MovimientoTabla, SystemActionSuggestion, TaskSuggestion } from "../types/copilot.types"
 
 export function parseRelationDeleteSuggestions(text: string): RelationDeleteSuggestion[] {
   const results: RelationDeleteSuggestion[] = []
@@ -55,6 +55,16 @@ export function parseSystemActionSuggestions(text: string): SystemActionSuggesti
     })
   }
 
+  const movimientos = parseMovimientosTabla(text)
+  if (movimientos.length > 0) {
+    results.push({
+      tipo: "MOVER_TABLAS",
+      label: movimientos.length === 1 ? `Mover la tabla ${movimientos[0].tabla}` : `Reordenar ${movimientos.length} tablas en el lienzo`,
+      movimientos,
+      ejecutada: false,
+    })
+  }
+
   const navMatch = text.match(/\bIR_A:\s*\[?(diagrama|tareas|notas|xmi|generador)\]?/i)
   if (navMatch) {
     const destino = navMatch[1].toLowerCase() as CopilotSection
@@ -67,4 +77,14 @@ export function parseSystemActionSuggestions(text: string): SystemActionSuggesti
   }
 
   return results
+}
+
+/** `MOVER_TABLA: [tabla] (x: 100, y: 200)`, uno por tabla; si la misma tabla aparece dos veces gana la última. */
+export function parseMovimientosTabla(text: string): MovimientoTabla[] {
+  const porTabla = new Map<string, MovimientoTabla>()
+  const regex = /MOVER_TABLA:\s*\[?([a-zA-Z0-9_]+)\]?\s*\(\s*x\s*:\s*(-?\d+(?:\.\d+)?)\s*,\s*y\s*:\s*(-?\d+(?:\.\d+)?)\s*\)/gi
+  for (const m of text.matchAll(regex)) {
+    porTabla.set(m[1].toLowerCase(), { tabla: m[1], posX: Number(m[2]), posY: Number(m[3]) })
+  }
+  return [...porTabla.values()]
 }

@@ -69,8 +69,8 @@ export function parseChatProposal(
 
   const detalles: string[] = [
     ...entitySuggestions.map((e) => `Tabla nueva: ${e.nombre} (${e.atributos?.length ?? 1} campos)`),
-    ...attributeSuggestions.map((a) => `Atributo para ${a.tabla}: +${a.nombre} (${a.tipoSql})`),
     ...relationSuggestions.map((r) => `Relación: ${r.origen} -> ${r.destino}`),
+    ...attributeSuggestions.map((a) => `Atributo para ${a.tabla}: +${a.nombre} (${a.tipoSql})`),
     ...relationDeleteSuggestions.map((r) => `Eliminar relación: ${r.origen} -> ${r.destino}`),
     ...entityDeleteSuggestions.map((e) => `Eliminar tabla: ${e.tabla}`),
     ...taskSuggestions.map((t) => `Tarea Kanban: ${t.titulo}`),

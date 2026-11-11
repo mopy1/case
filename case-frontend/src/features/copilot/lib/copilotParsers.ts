@@ -43,6 +43,7 @@ export function cleanResponseText(rawText: string): string {
     .replace(/(?:\*{0,2})(?:CREAR_TAREA|AGREGAR_TAREA):?[^\n]+/gi, "")
     .replace(/(?:\*{0,2})(?:EXPORTAR_XMI|DESCARGAR_XMI|GENERAR_BACKEND|DESCARGAR_BACKEND):?[^\n]*/gi, "")
     .replace(/(?:\*{0,2})IR_A:?[^\n]+/gi, "")
+    .replace(/(?:\*{0,2})MOVER_TABLA:?[^\n]+/gi, "")
     // Sin letra antes: "transaccional" no es la etiqueta "Acción:" (antes cortaba el texto ahí).
     .replace(/(?<!\p{L})(?:\*{0,2})Acci[oó]n:?[^\n]+(?:\n+(?:\*{0,2})Motivo:?[^\n]+)?/giu, "")
     .replace(/##\s*⚠️\s*Aclaración importante[\s\S]*$/i, "")

@@ -1,3 +1,4 @@
+import { executeMoveTables } from "./copilotMoveAction"
 import { createNote } from "@/features/notes/api/notesApi"
 import type { CopilotMessage } from "../types/copilot.types"
 import {
@@ -44,20 +45,21 @@ export async function executeAllMessageChanges(
     }
   }
 
-  // 4. Agregar atributos
-  if (message.attributeSuggestions) {
-    for (const a of message.attributeSuggestions) {
-      if (!a.creada) {
-        await executeAddAttribute(proyectoId, a).catch(console.error)
-      }
-    }
-  }
-
-  // 5. Crear relaciones (1:N, N:M)
+  // 4. Crear relaciones (1:N, N:M; una N:M genera sola su tabla intermedia "a_b")
   if (message.relationSuggestions) {
     for (const r of message.relationSuggestions) {
       if (!r.creada) {
         await executeCreateRelation(proyectoId, r).catch(console.error)
+      }
+    }
+  }
+
+  // 5. Agregar atributos DESPUÉS de las relaciones: así la IA puede agregarle columnas a la tabla
+  //    intermedia que acaba de generar la N:M (AGREGAR_ATRIBUTO: [a_b] ...) en la misma respuesta.
+  if (message.attributeSuggestions) {
+    for (const a of message.attributeSuggestions) {
+      if (!a.creada) {
+        await executeAddAttribute(proyectoId, a).catch(console.error)
       }
     }
   }
@@ -92,6 +94,9 @@ export async function executeAllMessageChanges(
           await executeExportXmiAction(proyectoId).catch(console.error)
         } else if (s.tipo === "GENERAR_BACKEND") {
           await executeGenerateBackendAction(proyectoId).catch(console.error)
+        } else if (s.tipo === "MOVER_TABLAS" && s.movimientos) {
+          // Al final: así también puede ubicar tablas recién creadas y las intermedias generadas solas.
+          await executeMoveTables(proyectoId, s.movimientos).catch(console.error)
         }
       }
     }

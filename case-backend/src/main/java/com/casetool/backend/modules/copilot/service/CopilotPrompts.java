@@ -3,6 +3,7 @@ package com.casetool.backend.modules.copilot.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.casetool.backend.core.ia.IaReglasModelado;
 import com.casetool.backend.modules.diagrama.dto.AtributoEntidadResponse;
 import com.casetool.backend.modules.diagrama.dto.DiagramaResponse;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaResponse;
@@ -21,7 +22,8 @@ public final class CopilotPrompts {
     public static String asistente(String seccion, DiagramaResponse diagrama) {
         List<EntidadDiagramaResponse> entidades = diagrama.entidades();
         PosicionLibre.Posicion libre = PosicionLibre.calcular(entidades);
-        return ASISTENTE.formatted(seccion, tablas(entidades), relaciones(diagrama.relaciones()), libre.x(), libre.y());
+        return ASISTENTE.formatted(seccion, tablas(entidades), relaciones(diagrama.relaciones()), libre.x(), libre.y(),
+                IaReglasModelado.TEXTO);
     }
 
     public static String vision(String nombresExistentes) {
@@ -79,14 +81,17 @@ public final class CopilotPrompts {
             ATRIBUTOS: [id:BIGINT:PK, campo:VARCHAR]
             3. RELACIONES:
             CREAR_RELACION: [Origen] -> [Destino] (multiplicidadOrigen a multiplicidadDestino) [ASOCIACION|COMPOSICION|AGREGACION|HERENCIA]
-            - Multiplicidad: 1:N usa (UNO a UNO_O_MAS); N:M usa (UNO_O_MAS a UNO_O_MAS).
-            - Tipo opcional: COMPOSICION (el origen posee al destino), AGREGACION (el origen tiene al destino), HERENCIA (hijo -> padre).
+            - Multiplicidad: 1:N usa (UNO a UNO_O_MAS); N:M usa (UNO_O_MAS a UNO_O_MAS) y crea sola su tabla intermedia.
+            - Tipo: ASOCIACION por defecto; COMPOSICION, AGREGACION o HERENCIA solo según las reglas de abajo.
             4. AGREGAR ATRIBUTO: AGREGAR_ATRIBUTO: [Tabla] [nombre:TIPO]
             5. ELIMINAR TABLA (SOLO orden directa explícita): ELIMINAR_TABLA: [NombreTabla]
             6. ELIMINAR RELACIÓN (SOLO orden directa explícita): ELIMINAR_RELACION: [Origen] -> [Destino]
             7. TAREAS KANBAN: CREAR_TAREA: [Título] | [Descripción técnica] | [ALTA/MEDIA/BAJA]
             8. ACCIONES: EXPORTAR_XMI | GENERAR_BACKEND | IR_A: [sección]
             9. NOTAS ADR: ADR_SUGERIDA: [Acción clara] \\n MOTIVO: [Justificación técnica]
+            10. MOVER TABLA EXISTENTE: MOVER_TABLA: [Tabla] (x: 460, y: 80)
+
+            %s
 
             REGLAS CRÍTICAS DE SEGURIDAD:
             - PROHIBIDO ELIMINAR SIN ORDEN DIRECTA: Solo emítelo si el usuario escribió explícitamente "eliminar", "borrar" o "quitar".

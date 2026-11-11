@@ -61,11 +61,11 @@ export function CopilotCardList({ message: m, isSavingAdr, ...p }: CopilotCardLi
     ...(m.entitySuggestions ?? []).map((e, i) => (
       <CopilotEntityCard key={`e${i}`} {...base} entityIndex={i} entity={e} isCreating={p.creatingEntityKey === `${id}-ent-${i}`} onCreate={p.onCreateEntity} />
     )),
-    ...(m.attributeSuggestions ?? []).map((a, i) => (
-      <CopilotAttributeCard key={`a${i}`} {...base} attributeIndex={i} attribute={a} isCreating={p.creatingAttributeKey === `${id}-attr-${i}`} onCreate={p.onCreateAttribute} />
-    )),
     ...(m.relationSuggestions ?? []).map((r, i) => (
       <CopilotRelationCard key={`r${i}`} {...base} relationIndex={i} relation={r} isCreating={p.creatingRelationKey === `${id}-rel-${i}`} onCreate={p.onCreateRelation} />
+    )),
+    ...(m.attributeSuggestions ?? []).map((a, i) => (
+      <CopilotAttributeCard key={`a${i}`} {...base} attributeIndex={i} attribute={a} isCreating={p.creatingAttributeKey === `${id}-attr-${i}`} onCreate={p.onCreateAttribute} />
     )),
     ...(m.taskSuggestions ?? []).map((t, i) => (
       <CopilotTaskCard key={`t${i}`} {...base} taskIndex={i} task={t} isCreating={p.creatingTaskKey === `${id}-task-${i}`} onCreate={p.onCreateTask} />

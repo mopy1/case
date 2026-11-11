@@ -63,10 +63,19 @@ export interface TaskSuggestion {
   creada?: boolean
 }
 
+/** Nueva posición de una tabla existente (comando `MOVER_TABLA: [tabla] (x: N, y: N)`). */
+export interface MovimientoTabla {
+  tabla: string
+  posX: number
+  posY: number
+}
+
 export interface SystemActionSuggestion {
-  tipo: "EXPORTAR_XMI" | "GENERAR_BACKEND" | "NAVEGAR"
+  tipo: "EXPORTAR_XMI" | "GENERAR_BACKEND" | "NAVEGAR" | "MOVER_TABLAS"
   label: string
   destino?: CopilotSection
+  /** Solo MOVER_TABLAS: todos los MOVER_TABLA de la respuesta, aplicados juntos ("Reordenar N tablas"). */
+  movimientos?: MovimientoTabla[]
   ejecutada?: boolean
 }
 

@@ -38,7 +38,7 @@ public class SeniorDevProyectoFormatter {
     }
 
     public void agregarSeccionesLienzoYGestion(Long proyectoId, StringBuilder sb) {
-        sb.append("\nTablas (solo tipo, PK y FK; para saber si una columna acepta NULL usa obtenerDiagrama):\n");
+        sb.append("\nTablas con su posición en el lienzo (solo tipo, PK y FK; para saber si una columna acepta NULL usa obtenerDiagrama):\n");
         var entidades = entidadRepo.findByProyectoId(proyectoId);
         var atributos = atributoRepo.findByProyectoId(proyectoId).stream()
                 .collect(Collectors.groupingBy(a -> a.getEntidad().getId()));
@@ -46,7 +46,8 @@ public class SeniorDevProyectoFormatter {
         for (var e : entidades.stream().limit(ESTADO_MAX_TABLAS).toList()) {
             var attrs = atributos.getOrDefault(e.getId(), List.of()).stream()
                     .map(this::formatoAtributo).collect(Collectors.joining(", "));
-            sb.append("- ").append(e.getNombre()).append(" (").append(attrs).append(")\n");
+            sb.append("- ").append(e.getNombre()).append(" [x:").append(posicion(e.getPosX())).append(", y:")
+                    .append(posicion(e.getPosY())).append("] (").append(attrs).append(")\n");
         }
         if (entidades.size() > ESTADO_MAX_TABLAS) {
             sb.append("- (+").append(entidades.size() - ESTADO_MAX_TABLAS).append(" más: usa obtenerDiagrama)\n");
@@ -115,5 +116,9 @@ public class SeniorDevProyectoFormatter {
             case UNO_O_MAS -> "1..*";
             case CERO_O_MAS -> "0..*";
         };
+    }
+
+    private static long posicion(Double valor) {
+        return valor != null ? Math.round(valor) : 0;
     }
 }

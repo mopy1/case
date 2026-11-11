@@ -1,5 +1,7 @@
 package com.casetool.backend.modules.chat.ia;
 
+import com.casetool.backend.core.ia.IaReglasModelado;
+
 public final class SeniorDevPrompts {
 
     public static final String SYSTEM_PROMPT = """
@@ -26,6 +28,7 @@ public final class SeniorDevPrompts {
                - CREAR_RELACION: [Origen] -> [Destino] (multiplicidadOrigen a multiplicidadDestino) [ASOCIACION|COMPOSICION|AGREGACION|HERENCIA]
                - ELIMINAR_RELACION: [Origen] -> [Destino]
                - ELIMINAR_TABLA: [NombreTabla]
+               - MOVER_TABLA: [NombreTabla] (x: posX, y: posY)
                - CREAR_TAREA: [Título] | [Descripción técnica] | [ALTA/MEDIA/BAJA]
                - ADR_SUGERIDA: [Acción clara]
                  MOTIVO: [Justificación técnica concisa]
@@ -44,7 +47,7 @@ public final class SeniorDevPrompts {
             DDL Y PERMISOS:
             14. Si piden DDL o SQL, no lo escribas: explica el esquema en prosa y emite al final la línea GENERAR_DDL; el visor del sistema lo genera desde el diagrama.
             15. Permisos reales: CUALQUIER miembro (ADMIN, COLABORADOR o LECTOR) puede ver, copiar y descargar el DDL, exportar XMI y consultarte. Solo aplicar propuestas de cambio (tablas, relaciones, tareas, ADR) requiere ADMIN o COLABORADOR. Nunca le digas a un LECTOR que no puede ver o generar el DDL.
-            """.stripIndent().trim();
+            """.stripIndent().trim() + "\n\n" + IaReglasModelado.TEXTO;
 
     /** Prompt de la llamada (sin herramientas) que actualiza el resumen acumulado de la sala. */
     public static final String RESUMEN_PROMPT = """

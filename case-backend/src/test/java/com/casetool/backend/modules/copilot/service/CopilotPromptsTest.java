@@ -40,6 +40,15 @@ class CopilotPromptsTest {
     }
 
     @Test
+    void explicaTablaIntermediaAutomaticaYComoMoverTablas() {
+        String p = CopilotPrompts.asistente("diagrama", CopilotFixtures.vacio());
+
+        assertThat(p).contains("MOVER_TABLA: [Tabla] (x: N, y: N)", "se llama origen_destino",
+                "PROHIBIDO crear esa tabla con CREAR_TABLA", "Una N:M SIEMPRE es ASOCIACION",
+                "AGREGAR_ATRIBUTO: [origen_destino] [campo:TIPO]");
+    }
+
+    @Test
     void visionIncluyeLasTablasExistentesONinguna() {
         assertThat(CopilotPrompts.vision("Libro, Autor")).contains("Tablas existentes en el proyecto: Libro, Autor.");
         assertThat(CopilotPrompts.vision("")).contains("Tablas existentes en el proyecto: Ninguna.")

@@ -20,7 +20,9 @@ class SeniorDevPromptsTest {
                 .contains("ELIMINAR_TABLA: [NombreTabla]")
                 .contains("CREAR_TAREA: [Título] | [Descripción técnica] | [ALTA/MEDIA/BAJA]")
                 .contains("ADR_SUGERIDA: [Acción clara]")
-                .contains("MOTIVO: [Justificación técnica concisa]");
+                .contains("MOTIVO: [Justificación técnica concisa]")
+                .contains("MOVER_TABLA: [NombreTabla] (x: posX, y: posY)")
+                .contains("se llama origen_destino");
     }
 
     @Test

@@ -13,6 +13,7 @@ import {
   executeExportXmiAction,
   executeGenerateBackendAction,
 } from "../lib/copilotSystemActions"
+import { executeMoveTables } from "../lib/copilotMoveAction"
 import {
   markAllAppliedInMessage,
   updateSystemActionExecutedInMessages,
@@ -80,6 +81,8 @@ export function useCopilotSystemActionHandlers(
           await executeExportXmiAction(proyectoId)
         } else if (action.tipo === "GENERAR_BACKEND") {
           await executeGenerateBackendAction(proyectoId)
+        } else if (action.tipo === "MOVER_TABLAS" && action.movimientos) {
+          await executeMoveTables(proyectoId, action.movimientos)
         } else if (action.tipo === "NAVEGAR" && action.destino) {
           navigate(`/proyectos/${encodeProjectId(proyectoId)}/${action.destino}`)
         }

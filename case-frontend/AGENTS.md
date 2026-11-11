@@ -297,8 +297,10 @@ Endpoints relativos a `/api`. `{p}` = id numérico del proyecto (decodificado de
   imagen > 2 000 000 caracteres base64 → error sin llamar; `catch` → `**Error del Copilot:** {mensaje}` (tono error).
 - La respuesta cruda se parsea igual que antes (`copilotParsers.ts` → `copilotDiagramParsers.ts`, `copilotUmlParsers.ts`,
   `copilotSystemParsers.ts`): `CREAR_TABLA`/`ATRIBUTOS`, `CREAR_RELACION`, `AGREGAR_ATRIBUTO`, `ELIMINAR_TABLA` (solo si el usuario pidió
-  borrar), `ELIMINAR_RELACION`, `CREAR_TAREA`, `ADR_SUGERIDA`/`MOTIVO`, `EXPORTAR_XMI`, `GENERAR_BACKEND`, `IR_A` → 8 tarjetas
-  (`copilot-*-card.tsx`) o lote ("Aplicar todos", `copilotBatchExecutor.ts`). Las acciones (`copilotDiagramActions.ts`,
+  borrar), `ELIMINAR_RELACION`, `CREAR_TAREA`, `ADR_SUGERIDA`/`MOTIVO`, `EXPORTAR_XMI`, `GENERAR_BACKEND`, `IR_A`, `MOVER_TABLA: [t] (x, y)`
+  (todos juntos = acción de sistema `MOVER_TABLAS` "Reordenar N tablas", `lib/copilotMoveAction.ts` → `PUT /entidades/{id}` por nombre) → 8 tarjetas
+  (`copilot-*-card.tsx`) o lote ("Aplicar todos", `copilotBatchExecutor.ts`; orden: borrar → tablas → **relaciones → atributos** (así
+  `AGREGAR_ATRIBUTO: [a_b]` llega a la intermedia que generó la N:M) → tareas → ADR → acciones de sistema, mover al final). Las acciones (`copilotDiagramActions.ts`,
   `copilotSystemActions.ts`) usan las APIs de cada feature y emiten `project:*` (exportar XMI/ZIP también `project:artifact-exported`).
   `cleanResponseText` quita los comandos aunque vengan sin corchetes, en lista (`- `/`1. `) o dentro de un bloque ```` ``` ```` (DeepSeek
   lo hace seguido); si solo había comandos, la burbuja dice "Te preparé estas propuestas para aplicar:" en vez del texto crudo.

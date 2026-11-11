@@ -66,7 +66,7 @@ case-backend/
     ├── core/
     │   ├── config/      CorsConfig
     │   ├── exception/   GlobalExceptionHandler, ResourceNotFoundException
-    │   ├── ia/          gateway de IA (F5): DeepSeekClient, GeminiVisionClient, IaErrores (motivo legible), IaNoDisponibleException (503),
+    │   ├── ia/          gateway de IA (F5): DeepSeekClient (+ `IaReglasModelado`: reglas compartidas por Copilot y Senior Dev — N:M = ASOCIACION y la intermedia `origen_destino` la crea el sistema, atributos de la intermedia con `AGREGAR_ATRIBUTO`, tamaños/huecos del lienzo y `MOVER_TABLA`; Senior Dev ve `[x, y]` de cada tabla), GeminiVisionClient, IaErrores (motivo legible), IaNoDisponibleException (503),
     │   │                dto/ (DeepSeekMensaje, DeepSeekToolCall, DeepSeekTool, DeepSeekChatRequest/Response, GeminiRequest/Response),
     │   │                motor/ (MotorIa, MotorIaContexto, MotorIaPreferencias, MotorIaUrlValidator, KaggleLlamaClient,
     │   │                        RazonamientoExtractor, MotorIaRouter, MotorIaService, MotorIaController + dto/ MotorIaRequest/Response,
