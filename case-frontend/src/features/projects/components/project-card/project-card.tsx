@@ -54,8 +54,11 @@ export function ProjectCard({
         aria-label={`Abrir proyecto ${proyecto.nombre}`}
       />
       <CardHeader className="pointer-events-none relative z-10">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="truncate">{proyecto.nombre}</CardTitle>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          {/* min-w-0 + flex-1: sin esto un nombre largo sin espacios no se trunca y empuja el rol y los botones fuera de la tarjeta. */}
+          <CardTitle className="min-w-0 flex-1 truncate" title={proyecto.nombre}>
+            {proyecto.nombre}
+          </CardTitle>
           <div className="pointer-events-auto flex shrink-0 items-center gap-1">
             <Badge variant={ROL_BADGE_VARIANT[proyecto.miRol]}>{proyecto.miRol}</Badge>
             {esAdmin && (
@@ -80,7 +83,7 @@ export function ProjectCard({
             )}
           </div>
         </div>
-        <CardDescription>{proyecto.descripcion}</CardDescription>
+        <CardDescription className="line-clamp-3 min-w-0 wrap-anywhere">{proyecto.descripcion}</CardDescription>
       </CardHeader>
       <CardFooter className="pointer-events-none relative z-10 flex items-center justify-between">
         <AvatarGroup>
