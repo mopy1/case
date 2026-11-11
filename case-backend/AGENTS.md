@@ -21,7 +21,7 @@ actualizá esta guía en el mismo cambio.
 
 No hay SpringDoc/Swagger, ni Flyway/Liquibase, ni perfiles (`application-*.properties`).
 
-## 2. Árbol de carpetas (206 archivos `.java`: 165 en main + 41 test)
+## 2. Árbol de carpetas (224 archivos `.java`: 179 en main + 45 test)
 
 ```text
 case-backend/
@@ -34,7 +34,9 @@ case-backend/
 │   ├── CaseBackendApplicationTests.java          # contextLoads (necesita BD)
 │   ├── core/websocket/StompAuthInterceptorTest.java          # CONNECT/SUBSCRIBE/SEND (Mockito, sin BD)
 │   ├── core/ia/GeminiVisionClientTest.java                   # fallback de modelos, header x-goog-api-key, sin clave, presupuesto
-│   ├── core/ia/IaErroresTest.java · core/ia/dto/DeepSeekMensajeJsonTest.java   # motivos legibles; NON_NULL y tool_calls (Jackson 3)
+│   ├── core/ia/IaErroresTest.java · core/ia/dto/DeepSeekMensajeJsonTest.java   # motivos legibles; NON_NULL, tool_calls y reasoning_content (Jackson 3)
+│   ├── core/ia/motor/MotorIaUrlValidatorTest, RazonamientoExtractorTest, MotorIaRouterTest, MotorIaPreferenciasTest
+│   │                                          # anti-SSRF, <think>, Kaggle falla → DeepSeek, DEEPSEEK ignora la URL
 │   ├── modules/copilot/controller/CopilotControllerTest.java # MockMvc standalone: ambos modos, 400 enum/JSON, 429, 503
 │   ├── modules/copilot/service/CopilotServiceTest, CopilotAsistenteTest, CopilotRespaldoManualTest, CopilotPromptsTest,
 │   │                           PosicionLibreTest, CopilotCuotaTest · dto/CopilotConsultaRequestValidationTest · CopilotFixtures
@@ -56,7 +58,7 @@ case-backend/
 │   │                   SeniorDevConversacionTest.java,       # bucle de tools: rondas, tope por turno, "none", 400 → sin tools
 │   │                   SeniorDevResumidorTest.java,          # umbral 20, lote/marca, recorte 2000, error conserva resumen
 │   │                   SeniorDevPromptsTest.java,            # cero SQL, comandos, GENERAR_DDL, herramientas, honestidad, permisos DDL, RESUMEN_PROMPT
-│   │                   SeniorDevServiceTest.java,            # PENSANDO con detalle, herramientasUsadas, resumidor, fallback
+│   │                   SeniorDevServiceTest.java,            # PENSANDO con detalle, herramientasUsadas, resumidor, fallback, Kaggle + razonamiento
 │   │                   tools/SeniorDevHerramientaEjecutorTest, HerramientasProyectoTest, HerramientaBuscarHistorialTest
 │   └── modules/diagrama/service/DdlPostgresServiceTest.java  # DDL: orden, NOT NULL, PK compuesta, FK, snake_case, determinismo
 └── src/main/java/com/casetool/backend/
@@ -65,7 +67,10 @@ case-backend/
     │   ├── config/      CorsConfig
     │   ├── exception/   GlobalExceptionHandler, ResourceNotFoundException
     │   ├── ia/          gateway de IA (F5): DeepSeekClient, GeminiVisionClient, IaErrores (motivo legible), IaNoDisponibleException (503),
-    │   │                dto/ (DeepSeekMensaje, DeepSeekToolCall, DeepSeekTool, DeepSeekChatRequest/Response, GeminiRequest/Response)
+    │   │                dto/ (DeepSeekMensaje, DeepSeekToolCall, DeepSeekTool, DeepSeekChatRequest/Response, GeminiRequest/Response),
+    │   │                motor/ (MotorIa, MotorIaContexto, MotorIaPreferencias, MotorIaUrlValidator, KaggleLlamaClient,
+    │   │                        RazonamientoExtractor, MotorIaRouter, MotorIaService, MotorIaController + dto/ MotorIaRequest/Response,
+    │   │                        MotorIaProbarRequest/Response)
     │   ├── security/    SecurityConfig, JwtService, JwtAuthenticationFilter, JwtAuthenticationEntryPoint
     │   └── websocket/   WebSocketConfig (/ws + broker /topic), StompAuthInterceptor (JWT y membresía por frame)
     └── modules/
@@ -110,7 +115,7 @@ case-backend/
         │   │                ChatPresenciaListener, ChatDestinos, ChatMiembroAgregadoListener (AFTER_COMMIT), ChatAvisoSistemaService
         │   └── ia/          SeniorDevService (@Async orquestador), SeniorDevConversacion (bucle de tools),
         │                    SeniorDevContextBuilder, SeniorDevHistorialFormatter, SeniorDevProyectoFormatter,
-        │                    SeniorDevResumidor, SeniorDevPrompts, SeniorDevLimites (todos los topes),
+        │                    SeniorDevResumidor, SeniorDevPublicador (mensaje IA/SISTEMA + eventos), SeniorDevPrompts, SeniorDevLimites (todos los topes),
         │                    ChatMencionIaUtils (@seniordev regex) — el cliente DeepSeek y sus DTOs viven en core/ia,
         │                    tools/ (SeniorDevHerramientas, SeniorDevHerramientaEjecutor, HerramientasProyecto,
         │                            HerramientaBuscarHistorial)
@@ -125,8 +130,12 @@ case-backend/
         └── xmi/             (sin model/repository propios: usa los services de diagrama)
             ├── controller/  XmiController
             ├── dto/         ModoImportacionXmi (FUSIONAR | REEMPLAZAR), XmiPreviewResponse
-            └── service/     XmiExportService, XmiAsociacionesClase, XmiClasesUml, XmiRelacionesUml, XmiDiagramaUml,
-                             XmiImportService, XmiImportEA, XmiImportPropio, XmiCreadorEntidades, XmiMapeoEA, XmiDom
+            └── service/     XmiExportService, XmiAsociacionesClase, XmiClasesUml, XmiRelacionesUml, XmiDiagramaUml, XmiPaqueteEA,
+                             XmiIdsEA, XmiEtiquetasEA, XmiEscalaEA,
+                             XmiImportService, XmiMaterializador, XmiCreadorEntidades, XmiAtributosImport,
+                             XmiRelacionesImport, XmiIntermedias, XmiTiposSql, XmiMapeoEA, XmiDom
+                └── lector/  LectorXmi (interfaz), ModeloXmi (modelo neutral), LectorXmiNativoEA, LectorXmiEA11,
+                             LectorXmiUml2, Uml2Extremos, EaTaggedValues
 ```
 
 ## 3. Lógica por módulo
@@ -154,6 +163,27 @@ case-backend/
 
 **core/ia** (F5, gateway de IA — sin clase fachada: Senior Dev, Copilot y Guía usan este paquete)
 - `DeepSeekClient`: `RestClient`, timeout 45 s, `completar(mensajes, tools, toolChoice, temp, maxTokens)` y `solicitarRespuesta`.
+  Es el gateway de chat de toda la IA de texto: arma el request y lo pasa a `MotorIaRouter`. `tieneApiKey()` = clave de DeepSeek
+  **o** Kaggle en el contexto del pedido (los callers lo usan para decidir el respaldo del manual).
+- **Motor elegible (`motor/`)**: segundo motor **Qwen 3.5 MoE en Kaggle** (llama-server compatible con OpenAI detrás de un túnel
+  ngrok cuya URL cambia cada sesión). DeepSeek sigue siendo el default y el respaldo transparente.
+  - `MotorIaPreferencias`: `ConcurrentHashMap<usuarioId, urlKaggle>` en memoria (sin entrada = DEEPSEEK; se pierde al reiniciar,
+    el frontend re-sincroniza con `PUT` al cargar). Con `DEEPSEEK` la URL que venga se ignora y se borra la preferencia.
+  - `MotorIaUrlValidator` (anti-SSRF): solo `https`, sin credenciales/query/fragmento, puerto 443 o ninguno, host = **subdominio**
+    de `ia.kaggle.hosts-permitidos` (`evilngrok-free.dev` o `ngrok-free.dev` a secas se rechazan); normaliza quitando `/` finales
+    y agregando `/v1`. Inválida → `IllegalArgumentException` → 400.
+  - `MotorIaContexto`: ThreadLocal con la URL Kaggle del pedido y el `motorUsado`; `ejecutarCon(url, supplier)` limpia en `finally`.
+    Lo fijan `CopilotService.consultar` (Asistente y Guía, no la foto) y `SeniorDevService` (usuario que mencionó a @SeniorDev).
+    **El resumidor de memoria corre fuera del contexto: siempre DeepSeek** (mantenimiento en segundo plano, no suma latencia).
+  - `MotorIaRouter`: con URL en el contexto intenta `KaggleLlamaClient`; error o respuesta vacía → `log.warn`, descarta Kaggle
+    para el resto del pedido (las demás rondas del bucle no vuelven a esperar el timeout) y responde DeepSeek; sin clave de
+    DeepSeek relanza el error de Kaggle. Marca `motorUsado` (QWEN_KAGGLE / DEEPSEEK).
+  - `KaggleLlamaClient`: `POST {url}/chat/completions` (model `ia.kaggle.model`, `max_tokens = max(pedido, ia.kaggle.max-tokens-min)`
+    porque el razonamiento consume tokens) y `GET {url}/models` (ids + latencia). HttpClient del JDK **sin seguir redirecciones**,
+    header `ngrok-skip-browser-warning: true`, timeout `ia.kaggle.timeout-ms`.
+  - `RazonamientoExtractor`: usa `reasoning_content` si llega; si no, separa `<think>…</think>` (también `…</think>` y `<think>` sin
+    cerrar) del `content`, que queda limpio con los comandos del final intactos. `DeepSeekMensaje.reasoning_content` solo se lee:
+    los factories lo ponen en null, así nunca se reenvía a DeepSeek.
 - `GeminiVisionClient`: `POST {gemini.api.url}/models/{m}:generateContent` con la clave en el header **`x-goog-api-key`** (nunca en la
   URL); prueba `gemini.models` en orden (no-2xx, excepción o texto vacío → siguiente), 30 s por modelo y presupuesto total 45 s
   (`PRESUPUESTO_MS`, no arranca otro modelo si ya pasó); sin clave o si ninguno responde → `IaNoDisponibleException` (503).
@@ -169,7 +199,7 @@ case-backend/
   `@EntityGraph` (Senior Dev es `@Async`, nunca tuvo OSIV); verificado con los tests y una prueba en vivo de todas las pantallas.
   Regla: un controller nunca navega relaciones lazy de una entidad; mapear a DTO dentro del service.
 - `CopilotAsistente`: un solo turno `[system(CopilotPrompts.asistente(seccion, diagrama)), user(texto)]`, `temperature 0.3`,
-  `max_tokens 2000` → `origen DEEPSEEK`. Sin clave o cualquier error → `CopilotRespaldoManual` (200 `origen MANUAL`, nunca 5xx).
+  `max_tokens 2000` con `completar` → `origen` = motor que respondió (`DEEPSEEK`/`QWEN_KAGGLE`) + `razonamiento`. Sin clave o cualquier error → `CopilotRespaldoManual` (200 `origen MANUAL`, nunca 5xx).
 - `CopilotPrompts`: port literal del prompt del front (tablas `- Nombre (x:80, y:80) [id:BIGINT:PK]`, relaciones, próxima
   posición libre de `PosicionLibre` = port de `findSafeEntityPosition`, 9 comandos y reglas de seguridad) y del prompt de visión.
 - `CopilotRespaldoManual`: aviso "_El asistente IA no está disponible ahora (motivo)…_" + `### título` + contenido del mejor tema
@@ -277,16 +307,34 @@ case-backend/
 - Puntos de control: `PATCH .../puntos` reemplaza la lista completa (jsonb).
 
 **xmi**
-- Export (`GET`): XMI 1.1 estilo Enterprise Architect, plano (sin `UML:Package`). Cada N:M con
-  tabla intermedia sale como un `UML:AssociationClass` (`XmiAsociacionesClase`); herencia como
-  `UML:Generalization`; posiciones del lienzo en `UML:Diagram` (`XmiDiagramaUml`).
+- Export (`GET`): XMI 1.1 con la MISMA forma que el de Enterprise Architect (referencia
+  `src/test/resources/xmi/ea-1.1.xmi`): exportador "Enterprise Architect" 2.5 (con otro nombre EA lo trata
+  como XMI genérico, ignora el layout y apila todo en un punto), `UML:Model` → `UML:Package` `EAPK_…` → clases
+  `EAID_…` (ids deterministas, `XmiIdsEA`) con etiquetas `package`/`ea_localid` (`XmiEtiquetasEA`), sin
+  estereotipos. N:M con intermedia = `UML:Class` + `UML:Association` con etiqueta `associationclass` (como EA).
+  `UML:Diagram` hermano del modelo, dueño = paquete, `DUID` por elemento y conectores (`XmiDiagramaUml`).
 - Import: solo ADMIN, todo en una transacción. Parsea con DOCTYPE deshabilitado (anti-XXE,
-  `XmiDom.parsear`) **antes** de borrar nada. Detecta dialecto: EA/XMI 1.1 (`XmiImportEA`) o
-  propio XMI 2.1 viejo (`XmiImportPropio`). `FUSIONAR` reusa entidades con el mismo nombre sin
-  tocarlas; `REEMPLAZAR` vacía el diagrama primero. Las relaciones importadas usan
-  `crearSinTablaIntermedia` (el archivo ya trae la intermedia). Heurística EA: PK = atributo "id"
-  (o todos los `*_id` si no hay "id"); FK de columna no se infiere.
-- `previsualizar`: no escribe nada; devuelve tablas del archivo, cuáles ya existen y totales.
+  `XmiDom.parsear`) **antes** de borrar nada. Un `LectorXmi` por formato traduce el archivo a `ModeloXmi`
+  (detección automática, en orden): **EA Native** (`<Package><Table name="t_object">…`), **XMI 1.1**
+  (EA y el export propio; descarta `EARootClass`) y **XMI 2.x** (EA 2.1 y el propio viejo). La clase
+  asociación (línea punteada de EA) se lee del tagged value `associationclass` (1.1), `uml:AssociationClass`
+  (2.1/propio) o `PDATA1` con `SubType=Class` (Native). `XmiMaterializador` lo crea igual para todos:
+  - N:M **sin** clase asociación → `RelacionDiagramaService.crear` genera la intermedia `a_b` (como el lienzo).
+  - N:M **con** clase asociación J → J es la intermedia (N:M abstracta + A 1→1..* J + B 1→1..* J);
+    sin multiplicidades se asume N:M. Si el archivo ya dibujó J a mano con esas dos 1:N, `XmiIntermedias`
+    la reconoce y no duplica.
+  - Heurística (EA no marca claves): FK por nombre (`idGrupo`, `grupo_id`, `id_grupo`, `grupoId`); PK = `id`,
+    si no hay, la primera columna no FK; en una intermedia sin `id`, PK compuesta = sus FK a los extremos
+    (se agregan `{extremo}_id` si faltan). Tipos de EA (`int`, `String`…) → los del diagramador (`XmiTiposSql`).
+  - Posiciones (export e import): menor escala UNIFORME que deja un hueco mínimo entre cada par de tablas
+    (`XmiEscalaEA.escala`, cajas del lienzo 256 × (52+28·n), de EA 120 × (40+14·n)). Uniforme = conserva el
+    orden que se armó en EA o en el lienzo; mínima = ni encimado ni desparramado. El export marca
+    `case_coordenadas=ea`; exports propios anteriores (sin marca) se leen 1:1. Multiplicidad "1.." = 1..*.
+  - Tabla intermedia generada (lienzo o import): `PosicionTablaIntermedia` busca un hueco libre cerca del
+    punto medio (antes caía siempre 220 px abajo, encima de otras tablas).
+  `FUSIONAR` reusa entidades con el mismo nombre sin tocarlas; `REEMPLAZAR` vacía el diagrama primero.
+  Tests con los 3 exports reales de EA en `src/test/resources/xmi/`.
+- `previsualizar`: no escribe nada; devuelve tablas del archivo + intermedias a generar, cuáles ya existen y totales.
 
 ## 4. Endpoints (todos bajo `/api`, JSON salvo XMI)
 
@@ -320,7 +368,10 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/chat/mensajes/{mensajeId}/aplicar` | Escritor (ADMIN/COLABORADOR) | 200 `ChatMensajeResponse` | Marca propuesta aplicada, persiste `propuesta_aplicada=true` y `aplicado_por=username`, difunde por WS; LECTOR da 403 |
 | GET | `/api/proyectos/{proyectoId}/chat/presencia` | Miembro | 200 `ChatPresenciaResponse` | `{proyectoId, usuarios:[{usuarioId, username}]}` |
 | GET | `/api/proyectos/{proyectoId}/chat/memoria` | Miembro (incl. LECTOR) | 200 `ChatMemoriaResponse` | `{proyectoId, resumen, ultimoMensajeResumidoId, updatedAt}`; sin memoria → campos null (no 404) |
-| POST | `/api/proyectos/{proyectoId}/copilot/consultas` | Miembro (incl. LECTOR) | 200 `CopilotConsultaResponse` | `{texto?, imagenBase64?, seccion?, modo?: ASISTENTE\|GUIA, historial?[≤6 {rol, texto}], misionesPendientes?[≤7]}` → `{texto, origen: DEEPSEEK\|GEMINI\|MANUAL, herramientasUsadas}`; 400/403/429/503 (ver abajo) |
+| POST | `/api/proyectos/{proyectoId}/copilot/consultas` | Miembro (incl. LECTOR) | 200 `CopilotConsultaResponse` | `{texto?, imagenBase64?, seccion?, modo?: ASISTENTE\|GUIA, historial?[≤6 {rol, texto}], misionesPendientes?[≤7]}` → `{texto, origen: DEEPSEEK\|QWEN_KAGGLE\|GEMINI\|MANUAL, herramientasUsadas, razonamiento}` (`razonamiento` solo con Qwen, si no null); 400/403/429/503 (ver abajo) |
+| GET | `/api/ia/motor` | Auth | 200 `MotorIaResponse` | `{motor: DEEPSEEK\|QWEN_KAGGLE, urlKaggle: string\|null}` del usuario del token (en memoria) |
+| PUT | `/api/ia/motor` | Auth | 200 `MotorIaResponse` | `{motor, urlKaggle?}`; QWEN_KAGGLE exige URL ngrok https válida (400 si no); DEEPSEEK ignora la URL y borra la preferencia; devuelve la URL normalizada (`…/v1`) |
+| POST | `/api/ia/motor/probar` | Auth | 200 `MotorIaProbarResponse` | `{url}` → `{ok, modelos[], latenciaMs\|null, error\|null}`; URL inválida → 400; Kaggle caído → 200 `ok:false` con `IaErrores.motivo` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/presencia` | Auth | 200 lista | Body libre: `clientId` (obligatorio, si falta 400), `username`, `color`, `cursor{x,y}`, `selectedEntityId` |
 | POST | `/api/proyectos/{proyectoId}/colaboracion/desconectar` | Auth | 200 vacío | `{clientId}` |
 | GET | `/api/proyectos/{proyectoId}/diagrama` | Miembro | 200 | `{entidades[ {.., atributos[]} ], relaciones[]}` |
@@ -339,8 +390,8 @@ del proyecto · **Escritor** = ADMIN o COLABORADOR (no LECTOR) · **ADMIN**.
 | POST | `/api/proyectos/{proyectoId}/xmi/previsualizar` | ADMIN | 200 `XmiPreviewResponse` | multipart, campo `archivo` |
 | POST | `/api/proyectos/{proyectoId}/xmi/importar?modo=FUSIONAR\|REEMPLAZAR` | ADMIN | 200 `DiagramaResponse` | multipart `archivo`; `modo` default FUSIONAR |
 
-Total: **43 endpoints REST** (36 previos + 5 del chat + 1 DDL + 1 Copilot; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
-contenido, respuestaAId, createdAt, propuestaAplicada, aplicadoPor, herramientasUsadas}` (`usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
+Total: **46 endpoints REST** (36 previos + 5 del chat + 1 DDL + 1 Copilot + 3 del motor IA; contado con `grep` de `@*Mapping`). `ChatMensajeResponse` = `{id, proyectoId, usuarioId, username, rol, tipo,
+contenido, respuestaAId, createdAt, propuestaAplicada, aplicadoPor, herramientasUsadas, razonamiento}` (`razonamiento` = pensamiento de Qwen en Kaggle, unido con `\n\n` entre rondas; null con DeepSeek; `usuarioId/username/rol` null si `tipo != USUARIO`; `rol` null si el
 autor ya no es miembro; `respuestaAId` = mensaje al que responde la IA/sistema; `herramientasUsadas` = lista de
 `obtenerDiagrama|listarTareas|listarNotas|buscarEnHistorial` o null si no es IA o no consultó nada).
 
@@ -381,7 +432,7 @@ Errores (`GlobalExceptionHandler`): 400 validación (`campo: mensaje; ...`), `Il
 | `notas_proyecto` | `id`, `proyecto_id`, `usuario_id` (autor), `accion`(100), `motivo` TEXT, `created_at` | `proyecto_id` CASCADE |
 | `diagrama_entidades` | `id`, `proyecto_id`, `nombre`(100), `pos_x`, `pos_y`, `created_at` | único (`proyecto_id`,`nombre`); CASCADE |
 | `entidad_atributos` | `id`, `entidad_id`, `nombre`(100), `tipo_sql`(50), `es_pk`, `es_fk`, `referencia_entidad_id` (nullable), `nullable`, `created_at` | único (`entidad_id`,`nombre`); `entidad_id` CASCADE; `referencia_entidad_id` **RESTRICT a propósito** |
-| `chat_mensajes` | `id`, `proyecto_id`, `usuario_id` (nullable: null = IA/SISTEMA), `tipo`(20: USUARIO/IA/SISTEMA), `contenido` TEXT, `respuesta_a_id` (nullable, FK a sí misma), `created_at`, `propuesta_aplicada` (NOT NULL default false), `aplicado_por`(100), `herramientas_usadas`(255, nullable, CSV) | `proyecto_id` CASCADE; `respuesta_a_id` SET NULL; índice `idx_chat_mensajes_proyecto_created` (`proyecto_id`,`created_at`); índice GIN `idx_chat_mensajes_fts` sobre `to_tsvector('spanish', contenido)` (lo crea `ChatBusquedaIndiceInitializer`, Hibernate lo ignora); CHECK de `tipo` (agregar un valor exige `ALTER TABLE` manual) |
+| `chat_mensajes` | `id`, `proyecto_id`, `usuario_id` (nullable: null = IA/SISTEMA), `tipo`(20: USUARIO/IA/SISTEMA), `contenido` TEXT, `respuesta_a_id` (nullable, FK a sí misma), `created_at`, `propuesta_aplicada` (NOT NULL default false), `aplicado_por`(100), `herramientas_usadas`(255, nullable, CSV), `razonamiento` TEXT (nullable, solo Qwen en Kaggle) | `proyecto_id` CASCADE; `respuesta_a_id` SET NULL; índice `idx_chat_mensajes_proyecto_created` (`proyecto_id`,`created_at`); índice GIN `idx_chat_mensajes_fts` sobre `to_tsvector('spanish', contenido)` (lo crea `ChatBusquedaIndiceInitializer`, Hibernate lo ignora); CHECK de `tipo` (agregar un valor exige `ALTER TABLE` manual) |
 | `chat_memoria` | `proyecto_id` (PK y FK), `resumen` TEXT NOT NULL, `ultimo_mensaje_resumido_id` NOT NULL (marca de agua, sin FK), `updated_at` | `proyecto_id` ON DELETE CASCADE (verificado con `\d chat_memoria`) |
 | `diagrama_relaciones` | `id`, `proyecto_id`, `entidad_origen_id`, `entidad_destino_id`, `multiplicidad_origen`(20), `multiplicidad_destino`(20), `tipo`(20, nullable), `puntos_control` jsonb, `created_at` | las 3 FK con CASCADE |
 
@@ -407,6 +458,10 @@ existe endpoint para borrar usuarios).
 | `gemini.api.key` | `GEMINI_API_KEY` | vacío → una foto en el Copilot da 503 (fuera de Docker la toma del `.env` raíz) |
 | `gemini.api.url` / `gemini.models` | `GEMINI_API_URL` / `GEMINI_MODELS` | `https://generativelanguage.googleapis.com/v1beta` / `gemini-3.5-flash-lite,gemini-3.5-flash,gemini-2.0-flash` (en orden) |
 | `gemini.timeout-ms` | `GEMINI_TIMEOUT_MS` | `30000` por modelo (presupuesto total 45 s en `GeminiVisionClient.PRESUPUESTO_MS`) |
+| `ia.kaggle.model` | `IA_KAGGLE_MODEL` | `qwen3.5-35b-a3b` |
+| `ia.kaggle.timeout-ms` | `IA_KAGGLE_TIMEOUT_MS` | `80000` de lectura (conexión ≤ 15 s); 80 s Kaggle + 45 s respaldo DeepSeek < 180 s del front del Copilot y de Nginx `/api/` |
+| `ia.kaggle.max-tokens-min` | `IA_KAGGLE_MAX_TOKENS_MIN` | `4096` (piso de `max_tokens` hacia Kaggle) |
+| `ia.kaggle.hosts-permitidos` | `IA_KAGGLE_HOSTS_PERMITIDOS` | `ngrok-free.dev,ngrok-free.app,ngrok.app,ngrok.dev,ngrok.io` (allowlist anti-SSRF) |
 
 Las claves de IA (`DEEPSEEK_API_KEY`, `GEMINI_API_KEY`) **solo las usa el backend**: los dos compose las pasan como
 `${VAR:-}` al contenedor `case_backend`; el frontend ya no tiene variables `VITE_*` de IA.
@@ -423,8 +478,9 @@ arrancar con la clave de desarrollo. Generarla con `openssl rand -base64 48`. De
 cd case-backend
 ./mvnw -q -DskipTests compile        # verificación mínima obligatoria
 ./mvnw -q test                       # contextLoads necesita Postgres accesible; el resto son unitarios
-./mvnw -q test -Dtest='Chat*Test,SeniorDev*Test,Herramienta*Test,DeepSeek*Test,Ddl*Test,Stomp*Test,Copilot*Test,Guia*Test,Manual*Test,Gemini*Test,IaErrores*Test,PosicionLibre*Test,MiembroProyecto*Test'   # unitarios sin BD
+./mvnw -q test -Dtest='Chat*Test,SeniorDev*Test,Herramienta*Test,DeepSeek*Test,Ddl*Test,Stomp*Test,Copilot*Test,Guia*Test,Manual*Test,Gemini*Test,IaErrores*Test,MotorIa*Test,Razonamiento*Test,PosicionLibre*Test,MiembroProyecto*Test'   # unitarios sin BD
 # Suite completa (2026-10-25, F5): 174 tests, 0 fallos (incluye contextLoads contra case_postgres :5434)
+# Motor Kaggle (2026-11-10): 201 tests; 200 OK sin BD + contextLoads OK con los flags sin BD de abajo
 # Sin BD, para validar solo el cableado de beans:
 ./mvnw -q test -Dspring.jpa.hibernate.ddl-auto=none \
   -Dspring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect \

@@ -6,7 +6,7 @@ import org.w3c.dom.Element;
 import com.casetool.backend.modules.diagrama.dto.AtributoEntidadResponse;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaResponse;
 
-/** Builders DOM del export XMI 1.1: cabecera del archivo, `UML:Class`/`UML:AssociationClass`
+/** Builders DOM del export XMI 1.1: cabecera del archivo, `UML:Class`
  * y sus `UML:Attribute`. Solo arman elementos, no tocan la base de datos. */
 final class XmiClasesUml {
 
@@ -17,9 +17,11 @@ final class XmiClasesUml {
         Element header = doc.createElement("XMI.header");
         Element documentacion = doc.createElement("XMI.documentation");
         Element exportador = doc.createElement("XMI.exporter");
-        exportador.setTextContent("CASE Tool");
+        // EA solo aplica el layout del UML:Diagram a archivos que declara suyos; con otro exportador
+        // los importa como XMI genérico y apila todas las clases en el mismo punto.
+        exportador.setTextContent("Enterprise Architect");
         Element version = doc.createElement("XMI.exporterVersion");
-        version.setTextContent("1.0");
+        version.setTextContent("2.5");
         documentacion.appendChild(exportador);
         documentacion.appendChild(version);
         header.appendChild(documentacion);
@@ -30,9 +32,9 @@ final class XmiClasesUml {
         return header;
     }
 
-    static Element construirClase(
-            Document doc, EntidadDiagramaResponse entidad, String claseId, String estereotipo) {
-        Element clase = doc.createElement("intermedia".equals(estereotipo) ? "UML:AssociationClass" : "UML:Class");
+    /** Clase UML simple, sin estereotipo: igual que las que dibuja el usuario en EA. */
+    static Element construirClase(Document doc, EntidadDiagramaResponse entidad, String claseId) {
+        Element clase = doc.createElement("UML:Class");
         clase.setAttribute("xmi.id", claseId);
         clase.setAttribute("name", entidad.nombre());
         clase.setAttribute("visibility", "public");
@@ -40,12 +42,6 @@ final class XmiClasesUml {
         clase.setAttribute("isLeaf", "false");
         clase.setAttribute("isAbstract", "false");
         clase.setAttribute("isActive", "false");
-
-        Element estereotipoEl = doc.createElement("UML:ModelElement.stereotype");
-        Element stereotype = doc.createElement("UML:Stereotype");
-        stereotype.setAttribute("name", estereotipo);
-        estereotipoEl.appendChild(stereotype);
-        clase.appendChild(estereotipoEl);
 
         if (!entidad.atributos().isEmpty()) {
             Element feature = doc.createElement("UML:Classifier.feature");

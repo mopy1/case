@@ -11,7 +11,7 @@ import com.casetool.backend.modules.diagrama.model.RelacionDiagrama.TipoRelacion
 /** Traducciones puntuales del dialecto Enterprise Architect (XMI 1.1) al modelo interno: tipo SQL
  * de un atributo, multiplicidad, tipo de relación según `aggregation` y extremos de una
  * `UML:Generalization`. Funciones puras, no tocan la base de datos. */
-final class XmiMapeoEA {
+public final class XmiMapeoEA {
 
     private XmiMapeoEA() {
     }
@@ -28,28 +28,41 @@ final class XmiMapeoEA {
      *       el tipo no aparezca como un elemento más del árbol de proyecto en EA) — se lee
      *       directo, sin necesitar el mapa.</li>
      * </ul> */
-    static String resolverTipoSqlEA(Element attrEl, Map<String, String> tipoSqlPorId) {
-        List<Element> tipos = XmiDom.porEtiqueta(attrEl, "UML:DataType");
-        if (tipos.isEmpty()) return "VARCHAR";
-        Element tipo = tipos.get(0);
-        String porIdref = tipoSqlPorId.get(tipo.getAttribute("xmi.idref"));
-        if (porIdref != null) return porIdref;
-        String nombreInline = tipo.getAttribute("name");
-        return nombreInline.isBlank() ? "VARCHAR" : nombreInline.toUpperCase();
+    public static String resolverTipoSqlEA(Element attrEl, Map<String, String> tipoSqlPorId) {
+        // EA real anida `UML:Classifier xmi.idref` (o `UML:DataType`) dentro de StructuralFeature.type.
+        for (String etiqueta : new String[] { "UML:DataType", "UML:Classifier" }) {
+            List<Element> tipos = XmiDom.porEtiqueta(attrEl, etiqueta);
+            if (tipos.isEmpty()) continue;
+            Element tipo = tipos.get(0);
+            String porIdref = tipoSqlPorId.get(tipo.getAttribute("xmi.idref"));
+            if (porIdref != null) return porIdref;
+            if (!tipo.getAttribute("name").isBlank()) return tipo.getAttribute("name");
+        }
+        return "VARCHAR";
     }
 
-    static Multiplicidad mapMultiplicidadEA(String texto) {
-        return switch (texto) {
-            case "1" -> Multiplicidad.UNO;
-            case "0..1" -> Multiplicidad.CERO_O_UNO;
-            case "1..*", "1..n" -> Multiplicidad.UNO_O_MAS;
-            default -> Multiplicidad.CERO_O_MAS;
-        };
+    /**
+     * Multiplicidad escrita a mano en EA → enum. Acepta "1", "0..1", "*", "n", "0..*", "1..*", "1..n" y la
+     * forma incompleta "1.." (EA la deja así si no se completa el tope = muchos). Vacía o desconocida → null
+     * (el archivo no la indica; el materializador decide el valor por defecto).
+     */
+    public static Multiplicidad parsearMultiplicidad(String texto) {
+        String t = texto == null ? "" : texto.replace(" ", "").toLowerCase();
+        if (t.isEmpty()) return null;
+        String[] partes = t.split("\\.\\.", -1);
+        String inferior = partes[0];
+        String superior = partes.length > 1 ? partes[1] : partes[0];
+        boolean muchos = superior.isEmpty() || superior.equals("*") || superior.equals("n") || superior.equals("-1")
+                || (superior.matches("\\d+") && Integer.parseInt(superior) > 1);
+        boolean opcional = inferior.matches("0|\\*|n|-1") || (partes.length == 1 && muchos);
+        if (!inferior.matches("\\d+|\\*|n|-1")) return null;
+        if (muchos) return opcional ? Multiplicidad.CERO_O_MAS : Multiplicidad.UNO_O_MAS;
+        return opcional ? Multiplicidad.CERO_O_UNO : Multiplicidad.UNO;
     }
 
     /** `aggregation` de cualquiera de los 2 extremos: "composite" → COMPOSICION; "shared" (UML 2)
      * o "aggregate" (UML 1.4) → AGREGACION; si no, ASOCIACION. */
-    static TipoRelacionUml tipoDesdeAggregation(String agg0, String agg1) {
+    public static TipoRelacionUml tipoDesdeAggregation(String agg0, String agg1) {
         if ("composite".equalsIgnoreCase(agg0) || "composite".equalsIgnoreCase(agg1)) {
             return TipoRelacionUml.COMPOSICION;
         }
@@ -63,7 +76,7 @@ final class XmiMapeoEA {
     /** {hijo, padre} de una `UML:Generalization`. Según quién generó el archivo vienen como
      * atributos `child`/`parent`, como `subtype`/`supertype`, o anidados como
      * `UML:Generalization.child > UML:Class xmi.idref`. Un valor vacío = no se encontró. */
-    static String[] extremosGeneralizacion(Element gen) {
+    public static String[] extremosGeneralizacion(Element gen) {
         String childRef = gen.getAttribute("child");
         String parentRef = gen.getAttribute("parent");
         if ((childRef.isEmpty() || parentRef.isEmpty()) && gen.hasAttribute("subtype") && gen.hasAttribute("supertype")) {

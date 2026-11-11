@@ -1,74 +1,91 @@
 package com.casetool.backend.modules.xmi.service;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-import com.casetool.backend.modules.diagrama.dto.DiagramaResponse;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaResponse;
 
-/** Builder DOM del `UML:Diagram` del export XMI: las posiciones de cada tabla en el lienzo. */
+/**
+ * `UML:Diagram` del export, copiado de la forma en que Enterprise Architect escribe el suyo (hermano de
+ * `UML:Model` dentro de `XMI.content`, dueño = el paquete de las clases, cada elemento con su DUID y cada
+ * relación como conector del diagrama). Las posiciones del lienzo se pasan a escala EA con la menor escala
+ * uniforme sin solapes ({@link XmiEscalaEA}): misma forma que en el lienzo y cajas sin pisarse.
+ */
 final class XmiDiagramaUml {
+
+    /** Una relación exportada que se dibuja en el diagrama. */
+    record ConectorEA(String id, String origenClaseId, String destinoClaseId) {
+    }
+
+    private static final double MARGEN_EA = 40;
+    private static final String PUNTAS = "SX=0;SY=0;EX=0;EY=0;EDGE=2;$LLB=;LLT=;LMT=;LMB=;LRT=;LRB=;IRHS=;ILHS=;Path=;";
 
     private XmiDiagramaUml() {
     }
 
-    /**
-     * `UML:Diagram` — pedido explícito (2026-09-25): que el diagrama importado en EA aparezca ya
-     * armado con las mismas posiciones del lienzo, no solo las clases sueltas en el árbol del
-     * proyecto. Formato verificado (2026-09-25) contra un `.xmi` real exportado desde Enterprise
-     * Architect 2.5 (usuario armó 4 clases en un diagrama y lo exportó): es un elemento
-     * **hermano de `UML:Model`, dentro de `XMI.content`** — nada de `XMI.extension` aparte, que
-     * era la primera versión de esto (adivinada sin archivo de referencia, EA la ignoraba en
-     * silencio). `owner` apunta al namespace contenedor de las clases; como este export es
-     * "plano" (sin `UML:Package`, ver {@link XmiExportService}), se usa el propio `xmi.id` del
-     * `UML:Model` en vez de un paquete inventado.
-     *
-     * <p>Usa directamente `pos_x`/`pos_y` de cada {@link EntidadDiagramaResponse} (mismo valor
-     * que pinta el lienzo React Flow) como esquina superior izquierda (`Left`/`Top`) del
-     * rectángulo; ancho fijo y alto proporcional a la cantidad de atributos, ya que EA no guarda
-     * el tamaño real que tenía la tabla en nuestro lienzo.
-     */
-    static Element construirDiagrama(
-            Document doc, String nombreProyecto, DiagramaResponse diagrama, Map<Long, String> idPorEntidad, String idModelo) {
+    static Element construirDiagrama(Document doc, String nombre, List<EntidadDiagramaResponse> entidades,
+            Map<Long, String> idPorEntidad, String paqueteId, String diagramaId, List<ConectorEA> conectores) {
         Element diagramaEl = doc.createElement("UML:Diagram");
-        diagramaEl.setAttribute("name", nombreProyecto);
-        diagramaEl.setAttribute("xmi.id", "dia_diagrama_1");
+        diagramaEl.setAttribute("name", nombre);
+        diagramaEl.setAttribute("xmi.id", diagramaId);
         diagramaEl.setAttribute("diagramType", "ClassDiagram");
-        diagramaEl.setAttribute("owner", idModelo);
+        diagramaEl.setAttribute("owner", paqueteId);
         diagramaEl.setAttribute("toolName", "Enterprise Architect 2.5");
+        Map<String, String> tags = new LinkedHashMap<>();
+        tags.put("version", "1.0");
+        tags.put("package", paqueteId);
+        tags.put("type", "Logical");
+        tags.put("ea_localid", "1");
+        tags.put("EAStyle", "ShowPrivate=1;ShowProtected=1;ShowPublic=1;HideRelationships=0;Locked=0;Border=1;"
+                + "HighlightForeign=1;PackageContents=1;SequenceNotes=0;ScalePrintImage=0;ShowDetails=0;Orientation=P;Zoom=100;");
+        tags.put(XmiEscalaEA.TAG_COORDENADAS, XmiEscalaEA.VALOR_EA);
+        diagramaEl.appendChild(XmiEtiquetasEA.bloque(doc, tags));
 
-        Element taggedValues = doc.createElement("UML:ModelElement.taggedValue");
-        taggedValues.appendChild(construirTaggedValue(doc, "type", "Logical"));
-        taggedValues.appendChild(construirTaggedValue(doc, "package", idModelo));
-        diagramaEl.appendChild(taggedValues);
-
-        Element elementosDiagrama = doc.createElement("UML:Diagram.element");
+        Element elementos = doc.createElement("UML:Diagram.element");
+        Map<String, String> duidPorClase = new HashMap<>();
+        double escala = XmiEscalaEA.escala(entidades.stream().map(e -> new XmiEscalaEA.Caja(x(e), y(e),
+                XmiEscalaEA.anchoEA(), XmiEscalaEA.altoEA(e.atributos().size()))).toList(),
+                XmiEscalaEA.HUECO_EA_X, XmiEscalaEA.HUECO_EA_Y);
+        double minX = entidades.stream().mapToDouble(XmiDiagramaUml::x).min().orElse(0);
+        double minY = entidades.stream().mapToDouble(XmiDiagramaUml::y).min().orElse(0);
         int seqno = 1;
-        for (EntidadDiagramaResponse entidad : diagrama.entidades()) {
+        for (EntidadDiagramaResponse entidad : entidades) {
             String claseId = idPorEntidad.get(entidad.id());
-            double left = entidad.posX() != null ? entidad.posX() : 80;
-            double top = entidad.posY() != null ? entidad.posY() : 80;
-            double ancho = 220;
-            double alto = 60 + entidad.atributos().size() * 20;
-
-            Element diagElement = doc.createElement("UML:DiagramElement");
-            diagElement.setAttribute("geometry", String.format(
-                    "Left=%d;Top=%d;Right=%d;Bottom=%d;",
-                    (int) left, (int) top, (int) (left + ancho), (int) (top + alto)));
-            diagElement.setAttribute("subject", claseId);
-            diagElement.setAttribute("seqno", String.valueOf(seqno++));
-            elementosDiagrama.appendChild(diagElement);
+            String duid = XmiIdsEA.duid("duid-" + claseId);
+            duidPorClase.put(claseId, duid);
+            int left = (int) Math.round(MARGEN_EA + (x(entidad) - minX) * escala);
+            int top = (int) Math.round(MARGEN_EA + (y(entidad) - minY) * escala);
+            int right = left + (int) XmiEscalaEA.anchoEA();
+            int bottom = top + (int) XmiEscalaEA.altoEA(entidad.atributos().size());
+            Element el = doc.createElement("UML:DiagramElement");
+            el.setAttribute("geometry", "Left=" + left + ";Top=" + top + ";Right=" + right + ";Bottom=" + bottom + ";");
+            el.setAttribute("subject", claseId);
+            el.setAttribute("seqno", String.valueOf(seqno++));
+            el.setAttribute("style", "DUID=" + duid + ";");
+            elementos.appendChild(el);
         }
-        diagramaEl.appendChild(elementosDiagrama);
+        for (ConectorEA c : conectores) {
+            Element el = doc.createElement("UML:DiagramElement");
+            el.setAttribute("geometry", PUNTAS);
+            el.setAttribute("subject", c.id());
+            el.setAttribute("style", "Mode=3;EOID=" + duidPorClase.get(c.destinoClaseId()) + ";SOID="
+                    + duidPorClase.get(c.origenClaseId()) + ";Color=-1;LWidth=0;Hidden=0;");
+            elementos.appendChild(el);
+        }
+        diagramaEl.appendChild(elementos);
         return diagramaEl;
     }
 
-    private static Element construirTaggedValue(Document doc, String tag, String value) {
-        Element tv = doc.createElement("UML:TaggedValue");
-        tv.setAttribute("tag", tag);
-        tv.setAttribute("value", value);
-        return tv;
+    private static double x(EntidadDiagramaResponse e) {
+        return e.posX() != null ? e.posX() : 80;
+    }
+
+    private static double y(EntidadDiagramaResponse e) {
+        return e.posY() != null ? e.posY() : 80;
     }
 }

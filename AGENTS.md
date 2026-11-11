@@ -30,7 +30,7 @@ El cliente móvil Flutter de pruebas (`~/projects/ialocal_sw`) quedó **descarta
   cada uno con controller/dto/exception/model/repository/service). Autenticación JWT stateless;
   autorización por rol de proyecto (`ADMIN`, `COLABORADOR`, `LECTOR`) en `ProyectoAccesoService`.
   Esquema gestionado por Hibernate `ddl-auto=update` (10 tablas, sin migraciones; el índice GIN full-text `idx_chat_mensajes_fts`
-  lo crea `ChatBusquedaIndiceInitializer` al arrancar). 43 endpoints bajo `/api` + WebSocket STOMP en `/ws`.
+  lo crea `ChatBusquedaIndiceInitializer` al arrancar). 46 endpoints bajo `/api` (incl. `/api/ia/motor`: Qwen en Kaggle elegible, DeepSeek de respaldo) + WebSocket STOMP en `/ws`.
 - **Frontend:** feature-based (`src/features/{auth,projects,diagram,tasks,notes,xmi,generator,copilot,chat,collaboration,voice}`).
   Las features se comunican por eventos `project:*` de `window`. Cliente HTTP único en `lib/api.ts`.
 - **Lógica que corre solo en el navegador:** generador Spring Boot (JSZip) y voz (Web Speech API). **Ninguna llamada de IA sale
@@ -75,7 +75,7 @@ se hornean en el bundle.
 | Seguridad | Registro, login por username o email, JWT 24 h, roles por proyecto |
 | Proyectos | CRUD de proyectos, miembros y roles (protege al último ADMIN), Kanban `PENDIENTE/EN_PROGRESO/HECHO`, notas de diseño |
 | Diagramador | Tablas, atributos (PK/FK/tipo/nullable), relaciones con multiplicidad, herencia/composición/agregación, tabla intermedia N:M automática, puntos de quiebre |
-| XMI | Exporta XMI 1.1 (EA); importa dialecto EA (1.1/2.1) y el propio, modo FUSIONAR o REEMPLAZAR (solo ADMIN) |
+| XMI | Exporta XMI 1.1 (EA); importa EA XMI 1.1, XMI 2.1 y Native + el propio, genera las tablas intermedias de las N:M (clase asociación de EA = intermedia), modo FUSIONAR o REEMPLAZAR (solo ADMIN) |
 | Generador | ZIP de proyecto Spring Boot (entidades JPA, DTO, repository, service, controller) generado en el cliente; visor "Ver DDL PostgreSQL" (backend) con copiar/descargar `esquema-{id}.sql` |
 | Copilot IA | Chat **individual por usuario** con dos modos: **Asistente** (DeepSeek para texto, Gemini para fotos; propone/aplica acciones sobre el lienzo) y **Guía** de inducción (enseña con el manual vía tool `buscarManual`, nunca modifica el proyecto). Todo pasa por el backend (`/copilot/consultas`); sin IA responde el manual. Comparte con Equipo el sistema de chat (`src/components/chat`) |
 | Colaboración | Presencia, cursores remotos, refresco por polling |

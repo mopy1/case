@@ -8,6 +8,7 @@ import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaRequest;
 import com.casetool.backend.modules.diagrama.dto.EntidadDiagramaResponse;
 import com.casetool.backend.modules.diagrama.model.EntidadDiagrama;
 import com.casetool.backend.modules.diagrama.model.RelacionDiagrama;
+import com.casetool.backend.modules.diagrama.repository.EntidadDiagramaRepository;
 import com.casetool.backend.modules.diagrama.repository.RelacionDiagramaRepository;
 import com.casetool.backend.modules.proyecto.model.Proyecto;
 
@@ -25,14 +26,17 @@ import com.casetool.backend.modules.proyecto.model.Proyecto;
 public class TablaIntermediaService {
 
     private final RelacionDiagramaRepository relacionDiagramaRepository;
+    private final EntidadDiagramaRepository entidadDiagramaRepository;
     private final EntidadDiagramaService entidadDiagramaService;
     private final AtributoEntidadService atributoEntidadService;
 
     public TablaIntermediaService(
             RelacionDiagramaRepository relacionDiagramaRepository,
+            EntidadDiagramaRepository entidadDiagramaRepository,
             EntidadDiagramaService entidadDiagramaService,
             AtributoEntidadService atributoEntidadService) {
         this.relacionDiagramaRepository = relacionDiagramaRepository;
+        this.entidadDiagramaRepository = entidadDiagramaRepository;
         this.entidadDiagramaService = entidadDiagramaService;
         this.atributoEntidadService = atributoEntidadService;
     }
@@ -51,12 +55,11 @@ public class TablaIntermediaService {
             nombre = nombreBase + "_" + sufijo++;
         }
 
-        // Recursiva: si se centra en X igual que la tabla origen (como en el caso normal), la
-        // tabla intermedia queda justo debajo del lazo de la relación recursiva — la línea de
-        // "clase de asociación" termina pasando por arriba de la tabla origen para llegar. Se
-        // corre al costado en vez de centrar para que quede libre.
-        double posX = esRecursiva ? origen.getPosX() + 350 : (origen.getPosX() + destino.getPosX()) / 2;
-        double posY = Math.max(origen.getPosY(), destino.getPosY()) + 220;
+        // Cerca del punto medio entre las dos tablas, pero en un hueco libre (ver PosicionTablaIntermedia).
+        PosicionTablaIntermedia.Posicion pos = PosicionTablaIntermedia.calcular(
+                origen, destino, entidadDiagramaRepository.findByProyectoId(proyectoId));
+        double posX = pos.x();
+        double posY = pos.y();
 
         EntidadDiagramaResponse tablaIntermedia = entidadDiagramaService.crear(
                 proyectoId, new EntidadDiagramaRequest(nombre, posX, posY), usuarioId);

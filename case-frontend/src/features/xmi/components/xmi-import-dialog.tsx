@@ -73,15 +73,16 @@ export function XmiImportDialog({
         <DialogHeader>
           <DialogTitle>Importar diagrama desde XMI</DialogTitle>
           <DialogDescription>
-            Elegí un archivo <code>.xmi</code> (exportado desde acá mismo, o desde Enterprise Architect) — primero
-            se muestra una previsualización, nada se guarda hasta confirmar.
+            Elegí un archivo <code>.xmi</code> o <code>.xml</code> exportado desde acá o desde Enterprise Architect
+            (XMI 1.1, XMI 2.1 o Native). Las relaciones N:M generan su tabla intermedia. Primero se muestra una
+            previsualización: nada se guarda hasta confirmar.
           </DialogDescription>
         </DialogHeader>
 
         {!preview && (
           <Input
             type="file"
-            accept=".xmi,application/xml,text/xml"
+            accept=".xmi,.xml,application/xml,text/xml"
             onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
           />
         )}
